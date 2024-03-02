@@ -75,7 +75,7 @@ jobs:
         id: app_name
         with:
           file: 'fly.toml'
-          field: 'app'  
+          field: 'app'
 
       - name: 🎈 Setup Fly
         uses: superfly/flyctl-actions/setup-flyctl@v1.4
