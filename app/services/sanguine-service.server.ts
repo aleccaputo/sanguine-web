@@ -1,5 +1,5 @@
 import { getAllUsers, ISanguineUser } from '~/data/user';
-import { getNicknameById, getNicknames } from '~/data/nicknames';
+import { getNicknames } from '~/data/nicknames';
 
 interface ISanguineUserWithNickname extends ISanguineUser {
 	nickname?: string;

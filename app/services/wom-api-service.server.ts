@@ -4,7 +4,6 @@ import * as process from 'process';
 import chalk from 'chalk';
 
 const groupId = parseInt(process.env.WOM_GROUP_ID!, 10);
-const verificationCode = process.env.WOM_VERIFICATION_CODE!;
 
 const client = remember('wom', () => {
 	return new WOMClient({

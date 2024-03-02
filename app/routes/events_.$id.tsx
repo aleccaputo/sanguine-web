@@ -7,7 +7,6 @@ import { getAuditDataForDateRange } from '~/data/points-audit';
 import dayjs from 'dayjs';
 import {
 	CartesianGrid,
-	Label,
 	Legend,
 	Line,
 	LineChart,
