@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model PointAudit {
+  id                   String @id @default(auto()) @map("_id") @db.ObjectId
+  v                    Int    @map("__v")
+  createdAt            String
+  destinationDiscordId String
+  messageId            String
+  pointsGiven          Int
+  sourceDiscordId      String
+  type                 String
+}
+
+model Users {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  v         Int    @map("__v")
+  discordId String @unique
+  joined    String
+  points    Int
+}
+
+model UserNicknames {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  discordId String
+  nickname  String
+}
