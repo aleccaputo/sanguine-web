@@ -10,6 +10,7 @@ import '@radix-ui/themes/styles.css';
 import tailwindStyleSheetUrl from './tailwind.css?url';
 import { LinksFunction } from '@remix-run/node';
 import Navbar from '~/components/navbar';
+import { LoadingBar } from '~/components/loading-bar';
 
 export const links: LinksFunction = () => [
 	{ rel: 'stylesheet', href: tailwindStyleSheetUrl },
@@ -27,6 +28,7 @@ export function Layout() {
 			<body style={{ minHeight: '100%' }}>
 				<Theme appearance={'dark'}>
 					<Navbar />
+					<LoadingBar />
 					<Outlet />
 					<ScrollRestoration />
 					<Scripts />

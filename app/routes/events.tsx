@@ -1,10 +1,17 @@
 import * as React from 'react';
 import { Avatar, Card, Text } from '@radix-ui/themes';
-import { defer } from '@remix-run/node';
+import { json, MetaFunction } from '@remix-run/node';
 import { getCompetitions } from '~/services/wom-api-service.server';
 import { Await, Outlet, useLoaderData, useNavigate } from '@remix-run/react';
 import SanguineLogo from '../../other/svg-icons/SanguineIcon.svg';
 import { Suspense } from 'react';
+
+export const meta: MetaFunction = () => {
+	return [
+		{ title: 'Events' },
+		{ name: 'description', content: 'Recent Events for Sanguine' },
+	];
+};
 
 const SkeletonLoader = () =>
 	[...Array(10).keys()].map((_, idx) => (
@@ -29,7 +36,7 @@ const SkeletonLoader = () =>
 
 export async function loader() {
 	const womComps = await getCompetitions();
-	return defer(
+	return json(
 		{
 			competitions: womComps?.slice(0, 10) ?? [],
 		},
@@ -46,19 +53,19 @@ const Events = () => {
 			</div>
 			<div
 				className={
-					'spacing flex flex-row flex-wrap content-center justify-center gap-5'
+					'spacing flex flex-row flex-wrap content-center items-center justify-center gap-5'
 				}
 			>
 				<Suspense fallback={<SkeletonLoader />}>
 					<Await resolve={data.competitions}>
 						{data?.competitions?.map(comp => (
-							<div className={'basis-1/4'} key={comp.id}>
+							<div className={'basis-1/6'} key={comp.id}>
 								<Card
-									style={{ maxWidth: 240 }}
-									className={'cursor-pointer'}
+									style={{ minWidth: 240 }}
+									className={'hover:bg-sanguine-red cursor-pointer'}
 									onClick={() => navigate(`/events/${comp.id}`)}
 								>
-									<div className={'flex content-center'}>
+									<div className={'flex content-center items-center gap-2'}>
 										<Avatar
 											size={'3'}
 											src={SanguineLogo}

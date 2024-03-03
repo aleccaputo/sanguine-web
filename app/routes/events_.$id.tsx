@@ -120,7 +120,6 @@ const EventById = () => {
 		name: startDate.subtract(1, 'days').format('DD/MM/YYYY'),
 	};
 
-	console.log(uniqueUsersForTimePeriod);
 	const graphData = Array.from({ length: days }, () => ({
 		...allUsersForTimePeriod,
 	})).map((allUserInstance, idx) => {
@@ -177,11 +176,7 @@ const EventById = () => {
 		}, {} as DataObject);
 	}
 
-	interface IFoo {
-		name: string;
-		[key: string]: number | string;
-	}
-	function accumulateValues(data: IFoo[]): DataObject[] {
+	function accumulateValues(data: DataObject[]) {
 		const accumulatedData: DataObject[] = [];
 
 		data.forEach((day, index) => {
@@ -207,7 +202,7 @@ const EventById = () => {
 	}
 
 	const remappedData = graphData.map(obj => remapKeys(obj, keyMap)).flat();
-	const foo = accumulateValues(remappedData as IFoo[]);
+	const foo = accumulateValues(remappedData);
 
 	const actuallyAllTheData = [initialRecord, ...foo];
 

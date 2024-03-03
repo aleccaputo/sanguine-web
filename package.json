@@ -21,7 +21,7 @@
     "@remix-run/node": "^2.7.2",
     "@remix-run/react": "^2.7.2",
     "@remix-run/serve": "^2.8.0",
-    "@wise-old-man/utils": "3.1.15",
+    "@wise-old-man/utils": "^3.1.18",
     "chalk": "^5.3.0",
     "class-variance-authority": "^0.7.0",
     "compression": "^1.7.4",
