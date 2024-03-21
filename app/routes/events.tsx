@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Avatar, Card, Text } from '@radix-ui/themes';
-import { json, MetaFunction } from '@remix-run/node';
+import { defer, json, MetaFunction } from '@remix-run/node';
 import { getCompetitions } from '~/services/wom-api-service.server';
 import { Await, Outlet, useLoaderData, useNavigate } from '@remix-run/react';
 import SanguineLogo from '../../other/svg-icons/SanguineIcon.svg';
@@ -17,7 +17,7 @@ const SkeletonLoader = () =>
   [...Array(10).keys()].map((_, idx) => (
     <div className={'basis-1/4'} key={idx}>
       <Card style={{ maxWidth: 240 }} className={'cursor-pointer'}>
-        <div className={'flex content-center'}>
+        <div className={'flex flex-col content-center'}>
           <Avatar size={'3'} radius={'full'} fallback="S" />
           <div
             className={
@@ -35,16 +35,16 @@ const SkeletonLoader = () =>
   ));
 
 export async function loader() {
-  const womComps = await getCompetitions();
-  return json(
+  const womComps = getCompetitions();
+  return defer(
     {
-      competitions: womComps?.slice(0, 10) ?? [],
+      competitions: womComps,
     },
     200,
   );
 }
 const Events = () => {
-  const data = useLoaderData<typeof loader>();
+  const { competitions } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   return (
     <React.Fragment>
@@ -57,26 +57,28 @@ const Events = () => {
         }
       >
         <Suspense fallback={<SkeletonLoader />}>
-          <Await resolve={data.competitions}>
-            {data?.competitions?.map(comp => (
-              <div className={'basis-1/6'} key={comp.id}>
-                <Card
-                  style={{ minWidth: 240 }}
-                  className={'cursor-pointer hover:bg-sanguine-red'}
-                  onClick={() => navigate(`/events/${comp.id}`)}
-                >
-                  <div className={'flex content-center items-center gap-2'}>
-                    <Avatar
-                      size={'3'}
-                      src={SanguineLogo}
-                      radius={'full'}
-                      fallback="S"
-                    />
-                    <p>{comp.title}</p>
-                  </div>
-                </Card>
-              </div>
-            ))}
+          <Await resolve={competitions}>
+            {competitions =>
+              (competitions?.slice(0, 10) ?? []).map(comp => (
+                <div className={'basis-1/6'} key={comp.id}>
+                  <Card
+                    style={{ minWidth: 240 }}
+                    className={'cursor-pointer hover:bg-sanguine-red'}
+                    onClick={() => navigate(`/events/${comp.id}`)}
+                  >
+                    <div className={'flex content-center items-center gap-2'}>
+                      <Avatar
+                        size={'3'}
+                        src={SanguineLogo}
+                        radius={'full'}
+                        fallback="S"
+                      />
+                      <p>{comp.title}</p>
+                    </div>
+                  </Card>
+                </div>
+              ))
+            }
           </Await>
         </Suspense>
       </div>
