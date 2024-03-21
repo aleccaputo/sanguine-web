@@ -1,7 +1,5 @@
-import { defer, json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
+import { defer, MetaFunction } from '@remix-run/node';
 import { Await, useLoaderData } from '@remix-run/react';
-import { getUserById } from '~/data/user';
-import { getNicknameById } from '~/data/nicknames';
 import { Avatar, Box, Card, Flex, Spinner, Text } from '@radix-ui/themes';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import { getRecentItemsForUser } from '~/services/collection-log-service';
@@ -14,7 +12,7 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function loader() {
   const users = await getUsersWithNicknames();
   const filteredUsers = users.filter(x => x.nickname);
   const logData = Promise.all(

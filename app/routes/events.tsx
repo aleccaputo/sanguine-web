@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Avatar, Card, Text } from '@radix-ui/themes';
-import { defer, json, MetaFunction } from '@remix-run/node';
+import { defer, MetaFunction } from '@remix-run/node';
 import { getCompetitions } from '~/services/wom-api-service.server';
 import { Await, Outlet, useLoaderData, useNavigate } from '@remix-run/react';
 import SanguineLogo from '../../other/svg-icons/SanguineIcon.svg';
