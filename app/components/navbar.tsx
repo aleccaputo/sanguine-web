@@ -85,6 +85,14 @@ const Navbar = () => {
                 Events
               </Link>
             </li>
+            <li>
+              <Link
+                to="/bingo"
+                className={`block rounded px-3 py-2 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red ${location.pathname === '/bingo' ? 'text-sanguine-red' : 'text-gray-900'} hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent dark:${location.pathname === '/bingo' ? 'text-sanguine-red' : 'text-white'} dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent`}
+              >
+                Bingo
+              </Link>
+            </li>
           </ul>
         </div>
       </div>
