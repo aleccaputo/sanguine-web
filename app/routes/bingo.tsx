@@ -10,8 +10,7 @@ export const meta: MetaFunction = () => {
 const BingoRoute = () => (
   <div className={'mt-2 flex h-screen flex-row items-start justify-center'}>
     <iframe
-      height={'70%'}
-      width={'80%'}
+      className={'h-full w-full md:h-5/6 md:w-11/12'}
       src={'https://pattyrich.github.io/github-pages/#/bingo/join'}
       title={'Bingo'}
     ></iframe>

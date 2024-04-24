@@ -1,11 +1,16 @@
 import { Icon } from '~/components/icon';
 import { useLocation } from 'react-router';
 import { Link } from '@remix-run/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const Navbar = () => {
   const location = useLocation();
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
+
+  useEffect(() => {
+    setHamburgerOpen(false);
+  }, [location]);
+
   return (
     <nav className="border-gray-200 bg-white dark:bg-gray-900">
       <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between p-4">

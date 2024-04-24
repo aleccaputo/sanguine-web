@@ -19,7 +19,10 @@ export const getUsersWithNicknames = async (): Promise<
       return {
         ...user,
         // remove the [] points syntax
-        nickname: nicknameData.nickname.split('[')[0].trim(),
+        nickname:
+          nicknameData.nickname && nicknameData.nickname.includes('[')
+            ? nicknameData.nickname.split('[')[0].trim()
+            : nicknameData.nickname,
       };
     } catch (e) {
       return user;

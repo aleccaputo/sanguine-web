@@ -59,7 +59,11 @@ const Events = () => {
         <Suspense fallback={<SkeletonLoader />}>
           <Await resolve={competitions}>
             {competitions =>
-              (competitions?.slice(0, 10) ?? []).map(comp => (
+              (
+                competitions
+                  ?.filter(x => x.startsAt < new Date().toISOString())
+                  .slice(0, 10) ?? []
+              ).map(comp => (
                 <div className={'basis-1/6'} key={comp.id}>
                   <Card
                     style={{ minWidth: 240 }}

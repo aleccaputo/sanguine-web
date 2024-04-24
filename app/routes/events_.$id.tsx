@@ -212,7 +212,7 @@ const EventById = () => {
       className={'mt-5 flex flex-col items-center gap-5'}
     >
       <Text>{`${data.compDetails.title} Points Earned`}</Text>
-      <ResponsiveContainer width="80%" height="80%">
+      <ResponsiveContainer width="100%" height="85%">
         <LineChart
           width={2000}
           height={1000}
@@ -229,6 +229,7 @@ const EventById = () => {
           <YAxis />
           <Legend />
           <Tooltip
+            itemSorter={x => (x.value as number) * -1}
             contentStyle={{ background: 'color(display-p3 0.067 0.067 0.074)' }}
           />
           {uniqueUsersForTimePeriod.map((username, index) => (
