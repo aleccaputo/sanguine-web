@@ -49,12 +49,13 @@ export default function Index() {
             >
               <Flex gap={'3'} align={'center'} justify={'center'}>
                 <Avatar
+                  className={'bg-sanguine-red'}
                   fallback={user?.nickname?.[0] ?? 'S'}
                   radius={'full'}
                   size={'3'}
                 />
                 <Box>
-                  <Text as={'div'} size={'2'} weight={'bold'}>
+                  <Text as={'div'} size={'2'} className={'text-sanguine-red'}>
                     {user.nickname}
                   </Text>
                   <Text as="div" size="2" color="gray">

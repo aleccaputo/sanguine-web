@@ -6,7 +6,6 @@ import {
   ScrollRestoration,
 } from '@remix-run/react';
 import { Theme } from '@radix-ui/themes';
-import '@radix-ui/themes/styles.css';
 import tailwindStyleSheetUrl from './tailwind.css?url';
 import { LinksFunction } from '@remix-run/node';
 import Navbar from '~/components/navbar';

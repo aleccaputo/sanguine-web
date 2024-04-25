@@ -1,8 +1,29 @@
+@import '@radix-ui/themes/styles.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+.radix-themes {
+  --default-font-family: 'runescape';
+  --scaling: 1.4;
+  --letter-spacing-1: 0.0025em;
+  --letter-spacing-2: 0em;
+  --letter-spacing-3: 0em;
+  --letter-spacing-4: -0.0025em;
+  --letter-spacing-5: -0.005em;
+  --letter-spacing-6: -0.00625em;
+  --letter-spacing-7: -0.0075em;
+  --letter-spacing-8: -0.01em;
+  --letter-spacing-9: -0.025em;
+}
 @layer base {
+  @font-face {
+    font-family: 'runescape';
+    src: url(/fonts/RuneScape-UF.woff) format("woff");
+  }
+  html {
+    font-family: 'runescape';
+  }
   :root {
     /* --font-sans: here if you have one */
     /* --font-mono: here if you got it... */

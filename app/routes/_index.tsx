@@ -8,10 +8,13 @@ export const meta: MetaFunction = () => {
 };
 export default function Index() {
   return (
-    <div className="flex h-screen flex-col items-center">
-      <p>{'Welcome to Sanguine'}</p>
-      <p>{'This site is a work in progress'}</p>
-      <p>{'Check out the Events tab!'}</p>
+    <div className="mt-20 flex h-screen flex-col items-center">
+      <h1 className={'text-5xl text-sanguine-red'}>Welcome to Sanguine</h1>
+      <img
+        src={'/SanguinePersonalBanner.png'}
+        alt={'Sanguine-Banner'}
+        className={'p-48'}
+      />
     </div>
   );
 }

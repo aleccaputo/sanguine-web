@@ -19,7 +19,7 @@ const Navbar = () => {
           className="flex items-center space-x-3 rtl:space-x-reverse"
         >
           <Icon name={'SanguineIcon'} size={'xl'} />
-          <span className="self-center whitespace-nowrap text-2xl font-semibold dark:text-white">
+          <span className="self-center whitespace-nowrap text-3xl dark:text-white">
             Sanguine
           </span>
         </a>
