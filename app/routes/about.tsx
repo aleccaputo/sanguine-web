@@ -10,7 +10,7 @@ export const meta: MetaFunction = () => {
 
 const AboutRoute = () => (
   <React.Fragment>
-    <div className={'flex flex-col gap-5'}>
+    <div className={'m-5 flex flex-col gap-5'}>
       <div className={'flex flex-col items-center'}>
         <p className={'text-5xl text-sanguine-red'}>
           {'We are a PvM/Social OSRS Clan'}

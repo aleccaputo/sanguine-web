@@ -13,7 +13,7 @@ export default function Index() {
       <img
         src={'/SanguinePersonalBanner.png'}
         alt={'Sanguine-Banner'}
-        className={'p-48'}
+        className={'mt-20'}
       />
     </div>
   );

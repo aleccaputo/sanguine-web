@@ -33,7 +33,7 @@ export default function Index() {
   return (
     <div
       className={
-        'spacing flex flex-row flex-wrap content-center items-center justify-center gap-5'
+        'spacing mt-5 flex flex-row flex-wrap content-center items-center justify-center gap-5'
       }
     >
       {' '}
@@ -41,15 +41,15 @@ export default function Index() {
         .filter(x => x !== null)
         .sort((a, b) => (a.points < b.points ? 1 : -1))
         .map(user => (
-          <div className={'basis-1/6'} key={user.discordId}>
+          <div className={'flex-'} key={user.discordId}>
             <Card
-              style={{ maxWidth: 250, minHeight: 110 }}
+              style={{ maxWidth: 300, minHeight: 150 }}
               key={user.discordId}
               className={'gap-2'}
             >
               <Flex gap={'3'} align={'center'} justify={'center'}>
                 <Avatar
-                  className={'bg-sanguine-red'}
+                  color={'crimson'}
                   fallback={user?.nickname?.[0] ?? 'S'}
                   radius={'full'}
                   size={'3'}
