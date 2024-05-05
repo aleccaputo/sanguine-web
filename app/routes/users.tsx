@@ -66,7 +66,7 @@ export default function Index() {
                       {logData => (
                         <Text as="div" size="2" color="gray">
                           {logData.find(x => x?.nickname === user.nickname)
-                            ?.recentItems?.[0].name ?? 'Nothing'}{' '}
+                            ?.recentItems?.[0]?.name ?? 'Nothing'}{' '}
                           recently obtained!
                         </Text>
                       )}
