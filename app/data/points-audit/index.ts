@@ -8,7 +8,7 @@ export const getAuditDataForDateRange = (
     where: {
       createdAt: {
         gte: startDate,
-        lt: endDate,
+        lte: endDate,
       },
     },
   });
