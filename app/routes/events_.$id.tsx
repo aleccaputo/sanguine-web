@@ -46,7 +46,7 @@ const EventById = () => {
   const data = useLoaderData<typeof loader>();
   const startDate = dayjs(data.compDetails.startsAt);
   const endDate = dayjs(data.compDetails.endsAt);
-  const days = endDate.diff(startDate, 'days');
+  const days = endDate.diff(startDate, 'days') + 1;
   const uniqueUsersForTimePeriod = [
     ...new Set(
       [...Array(days).keys()]
