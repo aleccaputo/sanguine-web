@@ -30,9 +30,9 @@ const AboutRoute = () => (
       </div>
     </div>
     <div className={'mt-5 flex flex-col items-center'}>
-      <a href={'https://discord.gg/ecBRCQPA'}>
+      <a href={'https://discord.gg/sanguine'}>
         <img
-          src={'https://invidget.switchblade.xyz/6rcJfHCNE4'}
+          src={'https://invidget.switchblade.xyz/sanguine'}
           alt={'discord-invite'}
         />
       </a>
