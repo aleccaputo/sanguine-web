@@ -1,9 +1,11 @@
+import { captureRemixErrorBoundaryError } from '@sentry/remix';
 import {
   Links,
   Meta,
   Outlet,
   Scripts,
   ScrollRestoration,
+  useRouteError,
 } from '@remix-run/react';
 import { Theme } from '@radix-ui/themes';
 import tailwindStyleSheetUrl from './tailwind.css?url';
@@ -36,6 +38,12 @@ export function Layout() {
     </html>
   );
 }
+
+export const ErrorBoundary = () => {
+  const error = useRouteError();
+  captureRemixErrorBoundaryError(error);
+  return <div>Something went wrong</div>;
+};
 
 export default function App() {
   return <Outlet />;

@@ -19,7 +19,7 @@
 @layer base {
   @font-face {
     font-family: 'runescape';
-    src: url(/fonts/RuneScape-UF.woff) format("woff");
+    src: url(/fonts/RuneScape-UF.woff) format('woff');
   }
   html {
     font-family: 'runescape';
