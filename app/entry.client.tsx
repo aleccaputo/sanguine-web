@@ -10,6 +10,7 @@ import { startTransition, StrictMode, useEffect } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 
 Sentry.init({
+  enabled: window.location.hostname !== 'localhost',
   dsn: 'https://7b77768a22c4791c07fe29ef65571a77@o4507144866627584.ingest.us.sentry.io/4507144866889728',
   tracesSampleRate: 1,
   replaysSessionSampleRate: 0.1,

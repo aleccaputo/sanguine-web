@@ -13,3 +13,13 @@ export const getAuditDataForDateRange = (
     },
   });
 };
+
+export const getAuditDataForUserById = (id: string) => {
+  return prisma.pointAudit.findMany({
+    where: {
+      destinationDiscordId: {
+        equals: id,
+      },
+    },
+  });
+};

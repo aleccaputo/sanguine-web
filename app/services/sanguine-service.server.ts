@@ -1,5 +1,5 @@
-import { getAllUsers, ISanguineUser } from '~/data/user';
-import { getNicknames } from '~/data/nicknames';
+import { getAllUsers, getUserById, ISanguineUser } from '~/data/user';
+import { getNicknameById, getNicknames } from '~/data/nicknames';
 
 interface ISanguineUserWithNickname extends ISanguineUser {
   nickname?: string;
@@ -30,4 +30,22 @@ export const getUsersWithNicknames = async (): Promise<
   });
 
   return usersWithNicknames;
+};
+
+export const getUserWithNickname = async (
+  id: string,
+): Promise<ISanguineUserWithNickname> => {
+  const user = await getUserById(id);
+  const nicknameData = await getNicknameById(id);
+  if (!nicknameData?.nickname) {
+    return { ...user };
+  }
+
+  return {
+    ...user,
+    nickname:
+      nicknameData.nickname && nicknameData.nickname.includes('[')
+        ? nicknameData.nickname.split('[')[0].trim()
+        : nicknameData.nickname,
+  };
 };

@@ -1,9 +1,7 @@
 import { defer, MetaFunction } from '@remix-run/node';
-import { Await, useLoaderData } from '@remix-run/react';
-import { Avatar, Box, Card, Flex, Spinner, Text } from '@radix-ui/themes';
+import { useLoaderData, useNavigate } from '@remix-run/react';
+import { Avatar, Box, Card, Flex, Text } from '@radix-ui/themes';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
-import { getRecentItemsForUser } from '~/services/collection-log-service';
-import { Suspense } from 'react';
 
 export const meta: MetaFunction = () => {
   return [
@@ -15,20 +13,17 @@ export const meta: MetaFunction = () => {
 export async function loader() {
   const users = await getUsersWithNicknames();
   const filteredUsers = users.filter(x => x.nickname);
-  const logData = Promise.all(
-    users.map(x => getRecentItemsForUser(x.nickname ?? '')),
-  );
   return defer(
     {
       users: filteredUsers,
-      logData: logData,
     },
     200,
   );
 }
 
 export default function Index() {
-  const { users, logData } = useLoaderData<typeof loader>();
+  const { users } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
 
   return (
     <div
@@ -36,7 +31,6 @@ export default function Index() {
         'spacing mt-5 flex flex-row flex-wrap content-center items-center justify-center gap-5'
       }
     >
-      {' '}
       {users
         .filter(x => x !== null)
         .sort((a, b) => (a.points < b.points ? 1 : -1))
@@ -45,7 +39,8 @@ export default function Index() {
             <Card
               style={{ maxWidth: 300, minHeight: 150 }}
               key={user.discordId}
-              className={'gap-2'}
+              className={'cursor-pointer gap-2 hover:bg-sanguine-red'}
+              onClick={() => navigate(`/users/${user.discordId}`)}
             >
               <Flex gap={'3'} align={'center'} justify={'center'}>
                 <Avatar
@@ -61,17 +56,6 @@ export default function Index() {
                   <Text as="div" size="2" color="gray">
                     {user?.points ?? 0} points
                   </Text>
-                  <Suspense fallback={<Spinner />}>
-                    <Await resolve={logData}>
-                      {logData => (
-                        <Text as="div" size="2" color="gray">
-                          {logData.find(x => x?.nickname === user.nickname)
-                            ?.recentItems?.[0]?.name ?? 'Nothing'}{' '}
-                          recently obtained!
-                        </Text>
-                      )}
-                    </Await>
-                  </Suspense>
                 </Box>
               </Flex>
             </Card>

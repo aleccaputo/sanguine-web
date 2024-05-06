@@ -21,7 +21,7 @@ export const getRecentItemsForUser = async (username: string) => {
   if (!response.ok) {
     console.error(`Unable to fetch collection log items for ${username}`);
     // throw new Error(`Unable to fetch collection log items for ${username}`);
-    return;
+    return null;
   }
   const recentItems = await response.json();
   return {
