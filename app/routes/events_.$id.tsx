@@ -1,4 +1,4 @@
-import { json, LoaderFunctionArgs } from '@remix-run/node';
+import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { getCompetitionById } from '~/services/wom-api-service.server';
 import { useLoaderData } from '@remix-run/react';
 import { Response } from '@remix-run/web-fetch';
@@ -16,6 +16,16 @@ import {
   YAxis,
 } from 'recharts';
 import { Text } from '@radix-ui/themes';
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  return [
+    { title: `${data?.compDetails.title ?? 'Sanguine Event'}` },
+    {
+      name: 'description',
+      content: `More information about ${data?.compDetails?.title ?? 'the event.'}`,
+    },
+  ];
+};
 
 export async function loader({ params }: LoaderFunctionArgs) {
   if (!params.id) {

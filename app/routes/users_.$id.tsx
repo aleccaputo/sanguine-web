@@ -1,4 +1,4 @@
-import { defer, LoaderFunctionArgs } from '@remix-run/node';
+import { defer, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { Await, useLoaderData } from '@remix-run/react';
 import { Box, Grid, Spinner, Text } from '@radix-ui/themes';
 import { getRecentItemsForUser } from '~/services/collection-log-service';
@@ -15,6 +15,16 @@ import {
   YAxis,
 } from 'recharts';
 import dayjs from 'dayjs';
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  return [
+    { title: `Members | ${data?.user?.nickname ?? 'Sanguine Member'}` },
+    {
+      name: 'description',
+      content: `More information about ${data?.user?.nickname ?? 'a member'}`,
+    },
+  ];
+};
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const user = await getUserWithNickname(params.id ?? '');
