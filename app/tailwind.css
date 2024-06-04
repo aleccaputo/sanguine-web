@@ -23,6 +23,7 @@
   }
   html {
     font-family: 'runescape';
+    scroll-behavior: smooth;
   }
   :root {
     /* --font-sans: here if you have one */
