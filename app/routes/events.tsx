@@ -1,7 +1,10 @@
 import * as React from 'react';
 import { Avatar, Card, Text } from '@radix-ui/themes';
-import { defer, MetaFunction } from '@remix-run/node';
-import { getCompetitions } from '~/services/wom-api-service.server';
+import { json, MetaFunction } from '@remix-run/node';
+import {
+  getCompetitionById,
+  getCompetitions,
+} from '~/services/wom-api-service.server';
 import { Await, Outlet, useLoaderData, useNavigate } from '@remix-run/react';
 import SanguineLogo from '../../other/svg-icons/SanguineIcon.svg';
 import { Suspense } from 'react';
@@ -35,10 +38,11 @@ const SkeletonLoader = () =>
   ));
 
 export async function loader() {
-  const womComps = getCompetitions();
-  return defer(
+  const womComps = await getCompetitions();
+  const bingo = await getCompetitionById(46594);
+  return json(
     {
-      competitions: womComps,
+      competitions: [bingo, ...(womComps ?? [])],
     },
     200,
   );
