@@ -38,11 +38,18 @@ const SkeletonLoader = () =>
   ));
 
 export async function loader() {
-  const womComps = await getCompetitions();
-  const bingo = await getCompetitionById(46594);
+  const womCompsPromise = getCompetitions();
+  const rngBingoPromise = getCompetitionById(46594);
+  const starBingoPromise = getCompetitionById(79514);
+
+  const [womComps, rngBingo, starBingo] = await Promise.all([
+    womCompsPromise,
+    rngBingoPromise,
+    starBingoPromise,
+  ]);
   return json(
     {
-      competitions: [bingo, ...(womComps ?? [])],
+      competitions: [starBingo, rngBingo, ...(womComps ?? [])],
     },
     200,
   );
