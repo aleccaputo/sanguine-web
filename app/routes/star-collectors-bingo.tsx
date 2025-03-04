@@ -4,7 +4,11 @@ import {
   getStarCollectorsStats,
   StarCollector,
 } from '~/services/star-bingo-service.server';
-import { getItemPriceByIdWithResponseHeaders } from '~/services/osrs-wiki-prices-service';
+import {
+  fetchAllPrices,
+  getItemPriceByIdWithResponseHeaders,
+  PricesResponseData,
+} from '~/services/osrs-wiki-prices-service';
 import { useMemo, useState } from 'react';
 import {
   createColumnHelper,
@@ -26,9 +30,15 @@ export const meta: MetaFunction = () => {
 const parseItemIds = (itemIdsString: string): number[] =>
   itemIdsString.split(',').map(id => parseInt(id.trim(), 10));
 
-async function fetchItemPrice(itemId: number): Promise<number> {
+async function fetchItemPrice(
+  itemId: number,
+  allItems: PricesResponseData,
+): Promise<number> {
   try {
-    const response = await getItemPriceByIdWithResponseHeaders(itemId);
+    const response = await getItemPriceByIdWithResponseHeaders(
+      itemId,
+      allItems,
+    );
 
     if (!response.ok) {
       // console.error(`Error response for item ${itemId}: ${response.status}`);
@@ -46,10 +56,13 @@ async function fetchItemPrice(itemId: number): Promise<number> {
 
 export async function loader() {
   const collectors = await getStarCollectorsStats();
+  const allItems = await fetchAllPrices();
 
   const collectorPromises = collectors.map(async collector => {
     const itemIds = parseItemIds(collector.item_ids);
-    const itemPrices = await Promise.all(itemIds.map(id => fetchItemPrice(id)));
+    const itemPrices = await Promise.all(
+      itemIds.map(id => fetchItemPrice(id, allItems)),
+    );
     const totalValue = itemPrices.reduce((sum, price) => sum + price, 0);
     return totalValue;
   });

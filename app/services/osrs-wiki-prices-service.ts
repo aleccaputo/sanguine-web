@@ -7,7 +7,7 @@ interface IWikiPriceItem {
   lowTime: number | null;
 }
 
-interface PricesResponseData {
+export interface PricesResponseData {
   data: {
     [itemId: string]: {
       high: number | null;
@@ -75,10 +75,10 @@ export const fetchAllPrices = async (): Promise<PricesResponseData> => {
  */
 export const getItemPriceByIdWithResponseHeaders = async (
   itemId: number,
+  prices: PricesResponseData,
 ): Promise<Response> => {
   try {
-    const data = await fetchAllPrices();
-    const itemData = data.data[itemId];
+    const itemData = prices.data[itemId];
 
     if (!itemData) {
       throw new Error(`Price data for item with ID ${itemId} not found`);
