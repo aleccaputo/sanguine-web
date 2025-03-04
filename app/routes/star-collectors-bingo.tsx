@@ -31,7 +31,7 @@ async function fetchItemPrice(itemId: number): Promise<number> {
     const response = await getItemPriceByIdWithResponseHeaders(itemId);
 
     if (!response.ok) {
-      console.error(`Error response for item ${itemId}: ${response.status}`);
+      // console.error(`Error response for item ${itemId}: ${response.status}`);
       return 0;
     }
 
@@ -150,6 +150,15 @@ export default function Index() {
     >
       <Box>
         <Text size="9">Star Collectors Leaderboard</Text>
+      </Box>
+      <Box className="flex flex-row items-center gap-2">
+        <Text size="5">Total Value Generated:</Text>
+        <Text size="5" className="text-sanguine-red">
+          {Object.values(collectorValueLookup)
+            .reduce((sum, value) => sum + value, 0)
+            .toLocaleString()}{' '}
+          GP
+        </Text>
       </Box>
       <Box className="overflow-x-auto" style={{ width: '80%' }}>
         <table className="min-w-full">
