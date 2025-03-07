@@ -14,6 +14,11 @@ interface IRecentCollectionLogItemWithNickname {
   nickname: string;
   recentItems: IRecentCollectionLogItem[];
 }
+
+/**
+ * @deprecated
+ * @param username
+ */
 export const getRecentItemsForUser = async (username: string) => {
   const requestUri = `${baseUri}/items/recent/${username}`;
   const response = await fetch(requestUri);

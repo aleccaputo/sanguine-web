@@ -1,7 +1,6 @@
-import { defer, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
+import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { Await, useLoaderData } from '@remix-run/react';
 import { Box, Grid, Spinner, Text } from '@radix-ui/themes';
-import { getRecentItemsForUser } from '~/services/collection-log-service';
 import { Suspense } from 'react';
 import { getUserWithNickname } from '~/services/sanguine-service.server';
 import { getAuditDataForUserById } from '~/data/points-audit';
@@ -27,13 +26,17 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 };
 
 export async function loader({ params }: LoaderFunctionArgs) {
-  const user = await getUserWithNickname(params.id ?? '');
-  const recentCollectionLog = getRecentItemsForUser(user?.nickname ?? '');
-  const userAuditData = await getAuditDataForUserById(params.id ?? '');
-  return defer(
+  const userPromise = getUserWithNickname(params.id ?? '');
+  const userAuditDataPromise = getAuditDataForUserById(params.id ?? '');
+
+  const [user, userAuditData] = await Promise.all([
+    userPromise,
+    userAuditDataPromise,
+  ]);
+
+  return json(
     {
       user: user,
-      collectionLog: recentCollectionLog,
       auditData: userAuditData,
     },
     200,
@@ -41,7 +44,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
 }
 
 export default function UserById() {
-  const { user, collectionLog, auditData } = useLoaderData<typeof loader>();
+  const { user, auditData } = useLoaderData<typeof loader>();
 
   const summedPointsByYearMonth: { date: string; points: number }[] =
     Object.entries(
@@ -73,16 +76,6 @@ export default function UserById() {
             className={'text-sanguine-red'}
             align={'center'}
           >{`${user.points} clan points`}</Text>
-          <Suspense fallback={<Spinner className={'inline'} />}>
-            <Await resolve={collectionLog}>
-              {collectionLog => (
-                <Text size="2">
-                  {collectionLog?.recentItems?.[0]?.name ?? 'Nothing'} recently
-                  obtained!
-                </Text>
-              )}
-            </Await>
-          </Suspense>
         </div>
         <Text>{`${user.nickname} Points Earned by Month`}</Text>
         {auditData.length ? (
