@@ -1,7 +1,6 @@
 import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
-import { Await, useLoaderData } from '@remix-run/react';
-import { Box, Grid, Spinner, Text } from '@radix-ui/themes';
-import { Suspense } from 'react';
+import { useLoaderData } from '@remix-run/react';
+import { Box, Grid, Text } from '@radix-ui/themes';
 import { getUserWithNickname } from '~/services/sanguine-service.server';
 import { getAuditDataForUserById } from '~/data/points-audit';
 import {
