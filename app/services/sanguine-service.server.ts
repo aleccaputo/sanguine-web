@@ -1,7 +1,7 @@
 import { getAllUsers, getUserById, ISanguineUser } from '~/data/user';
 import { getNicknameById, getNicknames } from '~/data/nicknames';
 
-interface ISanguineUserWithNickname extends ISanguineUser {
+export interface ISanguineUserWithNickname extends ISanguineUser {
   nickname?: string;
 }
 export const getUsersWithNicknames = async (): Promise<

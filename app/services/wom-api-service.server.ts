@@ -27,3 +27,8 @@ export const getCompetitionById = async (id: number) => {
   const competition = await client.competitions.getCompetitionDetails(id);
   return competition;
 };
+
+export const getClanFromWom = async (id: number) => {
+  const clan = await client.groups.getGroupDetails(id);
+  return clan.memberships;
+};
