@@ -1,7 +1,7 @@
 import { MetaFunction } from '@remix-run/node';
 import { Text, Card, Callout } from '@radix-ui/themes';
 import { Link } from '@remix-run/react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { tileRules } from '~/utils/bingo-rules';
 
 export const meta: MetaFunction = () => {
@@ -23,25 +23,26 @@ const CollapsibleSection = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (isOpen && contentRef.current) {
+  const handleToggle = () => {
+    const willBeOpen = !isOpen;
+    setIsOpen(willBeOpen);
+    
+    if (willBeOpen && contentRef.current) {
       // Wait for CSS animation to complete, then scroll to show full content
-      const timeoutId = setTimeout(() => {
+      setTimeout(() => {
         contentRef.current?.scrollIntoView({
           behavior: 'smooth',
           block: 'nearest',
         });
       }, 350);
-
-      return () => clearTimeout(timeoutId);
     }
-  }, [isOpen]);
+  };
 
   return (
     <Card className="mb-4">
       <button
         className="flex w-full cursor-pointer items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         type="button"
       >
         <Text className="text-lg font-bold text-sanguine-red">{title}</Text>
@@ -163,7 +164,7 @@ const BingoRoute = () => {
           </Callout.Text>
         </Callout.Root>
 
-        <CollapsibleSection title="📋 General Rules" defaultOpen={true}>
+        <CollapsibleSection title="📋 General Rules">
           <div className="space-y-3">
             <ColorCodedBox
               title="Multi-Account Rules:"
