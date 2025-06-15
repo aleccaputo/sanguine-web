@@ -1,7 +1,7 @@
 import { MetaFunction } from '@remix-run/node';
 import { Text, Card, Callout } from '@radix-ui/themes';
 import { Link } from '@remix-run/react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { tileRules } from '~/utils/bingo-rules';
 
 export const meta: MetaFunction = () => {
@@ -21,21 +21,39 @@ const CollapsibleSection = ({
   defaultOpen?: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && contentRef.current) {
+      // Wait for CSS animation to complete, then scroll to show full content
+      const timeoutId = setTimeout(() => {
+        contentRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+      }, 350);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isOpen]);
 
   return (
     <Card className="mb-4">
-      <div
-        className="flex cursor-pointer items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
+      <button
+        className="flex w-full cursor-pointer items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
         onClick={() => setIsOpen(!isOpen)}
+        type="button"
       >
         <Text className="text-lg font-bold text-sanguine-red">{title}</Text>
         <span className="text-xl">{isOpen ? '−' : '+'}</span>
-      </div>
-      {isOpen && (
-        <div className="border-t border-gray-200 px-4 pb-4 pt-4 dark:border-gray-700">
-          {children}
+      </button>
+      <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="overflow-hidden">
+          <div ref={contentRef} className="border-t border-gray-200 px-4 pb-4 pt-4 dark:border-gray-700">
+            {children}
+          </div>
         </div>
-      )}
+      </div>
     </Card>
   );
 };
