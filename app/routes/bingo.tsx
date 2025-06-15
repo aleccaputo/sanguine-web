@@ -1,6 +1,8 @@
 import { MetaFunction } from '@remix-run/node';
-import { Text } from '@radix-ui/themes';
+import { Text, Card, Callout } from '@radix-ui/themes';
 import { Link } from '@remix-run/react';
+import { useState } from 'react';
+import { tileRules } from '~/utils/bingo-rules';
 
 export const meta: MetaFunction = () => {
   return [
@@ -9,191 +11,198 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-const BingoRoute = () => (
-  <div>
-    <div className={'flex items-center justify-center'}>
-      <Link to={'#rules'} className={'mt-2 hover:underline md:text-5xl'}>
-        {'Click here for the rules and FAQs'}
-      </Link>
-    </div>
-    <div className={'mt-2 flex h-screen flex-row items-start justify-center'}>
-      <iframe
-        className={'h-full w-full md:h-5/6 md:w-11/12'}
-        src={'https://pattyrich.github.io/github-pages/#/bingo/join'}
-        title={'Bingo'}
-      ></iframe>
-    </div>
-    <div className={'m-3 md:m-10'}>
-      <h1 id={'rules'}>Bingo Rules</h1>
-      <Text className={'font-bold text-sanguine-red underline'}>General:</Text>
-      <ul className={'list-inside list-disc md:indent-5'}>
-        <li>
-          If you are planning to utilize multiple accounts (an iron and a main)
-          for different tiles, you MUST disclose this ahead of the competition
-          start date and abide by the following:
-        </li>
-        <li>There is absolutely no boosting allowed</li>
-        <li>
-          You CANNOT be working on multiple tiles at the same time or the same
-          time on multiple accounts - i.e. you can only be actively playing on
-          one account at a time
-        </li>
-        <li>You MAY use an alt as a wilderness scout</li>
-        <li>
-          You must use the Wise Old Man plugin on any/all accounts played, and
-          ensure that you have the proper codeword (to be released just prior to
-          the start of bingo), and timestamp enabled within the runelite plugin
-          This codeword and timestamp MUST be included in screenshot submissions
-          in order to get credit for a drop
-        </li>
-        <li>Absolutely NO stacking clue reward caskets ahead of time</li>
-        <li>
-          You MAY have clues in your bank and complete them upon the start of
-          bingo
-        </li>
+const CollapsibleSection = ({
+  title,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
 
-        <li>
-          You CANNOT stack rewards permits or crates from Wintertodt & Tempoross
-          ahead of time
-        </li>
+  return (
+    <Card className="mb-4">
+      <div
+        className="flex cursor-pointer items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <Text className="text-lg font-bold text-sanguine-red">{title}</Text>
+        <span className="text-xl">{isOpen ? '−' : '+'}</span>
+      </div>
+      {isOpen && (
+        <div className="border-t border-gray-200 px-4 pb-4 pt-4 dark:border-gray-700">
+          {children}
+        </div>
+      )}
+    </Card>
+  );
+};
 
-        <li>
-          You MAY go for particular slayer tasks ahead of time and have them
-          stored for the onset of bingo (i.e. it is okay to actively hunt a
-          revenant task and wait to start that once bingo starts)
-        </li>
-        <li>
-          Single drops can be used to satisfy multiple tiles (i.e. the Dragon
-          pickaxe from KQ can also be used as the dragon component of the
-          Crystal tool, or the pet from Nex will also count for the PvM pet)
-        </li>
-      </ul>
-      <h3>Tile Specific:</h3>
+interface RuleItem {
+  text: string;
+  type: 'allowed' | 'prohibited' | 'requirement' | 'note' | 'example';
+}
 
-      <Text className={'font-bold text-sanguine-red underline'}>
-        DT2 Unique:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>Any Virtus piece, Axe piece, or Vestige WILL count</li>
-        <li>Ingots, quartz’s, teleports WILL NOT count</li>
-      </ul>
+const RuleCard = ({ title, rules }: { title: string; rules: RuleItem[] }) => {
+  const getColorClass = (type: RuleItem['type']) => {
+    switch (type) {
+      case 'allowed':
+        return 'text-green-600';
+      case 'prohibited':
+        return 'text-red-600';
+      case 'requirement':
+        return 'text-amber-600';
+      case 'note':
+        return 'text-cyan-400';
+      case 'example':
+        return 'text-cyan-400';
+      default:
+        return '';
+    }
+  };
 
-      <Text className={'font-bold text-sanguine-red underline'}>
-        5 Slayer Boss Uniques:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>
-          These drops MUST be obtained from the boss itself (i.e. an occult will
-          not count from normal smoke devils, but will count from Thermy)
-        </li>
-      </ul>
+  const getPrefix = (type: RuleItem['type']) => {
+    switch (type) {
+      case 'allowed':
+        return '✓ ';
+      case 'prohibited':
+        return '✗ ';
+      case 'requirement':
+        return 'Requirement: ';
+      case 'note':
+        return 'Note: ';
+      case 'example':
+        return 'Example: ';
+      default:
+        return '';
+    }
+  };
 
-      <Text className={'font-bold text-sanguine-red underline'}>
-        Full God D’hide:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>This includes coif, body, legs, boots, vambraces</li>
-        <li>This DOES NOT include the shield</li>
-        <li>
-          These can be obtained and mixed from any god (i.e. Bandos chaps and
-          Guthix body will both count towards the full set)
-        </li>
-      </ul>
+  return (
+    <Card className="p-4">
+      <Text className="text-2xl font-bold text-white">{title}</Text>
+      <div className="mt-2 text-xl">
+        {rules.map((rule, index) => (
+          <p key={index} className={getColorClass(rule.type)}>
+            {getPrefix(rule.type)}
+            {rule.text}
+          </p>
+        ))}
+      </div>
+    </Card>
+  );
+};
 
-      <Text className={'font-bold text-sanguine-red underline'}>
-        Ornament Kit:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>This can be obtained from any tier clue scroll</li>
-      </ul>
-
-      <Text className={'font-bold text-sanguine-red underline'}>
-        Perilous Moons Set:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>
-          This MUST be all from one set (i.e. you must complete a full blood
-          moon set, inclusive of weapon, you CANNOT get the body from blue moon
-          and the legs from blood moon)
-        </li>
-      </ul>
-
-      <Text className={'font-bold text-sanguine-red underline'}>
-        Nex Unique:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>Includes Pet</li>
-        <li>Excludes Nihil Shards</li>
-      </ul>
-
-      <Text className={'font-bold text-sanguine-red underline'}>
-        Full Armadyl or Bandos:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>
-          This MUST be from one boss (i.e. you cannot get Arma Chestplate and
-          Bandos Tassets and boots)
-        </li>
-      </ul>
-
-      <Text className={'font-bold text-sanguine-red underline'}>25M PK:</Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>This must be done in the wilderness, i.e. no Bounty Hunter</li>
-        <li>
-          Absolutely no PKing alts/friends/clanmates to satisfy this tile (must
-          be a real PK)
-        </li>
-        <li>
-          This DOES NOT need to be singles, 1v1 pking - multi-pking with the
-          clan is 100% acceptable and encouraged
-        </li>
-      </ul>
-      <Text className={'font-bold text-sanguine-red underline'}>
-        1M Budget Raid:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>
-          Pictures MUST be taken before and after the raid of your gear and
-          inventory, use the party hub plugin and have this included in your
-          screenshots as this captures your teams gear/inventory as well
-        </li>
-        <li>
-          You CAN use untradables. But if something has a hidden value (ex:
-          crystal hally = crystal weapon seed) you have to include this in your
-          budget.
-        </li>
-      </ul>
-      <Text className={'font-bold text-sanguine-red underline'}>
-        Complete Barrows Set:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>
-          This MUST be all from one set (i.e. full Guthans, or Full Dharok’s, no
-          mixing sets)
-        </li>
-      </ul>
-
-      <Text className={'font-bold text-sanguine-red underline'}>
-        Any Colosseum Unique:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>This DOES NOT include Quiver or Sunfire Splinters</li>
-      </ul>
-
-      <Text className={'font-bold text-sanguine-red underline'}>Any Jar:</Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>Any Jar from any content, inclusive of Skotizo</li>
-        <li>Stacked totems CAN be used for this tile</li>
-      </ul>
-
-      <Text className={'font-bold text-sanguine-red underline'}>
-        Nightmare Unique:
-      </Text>
-      <ul className={'list-inside list-disc indent-5'}>
-        <li>DOES NOT include Parasitic egg or Tablet</li>
-      </ul>
-    </div>
+const ColorCodedBox = ({
+  title,
+  items,
+  bgColor,
+  borderColor,
+}: {
+  title: string;
+  items: string[];
+  bgColor: string;
+  borderColor: string;
+}) => (
+  <div className={`${bgColor} rounded border-l-4 p-3 ${borderColor}`}>
+    <Text className="text-2xl font-semibold">{title}</Text>
+    <ul className="mt-2 space-y-1 text-xl">
+      {items.map((item, index) => (
+        <li key={index}>• {item}</li>
+      ))}
+    </ul>
   </div>
 );
+
+const BingoRoute = () => {
+  return (
+    <div>
+      <div className={'flex items-center justify-center'}>
+        <Link to={'#rules'} className={'mt-2 hover:underline md:text-5xl'}>
+          {'Click here for the rules and FAQs'}
+        </Link>
+      </div>
+      <div className={'mt-2 flex h-screen flex-row items-start justify-center'}>
+        <iframe
+          className={'h-full w-full md:h-5/6 md:w-11/12'}
+          src={'https://pattyrich.github.io/github-pages/#/bingo/join'}
+          title={'Bingo'}
+        ></iframe>
+      </div>
+
+      <div className={'m-3 md:m-10'}>
+        <h1 id={'rules'} className="mb-6 text-3xl font-bold">
+          Bingo Rules & FAQs
+        </h1>
+
+        <Callout.Root className="mb-6" color="red">
+          <Callout.Text>
+            <strong>Quick Start:</strong> Must use Wise Old Man plugin with
+            codeword + timestamp. No boosting, stacking, or multi-accounting.
+            Single drops can count for multiple tiles.
+          </Callout.Text>
+        </Callout.Root>
+
+        <CollapsibleSection title="📋 General Rules" defaultOpen={true}>
+          <div className="space-y-3">
+            <ColorCodedBox
+              title="Multi-Account Rules:"
+              items={[
+                'Must disclose multiple accounts before competition starts',
+                'Only one account active at a time (no simultaneous play)',
+                'Alts allowed as wilderness scouts only',
+              ]}
+              bgColor="bg-yellow-50 dark:bg-yellow-900/20"
+              borderColor="border-yellow-400"
+            />
+
+            <ColorCodedBox
+              title="Strictly Prohibited:"
+              items={[
+                'No boosting whatsoever',
+                'No stacking clue caskets',
+                'No stacking Wintertodt/Tempoross crates',
+              ]}
+              bgColor="bg-red-50 dark:bg-red-900/20"
+              borderColor="border-red-400"
+            />
+
+            <ColorCodedBox
+              title="Allowed Preparation:"
+              items={[
+                'Bank clues (complete during bingo)',
+                'Store specific slayer tasks',
+                'Single drops count for multiple tiles',
+              ]}
+              bgColor="bg-green-50 dark:bg-green-900/20"
+              borderColor="border-green-400"
+            />
+
+            <ColorCodedBox
+              title="Required Plugin Setup:"
+              items={[
+                'Wise Old Man plugin mandatory',
+                'Include codeword + timestamp in all screenshots',
+                'Screenshots required for drop verification',
+              ]}
+              bgColor="bg-blue-50 dark:bg-blue-900/20"
+              borderColor="border-blue-400"
+            />
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="🎯 Specific Tile Rules">
+          <div className="grid gap-4 md:grid-cols-2">
+            {tileRules.map((tile, index) => (
+              <RuleCard key={index} title={tile.title} rules={tile.rules} />
+            ))}
+          </div>
+        </CollapsibleSection>
+      </div>
+    </div>
+  );
+};
 
 export default BingoRoute;
