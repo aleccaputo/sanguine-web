@@ -64,7 +64,7 @@ export function CompetitionHeader({
         </Flex>
       )}
 
-      <Flex gap="6" align="start">
+      <Flex gap="4" align="start" className="sm:flex-row">
         <Avatar
           size="7"
           src={getCompetitionImageUrl(competition.metric)}
@@ -73,8 +73,8 @@ export function CompetitionHeader({
         />
 
         <Box className="flex-1">
-          <Flex justify="between" align="start" mb="3">
-            <Heading size="8" className="text-sanguine-red">
+          <Flex justify="between" align="start" mb="3" className="flex-col gap-3 sm:flex-row sm:items-center sm:gap-0">
+            <Heading size="6" className="text-sanguine-red sm:text-4xl">
               {competition.title}
             </Heading>
             <a
@@ -85,7 +85,7 @@ export function CompetitionHeader({
               <Button
                 size="2"
                 color="gray"
-                className="border-none bg-[rgb(37,99,235)] text-white transition-colors hover:cursor-pointer hover:bg-blue-700"
+                className="border-none bg-[rgb(37,99,235)] text-white transition-colors hover:cursor-pointer hover:bg-blue-700 whitespace-nowrap"
               >
                 View on WoM
                 <ExternalLinkIcon width="14" height="14" className="ml-1" />

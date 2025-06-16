@@ -26,8 +26,8 @@ export function ParticipantListItem({
       p="3"
       className="rounded-lg border border-gray-700"
     >
-      <Flex align="center" gap="3">
-        <Box className="w-6 text-sm text-gray-400">#{rank}</Box>
+      <Flex align="center" gap="3" className="min-w-0 flex-1">
+        <Box className="w-6 text-sm text-gray-400 flex-shrink-0">#{rank}</Box>
         <ClickableUserName
           user={{
             discordId: participant.discordId,
@@ -35,17 +35,17 @@ export function ParticipantListItem({
           }}
         />
       </Flex>
-      <Flex align="center" gap="4">
-        <Box className="text-right">
-          <Text size="2" className="block text-gray-400">
+      <Flex align="center" gap="6" className="flex-shrink-0">
+        <Box className="text-right min-w-[80px]">
+          <Text size="1" className="block text-gray-400">
             {isSkill ? 'XP Gained' : 'Kills'}
           </Text>
           <Text size="3" className="block font-bold text-green-400">
             {isSkill ? participant.gained.toLocaleString() : participant.gained}
           </Text>
         </Box>
-        <Box className="text-right">
-          <Text size="2" className="block text-gray-400">
+        <Box className="text-right min-w-[80px]">
+          <Text size="1" className="block text-gray-400">
             Points Earned
           </Text>
           <Text size="3" className="block font-bold text-sanguine-red">

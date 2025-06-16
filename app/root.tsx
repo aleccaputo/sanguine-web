@@ -60,7 +60,9 @@ export function Layout() {
         <Theme appearance={'dark'}>
           <Navbar />
           <LoadingBar />
-          <Outlet />
+          <div className="px-4 sm:px-6">
+            <Outlet />
+          </div>
           <ScrollRestoration />
           <Scripts />
         </Theme>
