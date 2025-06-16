@@ -42,7 +42,12 @@ export async function loader() {
       users: filteredUsers,
       sanguineWomMembers,
     },
-    200,
+    {
+      headers: {
+        'Cache-Control': 'max-age=300',
+      },
+      status: 200,
+    },
   );
 }
 

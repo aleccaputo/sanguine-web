@@ -26,7 +26,7 @@ const CollapsibleSection = ({
   const handleToggle = () => {
     const willBeOpen = !isOpen;
     setIsOpen(willBeOpen);
-    
+
     if (willBeOpen && contentRef.current) {
       // Wait for CSS animation to complete, then scroll to show full content
       setTimeout(() => {
@@ -48,9 +48,14 @@ const CollapsibleSection = ({
         <Text className="text-lg font-bold text-sanguine-red">{title}</Text>
         <span className="text-xl">{isOpen ? '−' : '+'}</span>
       </button>
-      <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+      >
         <div className="overflow-hidden">
-          <div ref={contentRef} className="border-t border-gray-200 px-4 pb-4 pt-4 dark:border-gray-700">
+          <div
+            ref={contentRef}
+            className="border-t border-gray-200 px-4 pb-4 pt-4 dark:border-gray-700"
+          >
             {children}
           </div>
         </div>

@@ -7,7 +7,6 @@ import { getAuditDataForDateRange } from '~/data/points-audit';
 import dayjs from 'dayjs';
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -15,7 +14,28 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Text } from '@radix-ui/themes';
+import { Text, Container, Heading, Box, Flex, Card } from '@radix-ui/themes';
+import { isSkillMetric } from '~/utils/competition-images';
+import { CompetitionHeader } from '~/components/CompetitionHeader';
+import { ParticipantListItem } from '~/components/ParticipantListItem';
+
+interface ParticipantInfo {
+  nickname: string;
+  displayName: string;
+  startProgress: number;
+  endProgress: number;
+  gained: number;
+}
+
+interface ChartData {
+  name: string;
+  [key: string]: string | number;
+}
+
+interface EventStatus {
+  status: string;
+  color: string;
+}
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
@@ -49,211 +69,230 @@ export async function loader({ params }: LoaderFunctionArgs) {
       sanguineUsers: sanguineUsers,
       compDetails: womComp,
     },
-    200,
+    {
+      headers: {
+        'Cache-Control': 'max-age=300',
+      },
+      status: 200,
+    },
   );
 }
+const CHART_COLORS = [
+  '#BB2C23',
+  '#DC7633',
+  '#F39C12',
+  '#F1C40F',
+  '#58D68D',
+  '#5DADE2',
+  '#AF7AC5',
+  '#EC7063',
+];
+
+const formatDate = (dateString: string): string => {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const getEventStatus = (startsAt: string, endsAt: string): EventStatus => {
+  const now = new Date();
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+
+  if (now < start) return { status: 'Upcoming', color: 'text-blue-400' };
+  if (now > end) return { status: 'Completed', color: 'text-gray-400' };
+  return { status: 'Active', color: 'text-green-400' };
+};
+
 const EventById = () => {
   const data = useLoaderData<typeof loader>();
   const startDate = dayjs(data.compDetails.startsAt);
   const endDate = dayjs(data.compDetails.endsAt);
   const days = endDate.diff(startDate, 'days') + 1;
-  const uniqueUsersForTimePeriod = [
-    ...new Set(
-      [...Array(days).keys()]
-        .map((_, idx) => {
-          const date = startDate.add(idx, 'days').format('DD/MM/YYYY');
-          return data.auditData.filter(
-            audit => dayjs(audit.createdAt).format('DD/MM/YYYY') === date,
-          );
-        })
-        .flat()
-        .map(
-          x =>
-            data.sanguineUsers.find(
-              y =>
-                y.discordId === x.destinationDiscordId &&
-                data.compDetails.participations.some(
-                  z =>
-                    z.player.displayName.toLowerCase().trim() ==
-                    y.nickname?.toLowerCase().trim(),
-                ),
-            )?.nickname,
-        )
-        .filter(realUser => realUser),
-    ),
-  ];
-  const uniqueUsersDiscordIdsForTimePeriod = [
-    ...new Set(
-      [...Array(days).keys()]
-        .map((_, idx) => {
-          const date = startDate.add(idx, 'days').format('DD/MM/YYYY');
-          return data.auditData.filter(
-            audit => dayjs(audit.createdAt).format('DD/MM/YYYY') === date,
-          );
-        })
-        .flat()
-        .map(
-          x =>
-            data.sanguineUsers.find(
-              y =>
-                y.discordId === x.destinationDiscordId &&
-                data.compDetails.participations.some(
-                  z =>
-                    z.player.displayName.toLowerCase().trim() ==
-                    y.nickname?.toLowerCase().trim(),
-                ),
-            )?.discordId,
-        )
-        .filter(realUser => realUser),
-    ),
-  ];
 
-  const allUsersForTimePeriod = uniqueUsersForTimePeriod.reduce((acc, cur) => {
-    return {
-      ...acc,
-      [cur as string]: 0,
-    };
-  }, {});
-
-  const allDiscordIdsForTimePeriod = uniqueUsersDiscordIdsForTimePeriod.reduce(
-    (acc, cur) => {
-      return {
-        ...acc,
-        [cur as string]: 0,
-      };
-    },
-    {},
-  );
-
-  const initialRecord = {
-    ...allUsersForTimePeriod,
-    name: startDate.subtract(1, 'days').format('DD/MM/YYYY'),
-  };
-
-  const graphData = Array.from({ length: days }, () => ({
-    ...allUsersForTimePeriod,
-  })).map((allUserInstance, idx) => {
-    const date = startDate.add(idx, 'days').format('DD/MM/YYYY');
-    const usersForDate = data.auditData
-      .filter(audit => dayjs(audit.createdAt).format('DD/MM/YYYY') === date)
-      .reduce(
-        (acc, record) => {
-          return {
-            ...acc,
-            [record.destinationDiscordId]:
-              (acc[record.destinationDiscordId] ?? 0) + record.pointsGiven,
-          };
-        },
-        {} as { [discordId: string]: number },
-      );
-    return {
-      name: startDate.add(idx, 'days').toString(),
-      ...allDiscordIdsForTimePeriod,
-      ...usersForDate,
-    };
+  // Build participant map with competition data
+  const participantMap = new Map<string, ParticipantInfo>();
+  data.compDetails.participations.forEach(participation => {
+    const sanguineUser = data.sanguineUsers.find(
+      user =>
+        user.nickname?.toLowerCase().trim() ===
+        participation.player.displayName.toLowerCase().trim(),
+    );
+    if (sanguineUser && sanguineUser.nickname) {
+      participantMap.set(sanguineUser.discordId, {
+        nickname: sanguineUser.nickname,
+        displayName: participation.player.displayName,
+        startProgress: participation.progress.start,
+        endProgress: participation.progress.end,
+        gained: participation.progress.gained,
+      });
+    }
   });
 
-  type KeyMap = { [oldKey: string]: string };
+  const isSkill = isSkillMetric(data.compDetails.metric);
 
-  const keyMap: KeyMap = graphData.reduce<KeyMap>((map, obj) => {
-    return Object.keys(obj).reduce<KeyMap>((innerMap, key) => {
-      const nickname = data.sanguineUsers.find(
-        x => x.discordId === key,
-      )?.nickname;
-      if (key !== 'name' && !innerMap[key] && nickname) {
-        return {
-          ...innerMap,
-          [key]: nickname,
-        };
-      }
-      return innerMap;
-    }, map);
-  }, {});
+  // Process chart data - calculate cumulative points per day
+  const chartData: ChartData[] = [];
+  for (let i = 0; i < days; i++) {
+    const currentDate = startDate.add(i, 'days');
+    const dayData: ChartData = { name: currentDate.format('MMM DD') };
 
-  interface DataObject {
-    [key: string]: number | string;
-  }
-  function remapKeys(
-    object: DataObject,
-    keyMap: { [oldKey: string]: string },
-  ): DataObject {
-    return Object.entries(object).reduce((newObject, [oldKey, value]) => {
-      if (oldKey === 'name') {
-        return { ...newObject, [oldKey]: value };
-      }
-      const newKey = keyMap[oldKey];
-      return { ...newObject, [newKey]: value };
-    }, {} as DataObject);
-  }
+    participantMap.forEach((userInfo, discordId) => {
+      const pointsForDay = data.auditData
+        .filter(
+          audit =>
+            audit.destinationDiscordId === discordId &&
+            dayjs(audit.createdAt).format('DD/MM/YYYY') ===
+              currentDate.format('DD/MM/YYYY'),
+        )
+        .reduce((sum, audit) => sum + audit.pointsGiven, 0);
 
-  function accumulateValues(data: DataObject[]) {
-    const accumulatedData: DataObject[] = [];
-
-    data.forEach((day, index) => {
-      const accumulatedDay: DataObject = { name: day.name };
-
-      Object.keys(day).forEach(key => {
-        if (key !== 'name') {
-          let accumulatedValue = day[key] as number;
-          for (let i = 0; i < index; i++) {
-            const prevDay = data[i];
-            if (prevDay[key] !== undefined) {
-              accumulatedValue += prevDay[key] as number;
-            }
-          }
-          accumulatedDay[key] = accumulatedValue;
-        }
-      });
-
-      accumulatedData.push(accumulatedDay);
+      dayData[`${userInfo.nickname}_points`] = pointsForDay;
     });
 
-    return accumulatedData;
+    chartData.push(dayData);
   }
 
-  const remappedData = graphData.map(obj => remapKeys(obj, keyMap)).flat();
-  const foo = accumulateValues(remappedData);
+  // Calculate cumulative totals
+  const cumulativeData: ChartData[] = chartData.map((day, index) => {
+    const cumulativeDay: ChartData = { name: day.name };
 
-  const actuallyAllTheData = [initialRecord, ...foo];
+    participantMap.forEach(userInfo => {
+      let cumulativePoints = 0;
+      for (let i = 0; i <= index; i++) {
+        cumulativePoints +=
+          (chartData[i][`${userInfo.nickname}_points`] as number) || 0;
+      }
+      cumulativeDay[`${userInfo.nickname}_points`] = cumulativePoints;
+    });
+
+    return cumulativeDay;
+  });
+
+  const participantColors = Array.from(participantMap.values()).map(
+    (_, index) => CHART_COLORS[index % CHART_COLORS.length],
+  );
+
+  const eventStatus = getEventStatus(
+    data.compDetails.startsAt,
+    data.compDetails.endsAt,
+  );
 
   return (
-    <div
-      style={{ width: '100vw', height: '100vh' }}
-      className={'mt-5 flex flex-col items-center gap-5'}
-    >
-      <Text>{`${data.compDetails.title} Points Earned`}</Text>
-      <ResponsiveContainer width="100%" height="85%">
-        <LineChart
-          width={2000}
-          height={1000}
-          data={actuallyAllTheData}
-          margin={{
-            top: 5,
-            right: 30,
-            left: 20,
-            bottom: 5,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Legend />
-          <Tooltip
-            itemSorter={x => (x.value as number) * -1}
-            contentStyle={{ background: 'color(display-p3 0.067 0.067 0.074)' }}
-          />
-          {uniqueUsersForTimePeriod.map((username, index) => (
-            <Line
-              connectNulls={true}
-              key={index}
-              type="monotone"
-              dataKey={username}
-              stroke={`#${Math.floor(Math.random() * 16777215).toString(16)}`} // Random color
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+    <Container size="4" mt="3">
+      <Flex direction="column" gap="6">
+        <CompetitionHeader
+          competition={data.compDetails}
+          eventStatus={eventStatus}
+          participantCount={participantMap.size}
+          formatDate={formatDate}
+        />
+
+        {/* Chart Section */}
+        <Card className="border border-gray-800 bg-gray-900">
+          <Box p="5">
+            <Heading size="5" className="mb-4 text-white">
+              Daily Points Progress
+            </Heading>
+
+            {participantMap.size > 0 ? (
+              <Box className="h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={cumulativeData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="name" stroke="#9CA3AF" fontSize={12} />
+                    <YAxis stroke="#9CA3AF" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1F2937',
+                        border: '1px solid #374151',
+                        borderRadius: '8px',
+                        color: '#F9FAFB',
+                      }}
+                      formatter={(value, name) => {
+                        const displayName =
+                          typeof name === 'string'
+                            ? name.replace('_points', '')
+                            : name;
+                        return [`${value} points`, displayName];
+                      }}
+                      itemSorter={item => -(item.value as number)}
+                    />
+                    {Array.from(participantMap.values()).map(
+                      (userInfo, index) => (
+                        <Line
+                          key={`${userInfo.nickname}_points`}
+                          type="monotone"
+                          dataKey={`${userInfo.nickname}_points`}
+                          stroke={participantColors[index]}
+                          strokeWidth={2}
+                          dot={{
+                            fill: participantColors[index],
+                            strokeWidth: 2,
+                            r: 4,
+                          }}
+                          activeDot={{ r: 6 }}
+                        />
+                      ),
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+            ) : (
+              <Box className="py-12 text-center">
+                <Text size="3" className="text-gray-400">
+                  No Sanguine participants found in this competition
+                </Text>
+              </Box>
+            )}
+          </Box>
+        </Card>
+
+        {/* Participants Summary */}
+        {participantMap.size > 0 && (
+          <Card className="border border-gray-800 bg-gray-900">
+            <Box p="5">
+              <Heading size="5" className="mb-4 text-white">
+                Participant Summary
+              </Heading>
+
+              <Flex direction="column" gap="3">
+                {Array.from(participantMap.values())
+                  .map(userInfo => {
+                    const sanguineUser = data.sanguineUsers.find(
+                      user => user.nickname === userInfo.nickname,
+                    );
+                    const totalPoints = data.auditData
+                      .filter(
+                        audit =>
+                          sanguineUser &&
+                          audit.destinationDiscordId === sanguineUser.discordId,
+                      )
+                      .reduce((sum, audit) => sum + audit.pointsGiven, 0);
+
+                    return {
+                      ...userInfo,
+                      totalPoints,
+                      discordId: sanguineUser?.discordId || '',
+                    };
+                  })
+                  .sort((a, b) => b.gained - a.gained)
+                  .map((participant, index) => (
+                    <ParticipantListItem
+                      key={participant.nickname}
+                      participant={participant}
+                      rank={index + 1}
+                      isSkill={isSkill}
+                    />
+                  ))}
+              </Flex>
+            </Box>
+          </Card>
+        )}
+      </Flex>
+    </Container>
   );
 };
 
