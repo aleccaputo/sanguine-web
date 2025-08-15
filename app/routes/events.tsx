@@ -50,15 +50,17 @@ export async function loader() {
   const womCompsPromise = getCompetitions();
   const rngBingoPromise = getCompetitionById(46594);
   const starBingoPromise = getCompetitionById(79514);
+  const coalitionBingoPromise = getCompetitionById(101103);
 
-  const [womComps, rngBingo, starBingo] = await Promise.all([
+  const [womComps, rngBingo, starBingo, coalitionBingo] = await Promise.all([
     womCompsPromise,
     rngBingoPromise,
     starBingoPromise,
+    coalitionBingoPromise,
   ]);
   return json(
     {
-      competitions: [starBingo, rngBingo, ...(womComps ?? [])],
+      competitions: [coalitionBingo, starBingo, rngBingo, ...(womComps ?? [])],
     },
     {
       headers: {
