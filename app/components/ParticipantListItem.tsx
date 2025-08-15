@@ -11,20 +11,20 @@ interface Participant {
 interface ParticipantListItemProps {
   participant: Participant;
   rank: number;
-  isSkill: boolean;
+  metric: string;
 }
 
 export function ParticipantListItem({
   participant,
   rank,
-  isSkill,
+  metric,
 }: ParticipantListItemProps) {
   return (
     <div className="rounded-lg border border-gray-700 p-3">
       {/* Mobile Layout */}
       <div className="flex flex-col gap-3 sm:hidden">
         <Flex align="center" gap="3">
-          <Box className="w-6 text-sm text-gray-400 flex-shrink-0">#{rank}</Box>
+          <Box className="w-6 flex-shrink-0 text-sm text-gray-400">#{rank}</Box>
           <ClickableUserName
             user={{
               discordId: participant.discordId,
@@ -33,15 +33,17 @@ export function ParticipantListItem({
           />
         </Flex>
         <Flex justify="between" gap="4">
-          <Box className="text-center flex-1">
+          <Box className="flex-1 text-center">
             <Text size="1" className="block text-gray-400">
-              {isSkill ? 'XP Gained' : 'Kills'}
+              {metric ? 'XP Gained' : 'Kills'}
             </Text>
             <Text size="2" className="block font-bold text-green-400">
-              {isSkill ? participant.gained.toLocaleString() : participant.gained}
+              {metric
+                ? participant.gained.toLocaleString()
+                : participant.gained}
             </Text>
           </Box>
-          <Box className="text-center flex-1">
+          <Box className="flex-1 text-center">
             <Text size="1" className="block text-gray-400">
               Points Earned
             </Text>
@@ -53,13 +55,9 @@ export function ParticipantListItem({
       </div>
 
       {/* Desktop Layout */}
-      <Flex
-        justify="between"
-        align="center"
-        className="hidden sm:flex"
-      >
+      <Flex justify="between" align="center" className="hidden sm:flex">
         <Flex align="center" gap="3" className="min-w-0 flex-1">
-          <Box className="w-6 text-sm text-gray-400 flex-shrink-0">#{rank}</Box>
+          <Box className="w-6 flex-shrink-0 text-sm text-gray-400">#{rank}</Box>
           <ClickableUserName
             user={{
               discordId: participant.discordId,
@@ -68,15 +66,17 @@ export function ParticipantListItem({
           />
         </Flex>
         <Flex align="center" gap="6" className="flex-shrink-0">
-          <Box className="text-right min-w-[80px]">
+          <Box className="min-w-[80px] text-right">
             <Text size="1" className="block text-gray-400">
-              {isSkill ? 'XP Gained' : 'Kills'}
+              {metric}
             </Text>
             <Text size="3" className="block font-bold text-green-400">
-              {isSkill ? participant.gained.toLocaleString() : participant.gained}
+              {metric
+                ? participant.gained.toLocaleString()
+                : participant.gained}
             </Text>
           </Box>
-          <Box className="text-right min-w-[80px]">
+          <Box className="min-w-[80px] text-right">
             <Text size="1" className="block text-gray-400">
               Points Earned
             </Text>

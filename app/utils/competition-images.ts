@@ -150,7 +150,7 @@ export function getSkillIconUrl(skillName: string): string {
 /**
  * Check if a metric represents a skill
  */
-export function isSkillMetric(metric: string): boolean {
+export function getMetricType(metric: string): string {
   const skills = [
     'attack',
     'defence',
@@ -178,7 +178,11 @@ export function isSkillMetric(metric: string): boolean {
     'overall',
   ];
 
-  return skills.includes(metric);
+  return skills.includes(metric)
+    ? 'XP Gained'
+    : metric == 'ehb'
+      ? 'EHB'
+      : 'Kills';
 }
 
 /**

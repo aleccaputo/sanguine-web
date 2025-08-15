@@ -15,7 +15,7 @@ import {
   YAxis,
 } from 'recharts';
 import { Text, Container, Heading, Box, Flex, Card } from '@radix-ui/themes';
-import { isSkillMetric } from '~/utils/competition-images';
+import { getMetricType } from '~/utils/competition-images';
 import { CompetitionHeader } from '~/components/CompetitionHeader';
 import { ParticipantListItem } from '~/components/ParticipantListItem';
 
@@ -131,7 +131,7 @@ const EventById = () => {
     }
   });
 
-  const isSkill = isSkillMetric(data.compDetails.metric);
+  const metric = getMetricType(data.compDetails.metric);
 
   // Process chart data - calculate cumulative points per day
   const chartData: ChartData[] = [];
@@ -284,7 +284,7 @@ const EventById = () => {
                       key={participant.nickname}
                       participant={participant}
                       rank={index + 1}
-                      isSkill={isSkill}
+                      metric={metric}
                     />
                   ))}
               </Flex>
