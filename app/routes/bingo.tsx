@@ -164,8 +164,7 @@ const BingoRoute = () => {
         <Callout.Root className="mb-6" color="red">
           <Callout.Text>
             <strong>Quick Start:</strong> Must use Wise Old Man plugin with
-            codeword + timestamp. No boosting, stacking, or multi-accounting.
-            Single drops can count for multiple tiles.
+            codeword + timestamp.
           </Callout.Text>
         </Callout.Root>
 
@@ -174,9 +173,10 @@ const BingoRoute = () => {
             <ColorCodedBox
               title="Multi-Account Rules:"
               items={[
-                'Must disclose multiple accounts before competition starts',
-                'Only one account active at a time (no simultaneous play)',
-                'Alts allowed as wilderness scouts only',
+                'If you are planning to utilize multiple accounts (an iron and a main) for different tiles, you MUST disclose this ahead of the competition start date and abide by the following:',
+                'There is absolutely no boosting allowed (naturally scaling CoX raids is fine)',
+                'You CANNOT be working on multiple tiles at the same time or the same time on multiple accounts - i.e. you can only be actively playing on one account at a time',
+                'You MAY use an alt as a wilderness scout',
               ]}
               bgColor="bg-yellow-50 dark:bg-yellow-900/20"
               borderColor="border-yellow-400"
@@ -196,9 +196,12 @@ const BingoRoute = () => {
             <ColorCodedBox
               title="Allowed Preparation:"
               items={[
-                'Bank clues (complete during bingo)',
+                'You MAY go for particular slayer tasks ahead of time and have them stored for the onset of bingo',
                 'Store specific slayer tasks',
                 'Single drops count for multiple tiles',
+                'Gauntlet prep',
+                'Barrows prep',
+                'Perilous Moons prep',
               ]}
               bgColor="bg-green-50 dark:bg-green-900/20"
               borderColor="border-green-400"
@@ -207,9 +210,9 @@ const BingoRoute = () => {
             <ColorCodedBox
               title="Required Plugin Setup:"
               items={[
-                'Wise Old Man plugin mandatory',
-                'Include codeword + timestamp in all screenshots',
-                'Screenshots required for drop verification',
+                'You must use the Wise Old Man plugin on any/all accounts played, and ensure that you have the proper codeword (to be released just prior to the start of bingo), and timestamp enabled within the Runelite plugin',
+                'This codeword and timestamp MUST be included in screenshot submissions in order to get credit for a drop',
+                'The drop must also be visible in the chatbox to receive credit',
               ]}
               bgColor="bg-blue-50 dark:bg-blue-900/20"
               borderColor="border-blue-400"

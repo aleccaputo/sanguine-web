@@ -1,132 +1,192 @@
 export const tileRules = [
   {
-    title: 'DT2 Unique',
+    title: 'Huey Uniques',
     rules: [
       {
-        text: 'Virtus pieces, Axe pieces, Vestiges',
-        type: 'allowed' as const,
-      },
-      { text: 'Ingots, quartz, teleports', type: 'prohibited' as const },
-    ],
-  },
-  {
-    title: '5 Slayer Boss Uniques',
-    rules: [
-      {
-        text: 'Must be from boss itself (not regular monsters)',
-        type: 'requirement' as const,
-      },
-      {
-        text: 'Occult from Thermy ✓, from Smoke Devils ✗',
-        type: 'example' as const,
-      },
-    ],
-  },
-  {
-    title: "Full God D'hide",
-    rules: [
-      {
-        text: 'Coif, body, legs, boots, vambraces',
-        type: 'allowed' as const,
-      },
-      { text: 'Shield not required', type: 'prohibited' as const },
-      {
-        text: 'Mix gods allowed (Bandos + Guthix pieces)',
+        text: 'Hides count as 1 drop',
         type: 'note' as const,
       },
     ],
   },
   {
-    title: 'Ornament Kit',
-    rules: [{ text: 'Any tier clue scroll', type: 'allowed' as const }],
+    title: 'CoX Uniques',
+    rules: [
+      {
+        text: 'Excludes Prayer Scrolls',
+        type: 'prohibited' as const,
+      },
+    ],
   },
   {
-    title: 'Perilous Moons Set',
+    title: 'Zulrah Unique',
     rules: [
-      { text: 'Full Blood Moon set + weapon', type: 'allowed' as const },
-      { text: 'Mixing Blood + Blue pieces', type: 'prohibited' as const },
       {
-        text: 'Must be complete set from ONE moon type',
+        text: 'Excludes Teleports and Scales',
+        type: 'prohibited' as const,
+      },
+    ],
+  },
+  {
+    title: 'PK Tile',
+    rules: [
+      {
+        text: 'Must be legitimate PKs in the wilderness',
         type: 'requirement' as const,
+      },
+      {
+        text: 'Solo or team PKs both allowed',
+        type: 'allowed' as const,
+      },
+      {
+        text: 'No paid actors or boosting',
+        type: 'prohibited' as const,
+      },
+    ],
+  },
+  {
+    title: 'Yama Unique',
+    rules: [
+      {
+        text: 'Must be Oathplate piece or Horn',
+        type: 'requirement' as const,
+      },
+      {
+        text: 'No contracts allowed',
+        type: 'prohibited' as const,
       },
     ],
   },
   {
     title: 'Nex Unique',
     rules: [
-      { text: 'Includes Pet', type: 'allowed' as const },
-      { text: 'Excludes Nihil Shards', type: 'prohibited' as const },
-    ],
-  },
-  {
-    title: 'Full Armadyl or Bandos',
-    rules: [
       {
-        text: 'Cannot mix Arma + Bandos pieces',
-        type: 'prohibited' as const,
-      },
-      { text: 'Must be from ONE boss only', type: 'requirement' as const },
-    ],
-  },
-  {
-    title: '25M PK',
-    rules: [
-      {
-        text: 'Wilderness only, multi-pking allowed',
-        type: 'allowed' as const,
-      },
-      {
-        text: 'No Bounty Hunter, no boosting friends',
+        text: 'Excludes Nihil Shards',
         type: 'prohibited' as const,
       },
     ],
   },
   {
-    title: '1M Budget Raid',
+    title: 'ToB Uniques',
     rules: [
       {
-        text: 'Untradables allowed (count hidden values)',
-        type: 'allowed' as const,
-      },
-      {
-        text: 'Screenshots before + after with Party Hub plugin',
+        text: 'Must be purple chest',
         type: 'requirement' as const,
+      },
+      {
+        text: 'Excludes Vials',
+        type: 'prohibited' as const,
       },
     ],
   },
   {
     title: 'Complete Barrows Set',
     rules: [
-      { text: "Full Guthan's or Full Dharok's", type: 'allowed' as const },
-      { text: 'No mixing sets', type: 'prohibited' as const },
-      { text: 'Full set from ONE brother', type: 'requirement' as const },
-    ],
-  },
-  {
-    title: 'Colosseum Unique',
-    rules: [
       {
-        text: 'Does NOT include Quiver or Sunfire Splinters',
+        text: 'Must be all from one set (full Guthans or full Dharoks)',
+        type: 'requirement' as const,
+      },
+      {
+        text: 'No mixing sets',
         type: 'prohibited' as const,
       },
     ],
   },
   {
-    title: 'Any Jar',
+    title: '8 Man Banana 5',
     rules: [
       {
-        text: 'Any jar from any content (including Skotizo)',
+        text: 'Must have 8 people from your team',
+        type: 'requirement' as const,
+      },
+      {
+        text: '5 invocation raid with "Jungle Japes" invocation active',
+        type: 'requirement' as const,
+      },
+    ],
+  },
+  {
+    title: 'Original GWD Uniques',
+    rules: [
+      {
+        text: 'Bandos/Sara/Zammy/Arma Uniques all count',
         type: 'allowed' as const,
       },
-      { text: 'Stacked totems allowed', type: 'allowed' as const },
+      {
+        text: 'Zamorakian Spear, Steam Battlestaff, Saradomin Sword count as 0.5 points',
+        type: 'note' as const,
+      },
+      {
+        text: 'All other drops count as 1 point',
+        type: 'note' as const,
+      },
     ],
   },
   {
-    title: 'Nightmare Unique',
+    title: 'Perilous Moon Set',
     rules: [
       {
-        text: 'Does NOT include Parasitic egg or Tablet',
+        text: 'Must be complete set from ONE moon type including weapon',
+        type: 'requirement' as const,
+      },
+      {
+        text: 'Cannot mix pieces from different moon types',
         type: 'prohibited' as const,
+      },
+    ],
+  },
+  {
+    title: 'Nightmare Uniques',
+    rules: [
+      {
+        text: 'Excludes Parasitic egg or Tablet',
+        type: 'prohibited' as const,
+      },
+    ],
+  },
+  {
+    title: 'TOA Uniques',
+    rules: [
+      {
+        text: 'Only Purple chests',
+        type: 'requirement' as const,
+      },
+      {
+        text: 'Excludes gems/threads/etc.',
+        type: 'prohibited' as const,
+      },
+    ],
+  },
+  {
+    title: 'Colosseum Uniques',
+    rules: [
+      {
+        text: 'Excludes Quiver or Sunfire Splinters',
+        type: 'prohibited' as const,
+      },
+    ],
+  },
+  {
+    title: 'PVM Pet',
+    rules: [
+      {
+        text: 'Excludes Chompy Chick, Dom, Chaos Elemental, Skotizo',
+        type: 'prohibited' as const,
+      },
+      {
+        text: 'No pet contracts in Yama',
+        type: 'prohibited' as const,
+      },
+      {
+        text: 'Excludes non-PVM pets (Tiny Tempor, Phoenix, Lil Creator, etc.)',
+        type: 'prohibited' as const,
+      },
+      {
+        text: 'No gambling for pets (exchanging quivers, fire capes, infernal capes)',
+        type: 'prohibited' as const,
+      },
+      {
+        text: 'Can receive pet through content itself',
+        type: 'allowed' as const,
       },
     ],
   },
