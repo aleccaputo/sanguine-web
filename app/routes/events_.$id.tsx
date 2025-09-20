@@ -63,9 +63,11 @@ export async function loader({ params }: LoaderFunctionArgs) {
     pointAuditPromise,
   ]);
 
+  const filteredAuditData = pointAudit.filter(x => x.type !== 'ONE_TIME');
+
   return json(
     {
-      auditData: pointAudit,
+      auditData: filteredAuditData,
       sanguineUsers: sanguineUsers,
       compDetails: womComp,
     },
