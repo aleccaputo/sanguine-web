@@ -48,19 +48,28 @@ const SkeletonLoader = () => (
 
 export async function loader() {
   const womCompsPromise = getCompetitions();
+  const fall2025BingoPromise = getCompetitionById(107621);
   const rngBingoPromise = getCompetitionById(46594);
   const starBingoPromise = getCompetitionById(79514);
   const coalitionBingoPromise = getCompetitionById(101103);
 
-  const [womComps, rngBingo, starBingo, coalitionBingo] = await Promise.all([
-    womCompsPromise,
-    rngBingoPromise,
-    starBingoPromise,
-    coalitionBingoPromise,
-  ]);
+  const [fall2025Bingo, womComps, rngBingo, starBingo, coalitionBingo] =
+    await Promise.all([
+      fall2025BingoPromise,
+      womCompsPromise,
+      rngBingoPromise,
+      starBingoPromise,
+      coalitionBingoPromise,
+    ]);
   return json(
     {
-      competitions: [coalitionBingo, starBingo, rngBingo, ...(womComps ?? [])],
+      competitions: [
+        fall2025Bingo,
+        ...(womComps ?? []),
+        coalitionBingo,
+        starBingo,
+        rngBingo,
+      ],
     },
     {
       headers: {
