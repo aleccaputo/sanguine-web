@@ -24,10 +24,10 @@ export const getUserById = async (id: string): Promise<ISanguineUser> => {
 export const getAllUsers = async (): Promise<ISanguineUser[]> => {
   const allUsers = await prisma.users.findMany();
   return allUsers
-    .filter(x => x.discordId && x.joined && x.points)
+    .filter(x => x.discordId && x.joined)
     .map(dbUser => ({
       discordId: dbUser.discordId,
-      points: dbUser.points,
+      points: dbUser.points ?? 0,
       joined: dbUser.joined,
     }));
 };

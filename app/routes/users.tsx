@@ -59,29 +59,6 @@ export default function Index() {
     {},
   );
 
-  // Filter users based on search term
-  const filteredUsers = users
-    .filter(x => x !== null)
-    .filter(
-      user =>
-        user.nickname?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-        false,
-    )
-    .sort((a, b) => (a.points < b.points ? 1 : -1));
-
-  // Get rank icon based on points
-  const getRankIcon = (rankName: string) => {
-    return (
-      <img
-        src={fetchRankImage(rankName)}
-        alt={rankName}
-        width={26}
-        height={26}
-        className="inline-block"
-      />
-    );
-  };
-
   // Get rank text based on points
   const getRankText = (
     sanguineWomMembers: SerializeFrom<MembershipWithPlayer[]>,
@@ -93,6 +70,36 @@ export default function Index() {
           x.player.displayName.toLocaleLowerCase() ===
           user?.nickname?.toLocaleLowerCase(),
       )?.role ?? 'Guest'
+    );
+  };
+
+  // Filter users based on search term. Put guests at bottom
+  const filteredUsers = users
+    .filter(x => x !== null)
+    .filter(
+      user =>
+        user.nickname?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+        false,
+    )
+    .sort((a, b) => {
+      const aIsGuest = getRankText(sanguineWomMembers, a) === 'Guest';
+      const bIsGuest = getRankText(sanguineWomMembers, b) === 'Guest';
+
+      return (
+        Number(aIsGuest) - Number(bIsGuest) || (a.points < b.points ? 1 : -1)
+      );
+    });
+
+  // Get rank icon based on points
+  const getRankIcon = (rankName: string) => {
+    return (
+      <img
+        src={fetchRankImage(rankName)}
+        alt={rankName}
+        width={26}
+        height={26}
+        className="inline-block"
+      />
     );
   };
 
