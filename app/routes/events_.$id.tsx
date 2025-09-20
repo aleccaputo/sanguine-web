@@ -255,7 +255,7 @@ const EventById = () => {
           <Card className="border border-gray-800 bg-gray-900">
             <Box p="5">
               <Heading size="5" className="mb-4 text-white">
-                Participant Summary
+                Event Points Leaderboard
               </Heading>
 
               <Flex direction="column" gap="3">
@@ -278,7 +278,7 @@ const EventById = () => {
                       discordId: sanguineUser?.discordId || '',
                     };
                   })
-                  .sort((a, b) => b.gained - a.gained)
+                  .sort((a, b) => b.totalPoints - a.totalPoints)
                   .map((participant, index) => (
                     <ParticipantListItem
                       key={participant.nickname}
