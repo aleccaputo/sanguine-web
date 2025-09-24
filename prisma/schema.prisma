@@ -16,6 +16,7 @@ model PointAudit {
   pointsGiven          Int
   sourceDiscordId      String
   type                 String
+  itemId               Int?
 }
 
 model Users {
