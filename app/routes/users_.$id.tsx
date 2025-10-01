@@ -15,12 +15,32 @@ import {
 import dayjs from 'dayjs';
 import { untradeableItems } from '~/utils/untradable-items';
 import { toTitleCase } from '~/utils/string-helpers';
+import { PointAudit } from '@prisma/client';
 
 interface OSRSItem {
   id: number;
   name: string;
   icon: string;
 }
+
+interface AuditWithOsrsItem extends PointAudit {
+  osrsData: OSRSItem | null;
+}
+
+const displayItemText = (item: AuditWithOsrsItem) => {
+  if (item?.itemId && !isNaN(item?.itemId)) {
+    const untradableItem = untradeableItems[item?.itemId ?? -100];
+    if (!untradableItem) {
+      console.error(
+        `No item name found for itemId: ${item?.itemId} for userId: ${item.destinationDiscordId}`,
+      );
+      return `Item ID: ${item.itemId}`;
+    }
+
+    return toTitleCase(untradableItem);
+  }
+  return 'No Item ID found';
+};
 
 async function fetchOSRSItemDirect(itemId: number): Promise<OSRSItem | null> {
   try {
@@ -179,12 +199,7 @@ export default function UserById() {
                         )}
                         <Box className="min-w-0 flex-1">
                           <Text size="3" className="block truncate text-white">
-                            {item.osrsData?.name ??
-                              (item?.itemId
-                                ? toTitleCase(
-                                    untradeableItems[item.itemId ?? -1],
-                                  )
-                                : `Item ID ${item.itemId}`)}
+                            {item.osrsData?.name ?? displayItemText(item)}
                           </Text>
                           <Text size="2" className="text-gray-400">
                             {dayjs(item.createdAt).format('MMM D, YYYY')} •{' '}

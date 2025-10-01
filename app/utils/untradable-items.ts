@@ -75,4 +75,12 @@ export const untradeableItems: Record<number, string> = {
 
   // Brimstone/Hydra items that are untradeable versions
   20724: 'imbued heart',
+
+  29265: 'guild hunter top',
+  29267: 'guild hunter legs',
+  29269: 'guild hunter boots',
+  13276: 'bludgeon axon',
+  13275: 'bludgeon claw',
+  13274: 'bludgeon spine',
+  27279: 'thread of elidinis',
 };

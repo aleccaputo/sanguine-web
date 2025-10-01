@@ -10,7 +10,7 @@ import {
   Button,
   IconButton,
 } from '@radix-ui/themes';
-import { json, MetaFunction } from '@remix-run/node';
+import { defer, MetaFunction } from '@remix-run/node';
 import {
   getCompetitionById,
   getCompetitions,
@@ -28,22 +28,29 @@ export const meta: MetaFunction = () => {
 };
 
 const SkeletonLoader = () => (
-  <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="4">
-    {[...Array(6).keys()].map((_, idx) => (
-      <Card
-        key={idx}
-        className="animate-pulse border border-gray-800 bg-gray-900"
-      >
-        <Flex p="4" gap="3" align="center">
-          <div className="h-12 w-12 rounded-full bg-gray-700"></div>
-          <Box className="flex-1">
-            <div className="mb-2 h-4 w-3/4 rounded bg-gray-700"></div>
-            <div className="h-3 w-1/2 rounded bg-gray-700"></div>
-          </Box>
-        </Flex>
-      </Card>
-    ))}
-  </Grid>
+  <>
+    <Box className="text-center mb-4">
+      <Text size="2" className="text-gray-400">
+        Loading events... This may take up to a minute.
+      </Text>
+    </Box>
+    <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="4">
+      {[...Array(6).keys()].map((_, idx) => (
+        <Card
+          key={idx}
+          className="animate-pulse border border-gray-800 bg-gray-900"
+        >
+          <Flex p="4" gap="3" align="center">
+            <div className="h-12 w-12 rounded-full bg-gray-700"></div>
+            <Box className="flex-1">
+              <div className="mb-2 h-4 w-3/4 rounded bg-gray-700"></div>
+              <div className="h-3 w-1/2 rounded bg-gray-700"></div>
+            </Box>
+          </Flex>
+        </Card>
+      ))}
+    </Grid>
+  </>
 );
 
 export async function loader() {
@@ -53,29 +60,30 @@ export async function loader() {
   const starBingoPromise = getCompetitionById(79514);
   const coalitionBingoPromise = getCompetitionById(101103);
 
-  const [fall2025Bingo, womComps, rngBingo, starBingo, coalitionBingo] =
+  const [fall2025Bingo, rngBingo, starBingo, coalitionBingo] =
     await Promise.all([
       fall2025BingoPromise,
-      womCompsPromise,
       rngBingoPromise,
       starBingoPromise,
       coalitionBingoPromise,
     ]);
-  return json(
+
+  const competitionsPromise = womCompsPromise.then(womComps => [
+    fall2025Bingo,
+    ...(womComps ?? []),
+    coalitionBingo,
+    starBingo,
+    rngBingo,
+  ]);
+
+  return defer(
     {
-      competitions: [
-        fall2025Bingo,
-        ...(womComps ?? []),
-        coalitionBingo,
-        starBingo,
-        rngBingo,
-      ],
+      competitions: competitionsPromise,
     },
     {
       headers: {
         'Cache-Control': 'max-age=3600',
       },
-      status: 200,
     },
   );
 }
