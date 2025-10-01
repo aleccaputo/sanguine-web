@@ -1,6 +1,6 @@
 import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
-import { Box, Card, Container, Flex, Heading, Text } from '@radix-ui/themes';
+import { Box, Card, Container, Flex, Heading, Text, Button } from '@radix-ui/themes';
 import { getUserWithNickname } from '~/services/sanguine-service.server';
 import { getAuditDataForUserById } from '~/data/points-audit';
 import {
@@ -16,6 +16,7 @@ import dayjs from 'dayjs';
 import { untradeableItems } from '~/utils/untradable-items';
 import { toTitleCase } from '~/utils/string-helpers';
 import { PointAudit } from '@prisma/client';
+import { useState } from 'react';
 
 interface OSRSItem {
   id: number;
@@ -118,6 +119,8 @@ export async function loader({ params }: LoaderFunctionArgs) {
 
 export default function UserById() {
   const { user, auditData, allItemsLogged } = useLoaderData<typeof loader>();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const summedPointsByYearMonth: { date: string; points: number }[] =
     Object.entries(
@@ -133,6 +136,11 @@ export default function UserById() {
         {},
       ),
     ).map(([date, points]) => ({ date, points }));
+
+  const totalPages = Math.ceil(allItemsLogged.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = allItemsLogged.slice(startIndex, endIndex);
 
   return (
     <Container size="4" mt="3">
@@ -180,37 +188,58 @@ export default function UserById() {
               <Heading size="5" className="mb-4 text-white">
                 Recent Items
               </Heading>
-              <Flex direction="column" gap="3">
-                {allItemsLogged.slice(0, 5).map(item => (
-                  <Card
+              <Flex direction="column" gap="2">
+                {currentItems.map(item => (
+                  <Box
                     key={item.id}
-                    className="border border-gray-700 bg-gray-800"
+                    className="border-b border-gray-800 py-2 last:border-b-0"
                   >
-                    <Box p="3">
-                      <Flex align="center" gap="3">
-                        {item.osrsData?.icon && (
-                          <Box className="flex-shrink-0">
-                            <img
-                              src={item.osrsData.icon}
-                              alt={item.osrsData.name}
-                              className="h-8 w-8"
-                            />
-                          </Box>
-                        )}
-                        <Box className="min-w-0 flex-1">
-                          <Text size="3" className="block truncate text-white">
+                    <Flex align="center" gap="3">
+                      {item.osrsData?.icon && (
+                        <Box className="flex-shrink-0">
+                          <img
+                            src={item.osrsData.icon}
+                            alt={item.osrsData.name}
+                            className="h-6 w-6"
+                          />
+                        </Box>
+                      )}
+                      <Box className="min-w-0 flex-1">
+                        <Flex align="center" gap="2" justify="between">
+                          <Text size="2" className="truncate text-white">
                             {item.osrsData?.name ?? displayItemText(item)}
                           </Text>
-                          <Text size="2" className="text-gray-400">
-                            {dayjs(item.createdAt).format('MMM D, YYYY')} •{' '}
-                            {item.pointsGiven} points
+                          <Text size="1" className="text-gray-400 whitespace-nowrap">
+                            {dayjs(item.createdAt).format('MMM D, YYYY')} • {item.pointsGiven} pts
                           </Text>
-                        </Box>
-                      </Flex>
-                    </Box>
-                  </Card>
+                        </Flex>
+                      </Box>
+                    </Flex>
+                  </Box>
                 ))}
               </Flex>
+
+              {totalPages > 1 && (
+                <Flex justify="between" align="center" mt="4">
+                  <Button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    variant="soft"
+                  >
+                    Previous
+                  </Button>
+                  <Text size="2" className="text-gray-400">
+                    Page {currentPage} of {totalPages}
+                  </Text>
+                  <Button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    variant="soft"
+                  >
+                    Next
+                  </Button>
+                </Flex>
+              )}
             </Box>
           </Card>
         )}
