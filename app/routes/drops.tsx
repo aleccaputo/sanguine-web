@@ -113,17 +113,22 @@ export default function Drops() {
                     className="border-b border-gray-800 py-2 last:border-b-0"
                   >
                     <Flex align="center" gap="3">
-                      {item.osrsData?.icon && (
-                        <Box className="flex-shrink-0">
+                      <Box className="h-6 w-6 flex-shrink-0">
+                        {item.osrsData?.icon && (
                           <img
                             src={item.osrsData.icon}
                             alt={item.osrsData.name}
                             className="h-6 w-6"
                           />
-                        </Box>
-                      )}
+                        )}
+                      </Box>
                       <Box className="min-w-0 flex-1">
-                        <Flex align="center" gap="2" justify="between">
+                        <Flex
+                          direction={{ initial: 'column', sm: 'row' }}
+                          gap="2"
+                          justify="between"
+                          align={{ initial: 'start', sm: 'center' }}
+                        >
                           <Flex direction="column" gap="1">
                             <Text size="2" className="truncate text-white">
                               {item.osrsData?.name ?? displayItemText(item)}
