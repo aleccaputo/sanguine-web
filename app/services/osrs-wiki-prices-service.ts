@@ -7,6 +7,23 @@ interface IWikiPriceItem {
   lowTime: number | null;
 }
 
+export interface OSRSItem {
+  id: number;
+  name: string;
+  icon: string;
+}
+
+// Item cache for OSRS item details
+const itemCache: {
+  [itemId: number]: {
+    data: OSRSItem | null;
+    timestamp: number;
+  };
+} = {};
+
+// Cache duration in milliseconds (24 hours - items don't change often)
+const ITEM_CACHE_DURATION = 24 * 60 * 60 * 1000;
+
 export interface PricesResponseData {
   data: {
     [itemId: string]: {
@@ -68,6 +85,84 @@ export const fetchAllPrices = async (): Promise<PricesResponseData> => {
 
   return data;
 };
+
+/**
+ * Fetches item details from OSRS API with caching
+ */
+export async function fetchOSRSItemDirect(
+  itemId: number,
+): Promise<OSRSItem | null> {
+  const now = Date.now();
+
+  // Check if we have a valid cache for this item
+  if (
+    itemCache[itemId] &&
+    now - itemCache[itemId].timestamp < ITEM_CACHE_DURATION
+  ) {
+    return itemCache[itemId].data;
+  }
+
+  try {
+    const response = await fetch(
+      `https://secure.runescape.com/m=itemdb_oldschool/api/catalogue/detail.json?item=${itemId}`,
+      {
+        headers: {
+          'User-Agent':
+            'sanguine-osrs.com - Clan Website (sanguine.pvm@gmail.com)',
+        },
+      },
+    );
+
+    if (!response.ok) {
+      // Cache the null result for failed requests (for 1 hour)
+      itemCache[itemId] = {
+        data: null,
+        timestamp: now,
+      };
+      return null;
+    }
+
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      itemCache[itemId] = {
+        data: null,
+        timestamp: now,
+      };
+      return null;
+    }
+
+    const data = JSON.parse(text);
+    if (!data?.item?.name || !data?.item?.icon) {
+      itemCache[itemId] = {
+        data: null,
+        timestamp: now,
+      };
+      return null;
+    }
+
+    const itemData = {
+      id: itemId,
+      name: data.item.name,
+      icon: data.item.icon,
+    };
+
+    // Cache the successful result
+    itemCache[itemId] = {
+      data: itemData,
+      timestamp: now,
+    };
+
+    return itemData;
+  } catch (error) {
+    console.error(error);
+    // Cache the null result even on error
+    itemCache[itemId] = {
+      data: null,
+      timestamp: now,
+    };
+    return null;
+  }
+}
 
 /**
  * A version that uses Remix's Response caching mechanism

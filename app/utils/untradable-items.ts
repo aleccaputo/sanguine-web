@@ -83,4 +83,10 @@ export const untradeableItems: Record<number, string> = {
   13275: 'bludgeon claw',
   13274: 'bludgeon spine',
   27279: 'thread of elidinis',
+  29799: 'araxyte fang',
+  29792: 'noxious blade',
+  29794: 'noxious pommel',
+  29790: 'noxious point',
+  28321: 'eye of the duke',
+  28279: 'bellator vestige',
 };

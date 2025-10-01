@@ -17,12 +17,10 @@ import { untradeableItems } from '~/utils/untradable-items';
 import { toTitleCase } from '~/utils/string-helpers';
 import { PointAudit } from '@prisma/client';
 import { useState } from 'react';
-
-interface OSRSItem {
-  id: number;
-  name: string;
-  icon: string;
-}
+import {
+  fetchOSRSItemDirect,
+  OSRSItem,
+} from '~/services/osrs-wiki-prices-service';
 
 interface AuditWithOsrsItem extends PointAudit {
   osrsData: OSRSItem | null;
@@ -42,32 +40,6 @@ const displayItemText = (item: AuditWithOsrsItem) => {
   }
   return 'No Item ID found';
 };
-
-async function fetchOSRSItemDirect(itemId: number): Promise<OSRSItem | null> {
-  try {
-    const response = await fetch(
-      `https://secure.runescape.com/m=itemdb_oldschool/api/catalogue/detail.json?item=${itemId}`,
-      {
-        headers: {
-          'User-Agent':
-            'sanguine-osrs.com - Clan Website (sanguine.pvm@gmail.com)',
-        },
-      },
-    );
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return {
-      id: itemId,
-      name: data.item.name,
-      icon: data.item.icon,
-    };
-  } catch (error) {
-    console.error(`Failed to fetch OSRS item ${itemId}:`, error);
-    return null;
-  }
-}
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = data?.user?.nickname
@@ -90,7 +62,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
     userAuditDataPromise,
   ]);
 
-  // Get the 5 most recent automated items
+  // Get all automated items
   const allAutomatedItems = userAuditData
     .filter(x => x.type === 'AUTOMATED')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
