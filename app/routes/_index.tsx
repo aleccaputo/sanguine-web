@@ -70,7 +70,7 @@ export default function Index() {
               Members
             </Text>
             <Text size="3" className="font-medium text-sanguine-red">
-              170+
+              220+
             </Text>
           </Box>
         </Grid>
@@ -126,7 +126,7 @@ export default function Index() {
           <Grid columns={{ initial: '1', sm: '3' }} gap="6" className="mb-8">
             <Box>
               <Text size="7" className="block font-bold text-sanguine-red">
-                170+
+                220+
               </Text>
               <Text size="3" className="text-gray-400">
                 Active Members
