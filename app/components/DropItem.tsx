@@ -2,7 +2,6 @@ import { Link } from '@remix-run/react';
 import { Box, Flex, Text } from '@radix-ui/themes';
 import dayjs from 'dayjs';
 import { OSRSItem } from '~/services/osrs-wiki-prices-service';
-import { displayItemText } from '~/utils/item-helpers';
 
 interface DropItemProps {
   item: {
@@ -56,7 +55,7 @@ export function DropItem({
                 weight="medium"
                 className="truncate text-white"
               >
-                {item.osrsData?.name ?? displayItemText(item)}
+                {item.osrsData?.name ?? `Item ID: ${item.itemId}`}
               </Text>
               {showRecipient && nickname && (
                 <Link
