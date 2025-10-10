@@ -1,6 +1,14 @@
 import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
-import { Box, Card, Container, Flex, Heading, Text, Button } from '@radix-ui/themes';
+import {
+  Box,
+  Card,
+  Container,
+  Flex,
+  Heading,
+  Text,
+  Button,
+} from '@radix-ui/themes';
 import { getUserWithNickname } from '~/services/sanguine-service.server';
 import { getAuditDataForUserById } from '~/data/points-audit';
 import {
@@ -13,33 +21,9 @@ import {
   YAxis,
 } from 'recharts';
 import dayjs from 'dayjs';
-import { untradeableItems } from '~/utils/untradable-items';
-import { toTitleCase } from '~/utils/string-helpers';
-import { PointAudit } from '@prisma/client';
 import { useState } from 'react';
-import {
-  fetchOSRSItemDirect,
-  OSRSItem,
-} from '~/services/osrs-wiki-prices-service';
-
-interface AuditWithOsrsItem extends PointAudit {
-  osrsData: OSRSItem | null;
-}
-
-const displayItemText = (item: AuditWithOsrsItem) => {
-  if (item?.itemId && !isNaN(item?.itemId)) {
-    const untradableItem = untradeableItems[item?.itemId ?? -100];
-    if (!untradableItem) {
-      console.error(
-        `No item name found for itemId: ${item?.itemId} for userId: ${item.destinationDiscordId}`,
-      );
-      return `Item ID: ${item.itemId}`;
-    }
-
-    return toTitleCase(untradableItem);
-  }
-  return 'No Item ID found';
-};
+import { fetchOSRSItemDirect } from '~/services/osrs-wiki-prices-service';
+import { displayItemText } from '~/utils/item-helpers';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = data?.user?.nickname
@@ -181,8 +165,12 @@ export default function UserById() {
                           <Text size="2" className="truncate text-white">
                             {item.osrsData?.name ?? displayItemText(item)}
                           </Text>
-                          <Text size="1" className="text-gray-400 whitespace-nowrap">
-                            {dayjs(item.createdAt).format('MMM D, YYYY')} • {item.pointsGiven} pts
+                          <Text
+                            size="1"
+                            className="whitespace-nowrap text-gray-400"
+                          >
+                            {dayjs(item.createdAt).format('MMM D, YYYY')} •{' '}
+                            {item.pointsGiven} pts
                           </Text>
                         </Flex>
                       </Box>
@@ -204,7 +192,9 @@ export default function UserById() {
                     Page {currentPage} of {totalPages}
                   </Text>
                   <Button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() =>
+                      setCurrentPage(p => Math.min(totalPages, p + 1))
+                    }
                     disabled={currentPage === totalPages}
                     variant="soft"
                   >

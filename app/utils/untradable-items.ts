@@ -79,6 +79,7 @@ export const untradeableItems: Record<number, string> = {
   29265: 'guild hunter top',
   29267: 'guild hunter legs',
   29269: 'guild hunter boots',
+  29263: 'guild hunter headwear',
   13276: 'bludgeon axon',
   13275: 'bludgeon claw',
   13274: 'bludgeon spine',
@@ -89,4 +90,8 @@ export const untradeableItems: Record<number, string> = {
   29790: 'noxious point',
   28321: 'eye of the duke',
   28279: 'bellator vestige',
+  31109: 'mokhaiotl cloth',
+  28323: "siren's staff",
+  29786: 'jar of venom',
+  28325: "leviathan's lure",
 };

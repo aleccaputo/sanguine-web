@@ -1,36 +1,19 @@
 import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData } from '@remix-run/react';
-import { Box, Card, Container, Flex, Heading, Text, Button } from '@radix-ui/themes';
+import {
+  Box,
+  Card,
+  Container,
+  Flex,
+  Heading,
+  Text,
+  Button,
+} from '@radix-ui/themes';
 import { getClanDropsPaginated } from '~/data/points-audit';
 import dayjs from 'dayjs';
-import { untradeableItems } from '~/utils/untradable-items';
-import { toTitleCase } from '~/utils/string-helpers';
-import { PointAudit } from '@prisma/client';
-import {
-  fetchOSRSItemDirect,
-  OSRSItem,
-} from '~/services/osrs-wiki-prices-service';
+import { fetchOSRSItemDirect } from '~/services/osrs-wiki-prices-service';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
-
-interface AuditWithOsrsItem extends PointAudit {
-  osrsData: OSRSItem | null;
-  nickname?: string;
-}
-
-const displayItemText = (item: AuditWithOsrsItem) => {
-  if (item?.itemId && !isNaN(item?.itemId)) {
-    const untradableItem = untradeableItems[item?.itemId ?? -100];
-    if (!untradableItem) {
-      console.error(
-        `No item name found for itemId: ${item?.itemId} for userId: ${item.destinationDiscordId}`,
-      );
-      return `Item ID: ${item.itemId}`;
-    }
-
-    return toTitleCase(untradableItem);
-  }
-  return 'No Item ID found';
-};
+import { displayItemText } from '~/utils/item-helpers';
 
 export const meta: MetaFunction = () => {
   return [
@@ -134,9 +117,12 @@ export default function Drops() {
                               {item.osrsData?.name ?? displayItemText(item)}
                             </Text>
                             {item.nickname && (
-                              <Text size="1" className="text-gray-500">
-                                {item.nickname}
-                              </Text>
+                              <Link
+                                to={`/users/${item.destinationDiscordId}`}
+                                className="text-gray-500 hover:text-sanguine-red transition-colors"
+                              >
+                                <Text size="1">{item.nickname}</Text>
+                              </Link>
                             )}
                           </Flex>
                           <Text
