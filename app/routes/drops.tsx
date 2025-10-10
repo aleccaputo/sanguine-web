@@ -10,10 +10,9 @@ import {
   Button,
 } from '@radix-ui/themes';
 import { getClanDropsPaginated } from '~/data/points-audit';
-import dayjs from 'dayjs';
-import { fetchOSRSItemDirect } from '~/services/osrs-wiki-prices-service';
+import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
-import { displayItemText } from '~/utils/item-helpers';
+import { DropItem } from '~/components/DropItem';
 
 export const meta: MetaFunction = () => {
   return [
@@ -28,7 +27,7 @@ export const meta: MetaFunction = () => {
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const page = parseInt(url.searchParams.get('page') || '1', 10);
-  const pageSize = 10;
+  const pageSize = 7;
 
   const [{ drops, totalCount, currentPage, totalPages }, users] =
     await Promise.all([
@@ -41,7 +40,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     drops.map(async item => {
       const user = users.find(u => u.discordId === item.destinationDiscordId);
       const osrsData =
-        item.itemId !== null ? await fetchOSRSItemDirect(item.itemId) : null;
+        item.itemId !== null ? await fetchOSRSItem(item.itemId) : null;
 
       return {
         ...item,
@@ -68,102 +67,31 @@ export default function Drops() {
 
   return (
     <Container size="4" mt="3">
-      <Flex direction="column" gap="6">
+      <Flex direction="column" gap="4">
         {/* Header */}
-        <Card className="border border-gray-800 bg-gray-900">
-          <Box p="4">
-            <Flex justify="center" align="center">
-              <Box className="text-center">
-                <Heading size="6" className="text-white">
-                  Recent Clan Drops
-                </Heading>
-                <Text size="3" className="text-gray-400">
-                  {totalCount} total automated drops
-                </Text>
-              </Box>
-            </Flex>
-          </Box>
-        </Card>
+        <Box className="text-center">
+          <Heading size="6" className="text-white">
+            Recent Clan Drops
+          </Heading>
+          <Text size="2" className="text-gray-400">
+            {totalCount} total drops
+          </Text>
+        </Box>
 
         {/* Drops List */}
         {recentDrops.length > 0 ? (
           <Card className="border border-gray-800 bg-gray-900">
-            <Box p="5">
-              <Flex direction="column" gap="2">
+            <Box p="4">
+              <Flex direction="column">
                 {recentDrops.map(item => (
-                  <Box
+                  <DropItem
                     key={item.id}
-                    className="border-b border-gray-800 py-2 last:border-b-0"
-                  >
-                    <Flex align="center" gap="3">
-                      <Box className="h-6 w-6 flex-shrink-0">
-                        {item.osrsData?.icon && (
-                          <img
-                            src={item.osrsData.icon}
-                            alt={item.osrsData.name}
-                            className="h-6 w-6"
-                          />
-                        )}
-                      </Box>
-                      <Box className="min-w-0 flex-1">
-                        <Flex
-                          direction={{ initial: 'column', sm: 'row' }}
-                          gap="2"
-                          justify="between"
-                          align={{ initial: 'start', sm: 'center' }}
-                        >
-                          <Flex direction="column" gap="1">
-                            <Text size="2" className="truncate text-white">
-                              {item.osrsData?.name ?? displayItemText(item)}
-                            </Text>
-                            {item.nickname && (
-                              <Link
-                                to={`/users/${item.destinationDiscordId}`}
-                                className="text-gray-500 hover:text-sanguine-red transition-colors"
-                              >
-                                <Text size="1">{item.nickname}</Text>
-                              </Link>
-                            )}
-                          </Flex>
-                          <Text
-                            size="1"
-                            className="whitespace-nowrap text-gray-400"
-                          >
-                            {dayjs(item.createdAt).format('MMM D, YYYY')} •{' '}
-                            {item.pointsGiven} pts
-                          </Text>
-                        </Flex>
-                      </Box>
-                    </Flex>
-                  </Box>
+                    item={item}
+                    nickname={item.nickname}
+                    showRecipient={true}
+                  />
                 ))}
               </Flex>
-
-              {totalPages > 1 && (
-                <Flex justify="between" align="center" mt="4">
-                  {currentPage === 1 ? (
-                    <Button variant="soft" disabled>
-                      Previous
-                    </Button>
-                  ) : (
-                    <Button asChild variant="soft">
-                      <Link to={`?page=${currentPage - 1}`}>Previous</Link>
-                    </Button>
-                  )}
-                  <Text size="2" className="text-gray-400">
-                    Page {currentPage} of {totalPages}
-                  </Text>
-                  {currentPage === totalPages ? (
-                    <Button variant="soft" disabled>
-                      Next
-                    </Button>
-                  ) : (
-                    <Button asChild variant="soft">
-                      <Link to={`?page=${currentPage + 1}`}>Next</Link>
-                    </Button>
-                  )}
-                </Flex>
-              )}
             </Box>
           </Card>
         ) : (
@@ -176,6 +104,32 @@ export default function Drops() {
               </Box>
             </Box>
           </Card>
+        )}
+
+        {totalPages > 1 && (
+          <Flex justify="between" align="center" mt="2" mb="6">
+            {currentPage === 1 ? (
+              <Button variant="soft" disabled>
+                Previous
+              </Button>
+            ) : (
+              <Button asChild variant="soft">
+                <Link to={`?page=${currentPage - 1}`}>Previous</Link>
+              </Button>
+            )}
+            <Text size="2" className="text-gray-400">
+              Page {currentPage} of {totalPages}
+            </Text>
+            {currentPage === totalPages ? (
+              <Button variant="soft" disabled>
+                Next
+              </Button>
+            ) : (
+              <Button asChild variant="soft">
+                <Link to={`?page=${currentPage + 1}`}>Next</Link>
+              </Button>
+            )}
+          </Flex>
         )}
       </Flex>
     </Container>

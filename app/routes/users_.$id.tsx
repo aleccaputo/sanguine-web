@@ -22,8 +22,8 @@ import {
 } from 'recharts';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { fetchOSRSItemDirect } from '~/services/osrs-wiki-prices-service';
-import { displayItemText } from '~/utils/item-helpers';
+import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
+import { DropItem } from '~/components/DropItem';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = data?.user?.nickname
@@ -58,7 +58,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
         return { ...item, osrsData: null };
       }
 
-      const osrsData = await fetchOSRSItemDirect(item.itemId);
+      const osrsData = await fetchOSRSItem(item.itemId);
       return { ...item, osrsData };
     }),
   );
@@ -76,7 +76,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
 export default function UserById() {
   const { user, auditData, allItemsLogged } = useLoaderData<typeof loader>();
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
 
   const summedPointsByYearMonth: { date: string; points: number }[] =
     Object.entries(
@@ -98,43 +98,79 @@ export default function UserById() {
   const endIndex = startIndex + itemsPerPage;
   const currentItems = allItemsLogged.slice(startIndex, endIndex);
 
+  // Calculate total GP from all tradeable items
+  const totalGP = allItemsLogged.reduce((sum, item) => {
+    return sum + (item.osrsData?.price || 0);
+  }, 0);
+
   return (
     <Container size="4" mt="3">
       <Flex direction="column" gap="6">
         {/* User Header */}
         <Card className="border border-gray-800 bg-gray-900">
-          <Box p="4">
-            <Flex justify="center" align="center">
-              <Box className="text-center">
+          <Box p="5">
+            <Flex
+              direction={{ initial: 'column', md: 'row' }}
+              justify={{ md: 'between' }}
+              align={{ initial: 'center', md: 'center' }}
+              gap="4"
+            >
+              {/* Name and Points */}
+              <Flex
+                direction="column"
+                gap="1"
+                align={{ initial: 'center', md: 'start' }}
+              >
                 <Heading size="6" className="text-white">
                   {user.nickname}
                 </Heading>
                 <Text size="4" className="text-sanguine-red">
                   {user.points} clan points
                 </Text>
-              </Box>
+              </Flex>
+
+              {/* Stats */}
+              <Flex gap="6" align="center">
+                <Flex direction="column" gap="2" align="center">
+                  <Box className="text-center">
+                    <Text size="2" className="text-gray-400">
+                      {'Member Since: '}
+                    </Text>
+                    <Text size="3" className="text-white">
+                      {dayjs(user.joined).format('MMM YYYY')}
+                    </Text>
+                  </Box>
+                  {allItemsLogged.length > 0 && (
+                    <Box className="text-center">
+                      <Text size="2" className="text-gray-400">
+                        {'Total Items: '}
+                      </Text>
+                      <Text size="3" className="text-white">
+                        {allItemsLogged.length}
+                      </Text>
+                    </Box>
+                  )}
+                </Flex>
+                {totalGP > 0 && (
+                  <Box className="text-center">
+                    <Text size="2" className="text-gray-400">
+                      Total Value
+                    </Text>
+                    <Flex align="center" justify="center" gap="1">
+                      <img
+                        src="https://oldschool.runescape.wiki/images/Coins_detail.png"
+                        alt="GP"
+                        className="h-4 w-4 object-contain"
+                      />
+                      <Text size="3" className="text-amber-400">
+                        {totalGP.toLocaleString()}
+                      </Text>
+                    </Flex>
+                  </Box>
+                )}
+              </Flex>
             </Flex>
           </Box>
-          <Flex justify="center" align="center" direction="column">
-            <Box className="text-right">
-              <Text size="2" className="text-gray-400">
-                Member Since:{' '}
-              </Text>
-              <Text size="3" className="text-white">
-                {dayjs(user.joined).format('MMM YYYY')}
-              </Text>
-            </Box>
-            {allItemsLogged.length ? (
-              <Box>
-                <Text size="2" className="text-gray-400">
-                  Total Items:{' '}
-                </Text>
-                <Text size="3" className="text-white">
-                  {allItemsLogged.length}
-                </Text>
-              </Box>
-            ) : null}
-          </Flex>
         </Card>
 
         {/* Recent Items Section */}
@@ -144,38 +180,14 @@ export default function UserById() {
               <Heading size="5" className="mb-4 text-white">
                 Recent Items
               </Heading>
-              <Flex direction="column" gap="2">
+              <Flex direction="column">
                 {currentItems.map(item => (
-                  <Box
+                  <DropItem
                     key={item.id}
-                    className="border-b border-gray-800 py-2 last:border-b-0"
-                  >
-                    <Flex align="center" gap="3">
-                      {item.osrsData?.icon && (
-                        <Box className="flex-shrink-0">
-                          <img
-                            src={item.osrsData.icon}
-                            alt={item.osrsData.name}
-                            className="h-6 w-6"
-                          />
-                        </Box>
-                      )}
-                      <Box className="min-w-0 flex-1">
-                        <Flex align="center" gap="2" justify="between">
-                          <Text size="2" className="truncate text-white">
-                            {item.osrsData?.name ?? displayItemText(item)}
-                          </Text>
-                          <Text
-                            size="1"
-                            className="whitespace-nowrap text-gray-400"
-                          >
-                            {dayjs(item.createdAt).format('MMM D, YYYY')} •{' '}
-                            {item.pointsGiven} pts
-                          </Text>
-                        </Flex>
-                      </Box>
-                    </Flex>
-                  </Box>
+                    item={item}
+                    showRecipient={false}
+                    size="small"
+                  />
                 ))}
               </Flex>
 
