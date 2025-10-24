@@ -14,13 +14,10 @@ import {
   Container,
   Grid,
   Heading,
-  IconButton,
 } from '@radix-ui/themes';
 
 import {
   MagnifyingGlassIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
 } from '@radix-ui/react-icons';
 import { getClanFromWom } from '~/services/wom-api-service.server';
 import { fetchRankImage } from '~/utils/clan-ranks';
@@ -55,9 +52,6 @@ export default function Index() {
   const { users, sanguineWomMembers } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedUsers, setExpandedUsers] = useState<Record<string, boolean>>(
-    {},
-  );
 
   // Get rank text based on points
   const getRankText = (
@@ -103,13 +97,6 @@ export default function Index() {
     );
   };
 
-  const toggleExpandUser = (userId: string) => {
-    setExpandedUsers(prev => ({
-      ...prev,
-      [userId]: !prev[userId],
-    }));
-  };
-
   return (
     <Container size="3" mt="3">
       <Flex direction="column" gap="5">
@@ -141,16 +128,10 @@ export default function Index() {
           {filteredUsers.map(user => (
             <Card
               key={user.discordId}
-              className="border border-gray-800 bg-gray-900 transition-all duration-200 hover:border-sanguine-red"
+              className="cursor-pointer border border-gray-800 bg-gray-900 transition-all duration-200 hover:border-sanguine-red"
+              onClick={() => navigate(`/users/${user.discordId}`)}
             >
-              <Flex
-                p="3"
-                gap="3"
-                align="center"
-                justify="between"
-                className="cursor-pointer"
-                onClick={() => toggleExpandUser(user.discordId)}
-              >
+              <Flex p="3" gap="3" align="center" justify="between">
                 <Box>
                   <Flex align="center" gap="2">
                     {getRankIcon(getRankText(sanguineWomMembers, user))}
@@ -166,61 +147,7 @@ export default function Index() {
                     {user.points} points
                   </Text>
                 </Box>
-                <IconButton
-                  variant="ghost"
-                  color="gray"
-                  onClick={e => {
-                    e.stopPropagation();
-                    toggleExpandUser(user.discordId);
-                  }}
-                >
-                  {expandedUsers[user.discordId] ? (
-                    <ChevronUpIcon width="16" height="16" />
-                  ) : (
-                    <ChevronDownIcon width="16" height="16" />
-                  )}
-                </IconButton>
               </Flex>
-              <Box
-                className={`
-                  overflow-hidden bg-black transition-all duration-300
-                  ${expandedUsers[user.discordId] ? 'max-h-64 p-3' : 'max-h-0 p-0'}
-                `}
-              >
-                <Box className="border-l-2 border-sanguine-red pl-3">
-                  <Text as="div" size="2" mb="2" className="text-white">
-                    Member Stats:
-                  </Text>
-
-                  <Flex direction="column" gap="1">
-                    <Flex justify="between">
-                      <Text size="1" className="text-gray-400">
-                        Rank:
-                      </Text>
-                      <Text size="1" className="text-sanguine-red">
-                        {getRankText(sanguineWomMembers, user)}
-                      </Text>
-                    </Flex>
-                    <Flex justify="between">
-                      <Text size="1" className="text-gray-400">
-                        Joined:
-                      </Text>
-                      <Text size="1" className="text-white">
-                        {new Date(user.joined).toLocaleDateString()}
-                      </Text>
-                    </Flex>
-                  </Flex>
-
-                  <Flex mt="3" justify="end">
-                    <Box
-                      className="cursor-pointer bg-sanguine-red px-3 py-1 text-white transition-colors hover:bg-red-700"
-                      onClick={() => navigate(`/users/${user.discordId}`)}
-                    >
-                      <Text size="1">View Profile</Text>
-                    </Box>
-                  </Flex>
-                </Box>
-              </Box>
             </Card>
           ))}
         </Grid>
