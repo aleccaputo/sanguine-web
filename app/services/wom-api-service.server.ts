@@ -40,6 +40,7 @@ export const getClanFromWom = async (id: number) => {
   if (lastMemberFetch !== null && now - WOM_MEMBER_CACHE_DURATION > lastMemberFetch) {
     const clan = await client.groups.getGroupDetails(id);
     womMemberCache = clan.memberships;
+    lastMemberFetch = now;
     return clan.memberships;
   }
   else {
