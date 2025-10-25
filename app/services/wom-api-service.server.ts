@@ -8,7 +8,7 @@ let womMemberCache: MembershipWithPlayer[] = [];
 let lastMemberFetch: number = 0;
 
 // Cache durations
-const WOM_MEMBER_CACHE_DURATION = 1 * 60 * 1000; // 1 minutes
+const WOM_MEMBER_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 const groupId = parseInt(process.env.WOM_GROUP_ID!, 10);
 
@@ -37,13 +37,14 @@ export const getCompetitionById = async (id: number) => {
 
 export const getClanFromWom = async (id: number) => {
   const now = Date.now();
-  if (lastMemberFetch !== null && now - WOM_MEMBER_CACHE_DURATION > lastMemberFetch) {
+  if (now - lastMemberFetch > WOM_MEMBER_CACHE_DURATION || womMemberCache.length === 0) {
     const clan = await client.groups.getGroupDetails(id);
     womMemberCache = clan.memberships;
+    lastMemberFetch = now;
     return clan.memberships;
   }
   else {
-    console.info('wom member cache hit');
+    console.log('wom member cache hit');
     return womMemberCache;
   }
 };
