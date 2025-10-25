@@ -24,6 +24,8 @@ import dayjs from 'dayjs';
 import { useState } from 'react';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
 import { DropItem } from '~/components/DropItem';
+import { getClanFromWom } from '~/services/wom-api-service.server';
+import { fetchRankImage } from '~/utils/clan-ranks';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = data?.user?.nickname
@@ -40,10 +42,12 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 export async function loader({ params }: LoaderFunctionArgs) {
   const userPromise = getUserWithNickname(params.id ?? '');
   const userAuditDataPromise = getAuditDataForUserById(params.id ?? '');
+  const sanguineWomMembersPromise = await getClanFromWom(4255);
 
-  const [user, userAuditData] = await Promise.all([
+  const [user, userAuditData, sanguineWomMembers] = await Promise.all([
     userPromise,
     userAuditDataPromise,
+    sanguineWomMembersPromise
   ]);
 
   // Get all automated items
@@ -68,13 +72,14 @@ export async function loader({ params }: LoaderFunctionArgs) {
       user: user,
       auditData: userAuditData,
       allItemsLogged: itemsWithData,
+      womMembership: sanguineWomMembers.find(x => x.player.displayName.toLocaleLowerCase() === user.nickname?.toLocaleLowerCase())
     },
     200,
   );
 }
 
 export default function UserById() {
-  const { user, auditData, allItemsLogged } = useLoaderData<typeof loader>();
+  const { user, auditData, allItemsLogged, womMembership } = useLoaderData<typeof loader>();
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -93,6 +98,18 @@ export default function UserById() {
       ),
     ).map(([date, points]) => ({ date, points }));
 
+
+  const getRankIcon = (rankName: string) => {
+    return (
+      <img
+        src={fetchRankImage(rankName)}
+        alt={rankName}
+        width={26}
+        height={26}
+        className="inline-block"
+      />
+    );
+  };
   const totalPages = Math.ceil(allItemsLogged.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -122,6 +139,8 @@ export default function UserById() {
                 align={{ initial: 'center', md: 'start' }}
               >
                 <Heading size="6" className="text-white">
+                  {getRankIcon(womMembership?.role ?? 'Guest')}
+                  {' '}
                   {user.nickname}
                 </Heading>
                 <Text size="4" className="text-sanguine-red">

@@ -1,7 +1,14 @@
-import { WOMClient } from '@wise-old-man/utils';
+import { MembershipWithPlayer, WOMClient } from '@wise-old-man/utils';
 import { remember } from '@epic-web/remember';
 import * as process from 'process';
 import chalk from 'chalk';
+
+// Price cache
+let womMemberCache: MembershipWithPlayer[] = [];
+let lastMemberFetch: number = 0;
+
+// Cache durations
+const WOM_MEMBER_CACHE_DURATION = 1 * 60 * 1000; // 1 minutes
 
 const groupId = parseInt(process.env.WOM_GROUP_ID!, 10);
 
@@ -29,6 +36,15 @@ export const getCompetitionById = async (id: number) => {
 };
 
 export const getClanFromWom = async (id: number) => {
-  const clan = await client.groups.getGroupDetails(id);
-  return clan.memberships;
+  const now = Date.now();
+  if (lastMemberFetch !== null && now - WOM_MEMBER_CACHE_DURATION > lastMemberFetch) {
+    const clan = await client.groups.getGroupDetails(id);
+    womMemberCache = clan.memberships;
+    return clan.memberships;
+  }
+  else {
+    console.info('wom member cache hit');
+    return womMemberCache;
+  }
 };
+
