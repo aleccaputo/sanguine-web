@@ -17,6 +17,7 @@ model PointAudit {
   sourceDiscordId      String
   type                 String
   itemId               Int?
+  bossName             String?
 }
 
 model Users {

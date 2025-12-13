@@ -10,7 +10,8 @@
     "start": "remix-serve ./build/server/index.js",
     "typecheck": "tsc",
     "prettier": "prettier ./app --write",
-    "build:icons": "tsx other/build-icons.ts"
+    "build:icons": "tsx other/build-icons.ts",
+    "prisma:generate": "npx prisma generate"
   },
   "dependencies": {
     "@epic-web/remember": "^1.0.2",
