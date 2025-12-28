@@ -42,7 +42,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 export async function loader({ params }: LoaderFunctionArgs) {
   const userPromise = getUserWithNickname(params.id ?? '');
   const userAuditDataPromise = getAuditDataForUserById(params.id ?? '');
-  const sanguineWomMembersPromise = await getClanFromWom(4255);
+  const sanguineWomMembersPromise = await getClanFromWom(18435);
 
   const [user, userAuditData, sanguineWomMembers] = await Promise.all([
     userPromise,

@@ -32,7 +32,7 @@ export const meta: MetaFunction = () => {
 
 export async function loader() {
   const users = await getUsersWithNicknames();
-  const sanguineWomMembers = await getClanFromWom(4255);
+  const sanguineWomMembers = await getClanFromWom(18435);
   const filteredUsers = users.filter(x => x.nickname);
   return defer(
     {
