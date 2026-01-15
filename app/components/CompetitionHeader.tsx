@@ -5,9 +5,8 @@ import {
   Heading,
   IconButton,
   Text,
-  Button,
 } from '@radix-ui/themes';
-import { ArrowLeftIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
+import { ArrowLeftIcon } from '@radix-ui/react-icons';
 import { useNavigate } from '@remix-run/react';
 import { getCompetitionImageUrl } from '~/utils/competition-images';
 import { StatBox } from './StatBox';
@@ -34,6 +33,7 @@ interface CompetitionHeaderProps {
   showBackButton?: boolean;
   backButtonText?: string;
   backButtonPath?: string;
+  navigationSlot?: React.ReactNode;
 }
 
 export function CompetitionHeader({
@@ -44,6 +44,7 @@ export function CompetitionHeader({
   showBackButton = true,
   backButtonText = 'Back to Events',
   backButtonPath = '/events',
+  navigationSlot,
 }: CompetitionHeaderProps) {
   const navigate = useNavigate();
 
@@ -77,20 +78,7 @@ export function CompetitionHeader({
             <Heading size="6" className="text-sanguine-red sm:text-4xl">
               {competition.title}
             </Heading>
-            <a
-              href={`https://wiseoldman.net/competitions/${competition.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button
-                size="2"
-                color="gray"
-                className="border-none bg-[rgb(37,99,235)] text-white transition-colors hover:cursor-pointer hover:bg-blue-700 whitespace-nowrap"
-              >
-                View on WoM
-                <ExternalLinkIcon width="14" height="14" className="ml-1" />
-              </Button>
-            </a>
+            {navigationSlot && <Box>{navigationSlot}</Box>}
           </Flex>
           <Box className="mb-6 h-1 w-32 bg-sanguine-red"></Box>
 
