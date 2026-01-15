@@ -29,7 +29,7 @@ export const meta: MetaFunction = () => {
 
 const SkeletonLoader = () => (
   <>
-    <Box className="text-center mb-4">
+    <Box className="mb-4 text-center">
       <Text size="2" className="text-gray-400">
         Loading events... This may take up to a minute.
       </Text>
@@ -55,13 +55,15 @@ const SkeletonLoader = () => (
 
 export async function loader() {
   const womCompsPromise = getCompetitions();
+  const starCollectorsV2Promise = getCompetitionById(121056);
   const fall2025BingoPromise = getCompetitionById(107621);
   const rngBingoPromise = getCompetitionById(46594);
   const starBingoPromise = getCompetitionById(79514);
   const coalitionBingoPromise = getCompetitionById(101103);
 
-  const [fall2025Bingo, rngBingo, starBingo, coalitionBingo] =
+  const [starCollectorsV2, fall2025Bingo, rngBingo, starBingo, coalitionBingo] =
     await Promise.all([
+      starCollectorsV2Promise,
       fall2025BingoPromise,
       rngBingoPromise,
       starBingoPromise,
@@ -69,8 +71,9 @@ export async function loader() {
     ]);
 
   const competitionsPromise = womCompsPromise.then(womComps => [
-    fall2025Bingo,
+    starCollectorsV2,
     ...(womComps ?? []),
+    fall2025Bingo,
     coalitionBingo,
     starBingo,
     rngBingo,

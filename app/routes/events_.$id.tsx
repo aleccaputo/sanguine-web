@@ -144,11 +144,14 @@ const EventById = () => {
     participantMap.forEach((userInfo, discordId) => {
       const pointsForDay = data.auditData
         .filter(
-          audit => 
+          audit =>
             audit.destinationDiscordId === discordId &&
             dayjs(audit.createdAt).format('DD/MM/YYYY') ===
               currentDate.format('DD/MM/YYYY') &&
-              audit.bossName?.toLowerCase().replaceAll(' ', '_') === data.compDetails.metric,
+            (metric === 'EHB' || metric === 'EHP' // if EHP or EHB, just count all points, otherwise filter to boss
+              ? true
+              : audit.bossName?.toLowerCase().replaceAll(' ', '_') ===
+                data.compDetails.metric),
         )
         .reduce((sum, audit) => sum + audit.pointsGiven, 0);
       dayData[`${userInfo.nickname}_points`] = pointsForDay;
@@ -270,8 +273,14 @@ const EventById = () => {
                       .filter(
                         audit =>
                           sanguineUser &&
-                          audit.destinationDiscordId === sanguineUser.discordId &&
-                          audit.bossName?.toLocaleLowerCase()?.replaceAll(' ', '_') === data.compDetails.metric,
+                          audit.destinationDiscordId ===
+                            sanguineUser.discordId &&
+                          (metric === 'EHB' || metric === 'EHP'
+                            ? true
+                            : audit.bossName
+                                ?.toLocaleLowerCase()
+                                ?.replaceAll(' ', '_') ===
+                              data.compDetails.metric),
                       )
                       .reduce((sum, audit) => sum + audit.pointsGiven, 0);
 
