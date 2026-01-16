@@ -11,15 +11,15 @@ import { Theme } from '@radix-ui/themes';
 import tailwindStyleSheetUrl from './tailwind.css?url';
 import { LinksFunction, MetaFunction } from '@remix-run/node';
 import Navbar from '~/components/navbar';
-import { LoadingBar } from '~/components/loading-bar';
-import { SkeletonLoader } from '~/components/skeleton-loader';
+// import { LoadingBar } from '~/components/loading-bar';
+// import { SkeletonLoader } from '~/components/skeleton-loader';
 import { RouteSkeletonLoader } from '~/components/route-skeleton-loader';
 
 // LOADING INDICATOR OPTIONS:
 // Option 1: LoadingBar - Fixed top bar + center spinner
 // Option 2: SkeletonLoader - Generic full page skeleton
 // Option 3: RouteSkeletonLoader - Route-specific skeletons (RECOMMENDED)
-// To switch, comment/uncomment the component below
+// To switch, uncomment the desired import above and component below
 
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: tailwindStyleSheetUrl },

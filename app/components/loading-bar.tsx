@@ -44,8 +44,8 @@ function LoadingBar() {
               (animationComplete
                 ? 'transition-none'
                 : 'w-full opacity-0 transition-all'),
-            busy && transition.state === 'submitting' && 'w-5/12',
-            busy && transition.state === 'loading' && 'w-8/12',
+            transition.state === 'submitting' && 'w-5/12',
+            transition.state === 'loading' && 'w-8/12',
           )}
         />
       </div>

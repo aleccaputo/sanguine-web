@@ -24,7 +24,15 @@ export function ParticipantListItem({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={() => navigate(`/users/${participant.discordId}`)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate(`/users/${participant.discordId}`);
+        }
+      }}
       className="cursor-pointer rounded-lg border border-gray-700 p-3 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"
     >
       {/* Mobile Layout */}
