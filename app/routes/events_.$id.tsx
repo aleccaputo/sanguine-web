@@ -1,6 +1,6 @@
 import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { getCompetitionById } from '~/services/wom-api-service.server';
-import { useLoaderData } from '@remix-run/react';
+import { useLoaderData, useNavigate } from '@remix-run/react';
 import { Response } from '@remix-run/web-fetch';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import { getAuditDataForDateRange } from '~/data/points-audit';
@@ -112,6 +112,7 @@ const getEventStatus = (startsAt: string, endsAt: string): EventStatus => {
 
 const EventById = () => {
   const data = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
   const [sortBy, setSortBy] = useState<'points' | 'metric'>('points');
   const startDate = dayjs(data.compDetails.startsAt);
   const endDate = dayjs(data.compDetails.endsAt);
@@ -197,14 +198,14 @@ const EventById = () => {
           participantCount={participantMap.size}
           formatDate={formatDate}
           navigationSlot={
-            <Flex gap="2" wrap="wrap" align="center" justify="end">
+            <Flex gap="2" wrap="wrap" align="center" className="justify-start sm:justify-end">
               <button
                 onClick={() =>
                   document
                     .getElementById('chart')
                     ?.scrollIntoView({ behavior: 'smooth' })
                 }
-                className="rounded bg-sanguine-red px-4 py-2 text-base font-medium text-white transition-colors hover:bg-[#9a231c]"
+                className="rounded bg-sanguine-red px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#9a231c] sm:px-4 sm:py-2 sm:text-base"
               >
                 Chart
               </button>
@@ -214,7 +215,7 @@ const EventById = () => {
                     .getElementById('spoons')
                     ?.scrollIntoView({ behavior: 'smooth' })
                 }
-                className="rounded bg-sanguine-red px-4 py-2 text-base font-medium text-white transition-colors hover:bg-[#9a231c]"
+                className="rounded bg-sanguine-red px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#9a231c] sm:px-4 sm:py-2 sm:text-base"
               >
                 Spoons
               </button>
@@ -224,7 +225,7 @@ const EventById = () => {
                     .getElementById('leaderboard')
                     ?.scrollIntoView({ behavior: 'smooth' })
                 }
-                className="rounded bg-sanguine-red px-4 py-2 text-base font-medium text-white transition-colors hover:bg-[#9a231c]"
+                className="rounded bg-sanguine-red px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#9a231c] sm:px-4 sm:py-2 sm:text-base"
               >
                 Leaderboard
               </button>
@@ -234,7 +235,7 @@ const EventById = () => {
                 rel="noopener noreferrer"
                 className="no-underline"
               >
-                <button className="rounded bg-sanguine-red px-4 py-2 text-base font-medium text-white transition-colors hover:bg-[#9a231c]">
+                <button className="rounded bg-sanguine-red px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#9a231c] sm:px-4 sm:py-2 sm:text-base">
                   View on WoM
                 </button>
               </a>
@@ -312,7 +313,7 @@ const EventById = () => {
 
               <Flex gap="3" className="grid grid-cols-1 md:grid-cols-2">
                 {/* Biggest Spoons - High Points/Metric */}
-                <Box className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+                <Box className="p-3">
                   <Heading size="3" className="mb-2 text-green-400">
                     Biggest Spoons
                   </Heading>
@@ -357,7 +358,8 @@ const EventById = () => {
                           key={participant.nickname}
                           justify="between"
                           align="center"
-                          className="rounded bg-gray-700 px-2 py-1.5"
+                          onClick={() => navigate(`/users/${participant.discordId}`)}
+                          className="cursor-pointer rounded-lg border border-gray-700 px-2 py-1.5 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"
                         >
                           <Flex align="center" gap="2">
                             <Text size="1" className="font-bold text-gray-300">
@@ -379,7 +381,7 @@ const EventById = () => {
                 </Box>
 
                 {/* Most Unlucky - High Metric/Points */}
-                <Box className="rounded-lg border border-gray-700 bg-gray-800 p-3">
+                <Box className="p-3">
                   <Heading size="3" className="mb-2 text-red-400">
                     Most Unlucky
                   </Heading>
@@ -424,7 +426,8 @@ const EventById = () => {
                           key={participant.nickname}
                           justify="between"
                           align="center"
-                          className="rounded bg-gray-700 px-2 py-1.5"
+                          onClick={() => navigate(`/users/${participant.discordId}`)}
+                          className="cursor-pointer rounded-lg border border-gray-700 px-2 py-1.5 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"
                         >
                           <Flex align="center" gap="2">
                             <Text size="1" className="font-bold text-gray-300">

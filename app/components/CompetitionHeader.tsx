@@ -82,7 +82,7 @@ export function CompetitionHeader({
           </Flex>
           <Box className="mb-6 h-1 w-32 bg-sanguine-red"></Box>
 
-          <Flex gap="8" wrap="wrap">
+          <Flex gap="4" wrap="wrap" className="sm:gap-8">
             <Box>
               <Text size="2" className="mb-1 block text-gray-400">
                 Status

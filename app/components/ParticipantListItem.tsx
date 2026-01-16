@@ -1,5 +1,6 @@
 import { Box, Flex, Text } from '@radix-ui/themes';
 import { ClickableUserName } from './ClickableUserName';
+import { useNavigate } from '@remix-run/react';
 
 interface Participant {
   nickname: string;
@@ -19,12 +20,17 @@ export function ParticipantListItem({
   rank,
   metric,
 }: ParticipantListItemProps) {
+  const navigate = useNavigate();
+
   return (
-    <div className="rounded-lg border border-gray-700 p-3">
+    <div
+      onClick={() => navigate(`/users/${participant.discordId}`)}
+      className="cursor-pointer rounded-lg border border-gray-700 p-3 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"
+    >
       {/* Mobile Layout */}
       <div className="flex flex-col gap-3 sm:hidden">
         <Flex align="center" gap="3">
-          <Box className="w-6 flex-shrink-0 text-sm text-gray-400">#{rank}</Box>
+          <Box className="w-6 flex-shrink-0 whitespace-nowrap text-sm text-gray-400">#{rank}</Box>
           <ClickableUserName
             user={{
               discordId: participant.discordId,
@@ -57,7 +63,7 @@ export function ParticipantListItem({
       {/* Desktop Layout */}
       <Flex justify="between" align="center" className="hidden sm:flex">
         <Flex align="center" gap="3" className="min-w-0 flex-1">
-          <Box className="w-6 flex-shrink-0 text-sm text-gray-400">#{rank}</Box>
+          <Box className="w-6 flex-shrink-0 whitespace-nowrap text-sm text-gray-400">#{rank}</Box>
           <ClickableUserName
             user={{
               discordId: participant.discordId,

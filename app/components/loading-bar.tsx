@@ -8,7 +8,7 @@ function LoadingBar() {
   const transition = useNavigation();
   const busy = transition.state === 'loading';
   const delayedPending = useSpinDelay(busy, {
-    delay: 600,
+    delay: 200,
     minDuration: 400,
   });
   const ref = useRef<HTMLDivElement>(null);
@@ -28,28 +28,40 @@ function LoadingBar() {
   }, [delayedPending]);
 
   return (
-    <div
-      role="progressbar"
-      aria-hidden={delayedPending ? undefined : true}
-      aria-valuetext={delayedPending ? 'Loading' : undefined}
-      className="inset-x-0 left-0 top-0 z-50 h-[0.20rem] animate-pulse"
-    >
+    <>
+      {/* Enhanced Loading Bar - Shows immediately */}
       <div
-        ref={ref}
-        className={cn(
-          'h-full w-0 bg-sanguine-red duration-500 ease-in-out',
-          transition.state === 'idle' &&
-            (animationComplete
-              ? 'transition-none'
-              : 'w-full opacity-0 transition-all'),
-          delayedPending && transition.state === 'submitting' && 'w-5/12',
-          delayedPending && transition.state === 'loading' && 'w-8/12',
-        )}
-      />
+        role="progressbar"
+        aria-hidden={busy ? undefined : true}
+        aria-valuetext={busy ? 'Loading' : undefined}
+        className="fixed inset-x-0 left-0 top-0 z-50 h-1"
+      >
+        <div
+          ref={ref}
+          className={cn(
+            'h-full w-0 bg-sanguine-red shadow-[0_0_10px_rgba(187,44,35,0.8)] duration-500 ease-in-out',
+            transition.state === 'idle' &&
+              (animationComplete
+                ? 'transition-none'
+                : 'w-full opacity-0 transition-all'),
+            busy && transition.state === 'submitting' && 'w-5/12',
+            busy && transition.state === 'loading' && 'w-8/12',
+          )}
+        />
+      </div>
+
+      {/* Viewport Spinner - Shows after delay */}
       {delayedPending && (
-        <div className="absolute flex items-center justify-center"></div>
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-sanguine-red"></div>
+            <div className="rounded-lg bg-gray-900/90 px-4 py-2 text-sm font-medium text-white shadow-lg">
+              Loading...
+            </div>
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
