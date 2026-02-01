@@ -49,7 +49,7 @@ export function ParticipantListItem({
         <Flex justify="between" gap="4">
           <Box className="flex-1 text-center">
             <Text size="1" className="block text-gray-400">
-              {metric ? 'XP Gained' : 'Kills'}
+              {metric || 'Kills'}
             </Text>
             <Text size="2" className="block font-bold text-green-400">
               {metric
