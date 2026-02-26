@@ -55,24 +55,33 @@ const SkeletonLoader = () => (
 
 export async function loader() {
   const womCompsPromise = getCompetitions();
+  const sangFeb26Promise = getCompetitionById(128016);
   const starCollectorsV2Promise = getCompetitionById(121056);
   const fall2025BingoPromise = getCompetitionById(107621);
   const rngBingoPromise = getCompetitionById(46594);
   const starBingoPromise = getCompetitionById(79514);
   const coalitionBingoPromise = getCompetitionById(101103);
 
-  const [starCollectorsV2, fall2025Bingo, rngBingo, starBingo, coalitionBingo] =
-    await Promise.all([
-      starCollectorsV2Promise,
-      fall2025BingoPromise,
-      rngBingoPromise,
-      starBingoPromise,
-      coalitionBingoPromise,
-    ]);
+  const [
+    sangFeb26,
+    starCollectorsV2,
+    fall2025Bingo,
+    rngBingo,
+    starBingo,
+    coalitionBingo,
+  ] = await Promise.all([
+    sangFeb26Promise,
+    starCollectorsV2Promise,
+    fall2025BingoPromise,
+    rngBingoPromise,
+    starBingoPromise,
+    coalitionBingoPromise,
+  ]);
 
   const competitionsPromise = womCompsPromise.then(womComps => [
-    starCollectorsV2,
+    sangFeb26,
     ...(womComps ?? []),
+    starCollectorsV2,
     fall2025Bingo,
     coalitionBingo,
     starBingo,
@@ -130,18 +139,14 @@ const Events = () => {
         <Suspense fallback={<SkeletonLoader />}>
           <Await resolve={competitions}>
             {competitions => {
-              // Filter competitions that have started
-              const startedCompetitions =
-                competitions?.filter(
-                  x => x.startsAt < new Date().toISOString(),
-                ) ?? [];
+              const allCompetitions = competitions ?? [];
 
               // Calculate pagination
-              const totalItems = startedCompetitions.length;
+              const totalItems = allCompetitions.length;
               const totalPages = Math.ceil(totalItems / itemsPerPage);
               const startIndex = (currentPage - 1) * itemsPerPage;
               const endIndex = startIndex + itemsPerPage;
-              const currentItems = startedCompetitions.slice(
+              const currentItems = allCompetitions.slice(
                 startIndex,
                 endIndex,
               );
