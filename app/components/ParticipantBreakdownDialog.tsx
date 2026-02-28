@@ -64,6 +64,8 @@ export function ParticipantBreakdownDialog({
     dropsPage * DROPS_PER_PAGE,
   );
 
+  const totalGpGained = drops.reduce((acc, cur) => acc + (cur.osrsData?.price ?? 0), 0)
+
   if (navigatingAway) return null;
 
   return (
@@ -116,6 +118,14 @@ export function ParticipantBreakdownDialog({
                   {gained.toLocaleString()}
                 </Text>
               </Box>
+                            <Box>
+                <Text size="1" className="block text-gray-400">
+                  GP Earned
+                </Text>
+                <Text size="4" weight="bold" className="text-amber-400">
+                  {totalGpGained.toLocaleString()}
+                </Text>
+              </Box>  
             </Flex>
           </Flex>
 
