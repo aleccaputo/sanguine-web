@@ -7,7 +7,6 @@ import {
   Flex,
   Heading,
   Text,
-  Button,
 } from '@radix-ui/themes';
 import { getUserWithNickname } from '~/services/sanguine-service.server';
 import { getAuditDataForUserById } from '~/data/points-audit';
