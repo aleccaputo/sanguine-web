@@ -13,24 +13,34 @@ interface ParticipantListItemProps {
   participant: Participant;
   rank: number;
   metric: string;
+  onSelect?: (discordId: string) => void;
 }
 
 export function ParticipantListItem({
   participant,
   rank,
   metric,
+  onSelect,
 }: ParticipantListItemProps) {
   const navigate = useNavigate();
+
+  const handleActivate = () => {
+    if (onSelect) {
+      onSelect(participant.discordId);
+    } else {
+      navigate(`/users/${participant.discordId}`);
+    }
+  };
 
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => navigate(`/users/${participant.discordId}`)}
+      onClick={handleActivate}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          navigate(`/users/${participant.discordId}`);
+          handleActivate();
         }
       }}
       className="cursor-pointer rounded-lg border border-gray-700 p-3 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"

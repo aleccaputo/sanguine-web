@@ -24,6 +24,7 @@ import dayjs from 'dayjs';
 import { useState } from 'react';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
 import { DropItem } from '~/components/DropItem';
+import { Pagination } from '~/components/Pagination';
 import { getClanFromWom } from '~/services/wom-api-service.server';
 import { fetchRankImage } from '~/utils/clan-ranks';
 
@@ -210,29 +211,12 @@ export default function UserById() {
                 ))}
               </Flex>
 
-              {totalPages > 1 && (
-                <Flex justify="between" align="center" mt="4">
-                  <Button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    variant="soft"
-                  >
-                    Previous
-                  </Button>
-                  <Text size="2" className="text-gray-400">
-                    Page {currentPage} of {totalPages}
-                  </Text>
-                  <Button
-                    onClick={() =>
-                      setCurrentPage(p => Math.min(totalPages, p + 1))
-                    }
-                    disabled={currentPage === totalPages}
-                    variant="soft"
-                  >
-                    Next
-                  </Button>
-                </Flex>
-              )}
+              <Pagination
+                page={currentPage}
+                totalPages={totalPages}
+                onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
+                onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              />
             </Box>
           </Card>
         )}
