@@ -1,15 +1,18 @@
 import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
 import {
+  Badge,
   Box,
   Card,
   Container,
   Flex,
   Heading,
+  Tabs,
   Text,
 } from '@radix-ui/themes';
 import { getUserWithNickname } from '~/services/sanguine-service.server';
 import { getAuditDataForUserById } from '~/data/points-audit';
+import { getUserAlts } from '~/data/user';
 import {
   Bar,
   BarChart,
@@ -20,8 +23,9 @@ import {
   YAxis,
 } from 'recharts';
 import dayjs from 'dayjs';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
+import { AccountsTooltip } from '~/components/AccountsTooltip';
 import { DropItem } from '~/components/DropItem';
 import { Pagination } from '~/components/Pagination';
 import { getClanFromWom } from '~/services/wom-api-service.server';
@@ -40,85 +44,152 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 };
 
 export async function loader({ params }: LoaderFunctionArgs) {
-  const userPromise = getUserWithNickname(params.id ?? '');
-  const userAuditDataPromise = getAuditDataForUserById(params.id ?? '');
-  const sanguineWomMembersPromise = await getClanFromWom(18435);
+  const discordId = params.id ?? '';
 
-  const [user, userAuditData, sanguineWomMembers] = await Promise.all([
-    userPromise,
-    userAuditDataPromise,
-    sanguineWomMembersPromise
-  ]);
+  const [user, userAuditData, sanguineWomMembers, userAlts] = await Promise.all(
+    [
+      getUserWithNickname(discordId),
+      getAuditDataForUserById(discordId),
+      getClanFromWom(18435),
+      getUserAlts(discordId),
+    ],
+  );
 
-  // Get all automated items
   const allAutomatedItems = userAuditData
     .filter(x => x.type === 'AUTOMATED')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-  // Fetch OSRS item data for items that have an itemId
   const itemsWithData = await Promise.all(
     allAutomatedItems.map(async item => {
       if (item.itemId === null) {
         return { ...item, osrsData: null };
       }
-
       const osrsData = await fetchOSRSItem(item.itemId);
       return { ...item, osrsData };
     }),
   );
 
-  return json(
-    {
-      user: user,
-      auditData: userAuditData,
-      allItemsLogged: itemsWithData,
-      womMembership: sanguineWomMembers.find(x => x.player.displayName.toLocaleLowerCase() === user.nickname?.toLocaleLowerCase())
-    },
-    200,
-  );
+  const findWomRole = (name: string) =>
+    sanguineWomMembers.find(
+      x => x.player.displayName.toLowerCase() === name.toLowerCase(),
+    )?.role;
+
+  const womRoles: Record<string, string | undefined> = {};
+  if (user.nickname) womRoles[user.nickname] = findWomRole(user.nickname);
+  for (const alt of userAlts) {
+    womRoles[alt.altName] = findWomRole(alt.altName);
+  }
+
+  return json({
+    user,
+    auditData: userAuditData,
+    allItemsLogged: itemsWithData,
+    womRoles,
+    userAlts,
+  });
 }
 
+// Account key used for "all accounts" combined view
+const ALL_ACCOUNTS = 'all';
+
 export default function UserById() {
-  const { user, auditData, allItemsLogged, womMembership } = useLoaderData<typeof loader>();
+  const { user, auditData, allItemsLogged, womRoles, userAlts } =
+    useLoaderData<typeof loader>();
+
+  const hasAlts = userAlts.length > 0;
+  const mainName = user.nickname ?? '';
+
+  // selectedAccount is either ALL_ACCOUNTS, mainName, or an alt's altName
+  const [selectedAccount, setSelectedAccount] = useState(ALL_ACCOUNTS);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  const matchesAccount = useCallback(
+    (osrsName: string | null, accountName: string) => {
+      if (accountName === mainName) {
+        // Main: legacy null records + explicitly named main records
+        return (
+          osrsName === null ||
+          osrsName.toLowerCase() === mainName.toLowerCase()
+        );
+      }
+      return osrsName?.toLowerCase() === accountName.toLowerCase();
+    },
+    [mainName],
+  );
+
+  const filteredItems = useMemo(() => {
+    if (selectedAccount === ALL_ACCOUNTS) return allItemsLogged;
+    return allItemsLogged.filter(item =>
+      matchesAccount(item.osrsName, selectedAccount),
+    );
+  }, [selectedAccount, allItemsLogged, matchesAccount]);
+
+  const filteredAuditData = useMemo(() => {
+    if (selectedAccount === ALL_ACCOUNTS) return auditData;
+    return auditData.filter(item =>
+      matchesAccount(item.osrsName, selectedAccount),
+    );
+  }, [selectedAccount, auditData, matchesAccount]);
+
+  const dropCountByAccount = useMemo(() => {
+    const counts: Record<string, number> = { [ALL_ACCOUNTS]: allItemsLogged.length };
+    counts[mainName] = allItemsLogged.filter(item =>
+      matchesAccount(item.osrsName, mainName),
+    ).length;
+    for (const alt of userAlts) {
+      counts[alt.altName] = allItemsLogged.filter(item =>
+        matchesAccount(item.osrsName, alt.altName),
+      ).length;
+    }
+    return counts;
+  }, [allItemsLogged, userAlts, mainName, matchesAccount]);
+
+  const currentWomRole =
+    selectedAccount === ALL_ACCOUNTS
+      ? womRoles[mainName]
+      : womRoles[selectedAccount];
+
   const summedPointsByYearMonth: { date: string; points: number }[] =
     Object.entries(
-      auditData.reduce(
-        (accumulator: { [yearMonth: string]: number }, message) => {
-          const createdAtYearMonth = dayjs(message.createdAt).format(
-            'YYYY-MMM',
-          );
-          accumulator[createdAtYearMonth] =
-            (accumulator[createdAtYearMonth] || 0) + message.pointsGiven;
-          return accumulator;
+      filteredAuditData.reduce(
+        (acc: { [yearMonth: string]: number }, message) => {
+          const ym = dayjs(message.createdAt).format('YYYY-MMM');
+          acc[ym] = (acc[ym] || 0) + message.pointsGiven;
+          return acc;
         },
         {},
       ),
     ).map(([date, points]) => ({ date, points }));
 
-
-  const getRankIcon = (rankName: string) => {
-    return (
-      <img
-        src={fetchRankImage(rankName)}
-        alt={rankName}
-        width={26}
-        height={26}
-        className="inline-block"
-      />
-    );
-  };
-  const totalPages = Math.ceil(allItemsLogged.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = allItemsLogged.slice(startIndex, endIndex);
+  const currentItems = filteredItems.slice(startIndex, startIndex + itemsPerPage);
 
-  // Calculate total GP from all tradeable items
-  const totalGP = allItemsLogged.reduce((sum, item) => {
-    return sum + (item.osrsData?.price || 0);
-  }, 0);
+  const totalGP = filteredItems.reduce(
+    (sum, item) => sum + (item.osrsData?.price || 0),
+    0,
+  );
+
+  const getRankIcon = (rankName: string) => (
+    <img
+      src={fetchRankImage(rankName)}
+      alt={rankName}
+      width={26}
+      height={26}
+      className="inline-block"
+    />
+  );
+
+  const handleAccountChange = (value: string) => {
+    setSelectedAccount(value);
+    setCurrentPage(1);
+  };
+
+  const displayName =
+    selectedAccount === ALL_ACCOUNTS
+      ? mainName
+      : selectedAccount;
 
   return (
     <Container size="4" mt="3">
@@ -132,17 +203,33 @@ export default function UserById() {
               align={{ initial: 'center', md: 'center' }}
               gap="4"
             >
-              {/* Name and Points */}
+              {/* Name, rank, and points */}
               <Flex
                 direction="column"
-                gap="1"
+                gap="2"
                 align={{ initial: 'center', md: 'start' }}
               >
-                <Heading size="6" className="text-white">
-                  {getRankIcon(womMembership?.role ?? 'Guest')}
-                  {' '}
-                  {user.nickname}
-                </Heading>
+                <Flex align="center" gap="2">
+                  {getRankIcon(currentWomRole ?? 'Guest')}
+                  <Heading size="6" className="text-white">
+                    {displayName}
+                  </Heading>
+                  {hasAlts && selectedAccount === ALL_ACCOUNTS && (
+                    <AccountsTooltip
+                      accounts={[
+                        { name: mainName, role: womRoles[mainName] },
+                        ...userAlts.map(alt => ({
+                          name: alt.altName,
+                          role: womRoles[alt.altName],
+                        })),
+                      ]}
+                    >
+                      <Badge color="gray" variant="soft" radius="full">
+                        {1 + userAlts.length} accounts
+                      </Badge>
+                    </AccountsTooltip>
+                  )}
+                </Flex>
                 <Text size="4" className="text-sanguine-red">
                   {user.points} clan points
                 </Text>
@@ -159,13 +246,13 @@ export default function UserById() {
                       {dayjs(user.joined).format('MMM YYYY')}
                     </Text>
                   </Box>
-                  {allItemsLogged.length > 0 && (
+                  {filteredItems.length > 0 && (
                     <Box className="text-center">
                       <Text size="2" className="text-gray-400">
                         {'Total Items: '}
                       </Text>
                       <Text size="3" className="text-white">
-                        {allItemsLogged.length}
+                        {filteredItems.length}
                       </Text>
                     </Box>
                   )}
@@ -192,12 +279,76 @@ export default function UserById() {
           </Box>
         </Card>
 
+        {/* Account Switcher — only shown when alts exist */}
+        {hasAlts && (
+          <Card className="border border-gray-800 bg-gray-900">
+            <Box px="5" py="3">
+              <Flex align="center" gap="3" wrap="wrap">
+                <Text size="2" className="text-gray-400">
+                  Account:
+                </Text>
+                <Tabs.Root
+                  value={selectedAccount}
+                  onValueChange={handleAccountChange}
+                >
+                  <Tabs.List>
+                    <Tabs.Trigger value={ALL_ACCOUNTS}>
+                      <Flex align="center" gap="2">
+                        All
+                        <Badge color="gray" variant="soft" radius="full" size="1">
+                          {dropCountByAccount[ALL_ACCOUNTS]}
+                        </Badge>
+                      </Flex>
+                    </Tabs.Trigger>
+                    <Tabs.Trigger value={mainName}>
+                      <Flex align="center" gap="2">
+                        {womRoles[mainName] &&
+                          getRankIcon(womRoles[mainName]!)}
+                        {mainName}
+                        <Badge color="gray" variant="soft" radius="full" size="1">
+                          {dropCountByAccount[mainName] ?? 0}
+                        </Badge>
+                      </Flex>
+                    </Tabs.Trigger>
+                    {userAlts.map(alt => (
+                      <Tabs.Trigger key={alt.id} value={alt.altName}>
+                        <Flex align="center" gap="2">
+                          {womRoles[alt.altName] &&
+                            getRankIcon(womRoles[alt.altName]!)}
+                          {alt.altName}
+                          <Badge
+                            color="gray"
+                            variant="soft"
+                            radius="full"
+                            size="1"
+                          >
+                            {dropCountByAccount[alt.altName] ?? 0}
+                          </Badge>
+                        </Flex>
+                      </Tabs.Trigger>
+                    ))}
+                  </Tabs.List>
+                </Tabs.Root>
+              </Flex>
+            </Box>
+          </Card>
+        )}
+
         {/* Recent Items Section */}
-        {allItemsLogged.length > 0 && (
+        {filteredItems.length > 0 && (
           <Card className="border border-gray-800 bg-gray-900">
             <Box p="5">
               <Heading size="5" className="mb-4 text-white">
                 Recent Items
+                {hasAlts && selectedAccount !== ALL_ACCOUNTS && (
+                  <Text
+                    size="3"
+                    className="ml-2 font-normal text-gray-400"
+                    as="span"
+                  >
+                    — {selectedAccount}
+                  </Text>
+                )}
               </Heading>
               <Flex direction="column">
                 {currentItems.map(item => (
@@ -214,8 +365,20 @@ export default function UserById() {
                 page={currentPage}
                 totalPages={totalPages}
                 onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
-                onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                onNext={() =>
+                  setCurrentPage(p => Math.min(totalPages, p + 1))
+                }
               />
+            </Box>
+          </Card>
+        )}
+
+        {filteredItems.length === 0 && selectedAccount !== ALL_ACCOUNTS && (
+          <Card className="border border-gray-800 bg-gray-900">
+            <Box p="5" className="py-12 text-center">
+              <Text size="3" className="text-gray-400">
+                No drops recorded for {selectedAccount}
+              </Text>
             </Box>
           </Card>
         )}
@@ -224,10 +387,11 @@ export default function UserById() {
         <Card className="border border-gray-800 bg-gray-900">
           <Box p="5">
             <Heading size="5" className="mb-4 text-white">
-              {user.nickname} Points Earned by Month
+              {selectedAccount === ALL_ACCOUNTS ? mainName : selectedAccount} Points
+              Earned by Month
             </Heading>
 
-            {auditData.length > 0 ? (
+            {filteredAuditData.length > 0 ? (
               <Box className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={summedPointsByYearMonth}>

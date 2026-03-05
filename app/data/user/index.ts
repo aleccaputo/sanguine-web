@@ -31,3 +31,15 @@ export const getAllUsers = async (): Promise<ISanguineUser[]> => {
       joined: dbUser.joined,
     }));
 };
+
+export interface ISanguineUserAlt {
+  id: string;
+  altName: string;
+}
+
+export const getUserAlts = async (
+  discordId: string,
+): Promise<ISanguineUserAlt[]> => {
+  const alts = await prisma.userAlts.findMany({ where: { discordId } });
+  return alts.map(alt => ({ id: alt.id, altName: alt.altName }));
+};

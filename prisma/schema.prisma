@@ -18,6 +18,7 @@ model PointAudit {
   type                 String
   itemId               Int?
   bossName             String?
+  osrsName             String?
 }
 
 model Users {
@@ -32,4 +33,10 @@ model UserNicknames {
   id        String @id @default(auto()) @map("_id") @db.ObjectId
   discordId String
   nickname  String
+}
+
+model UserAlts {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  discordId String
+  altName  String
 }
