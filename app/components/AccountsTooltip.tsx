@@ -14,7 +14,7 @@ interface IAccountsTooltipProps {
 export function AccountsTooltip({ accounts, children }: IAccountsTooltipProps) {
   return (
     <HoverCard.Root>
-      <HoverCard.Trigger asChild>
+      <HoverCard.Trigger>
         <span className="cursor-default">{children}</span>
       </HoverCard.Trigger>
       <HoverCard.Content
