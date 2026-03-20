@@ -24,6 +24,15 @@ interface MappingItem {
   name: string;
 }
 
+// Pets/items whose wiki image filename doesn't match the standard `{Name}_detail.png` pattern
+const customItemIcons: Record<number, string> = {
+  13323: 'https://oldschool.runescape.wiki/images/Baby_chinchompa_%28grey%29_detail.png',
+  20665: 'https://oldschool.runescape.wiki/images/Rift_guardian_%28fire%29_detail.png',
+  22746: 'https://oldschool.runescape.wiki/images/Ikkle_hydra_%28serpentine%29_detail.png',
+  27590: 'https://oldschool.runescape.wiki/images/Muphin_%28ranged%29_detail.png',
+  31285: 'https://oldschool.runescape.wiki/images/Gull_detail.png',
+};
+
 const WIKI_HEADERS = {
   'User-Agent': 'sanguine-osrs.com - Clan Website (sanguine.pvm@gmail.com)',
 };
@@ -107,7 +116,7 @@ export async function fetchOSRSItem(itemId: number): Promise<OSRSItem | null> {
     const icon =
       itemId === 0
         ? '/sanguine_icon.png'
-        : `https://oldschool.runescape.wiki/images/${formatItemNameForWiki(itemName)}_detail.png`;
+        : (customItemIcons[itemId] ?? `https://oldschool.runescape.wiki/images/${formatItemNameForWiki(itemName)}_detail.png`);
 
     const itemData: OSRSItem = { id: itemId, name: toTitleCase(itemName), icon };
     itemCache[itemId] = { data: itemData, timestamp: now };
