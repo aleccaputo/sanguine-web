@@ -10,6 +10,7 @@ import {
   Button,
 } from '@radix-ui/themes';
 import { getClanDropsPaginated } from '~/data/points-audit';
+import { getAllUserAlts } from '~/data/user';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import { DropItem } from '~/components/DropItem';
@@ -29,11 +30,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const page = parseInt(url.searchParams.get('page') || '1', 10);
   const pageSize = 7;
 
-  const [{ drops, totalCount, currentPage, totalPages }, users] =
+  const [{ drops, totalCount, currentPage, totalPages }, users, allAlts] =
     await Promise.all([
       getClanDropsPaginated(page, pageSize),
       getUsersWithNicknames(),
+      getAllUserAlts(),
     ]);
+
+  // Build a map of discordId -> Set of alt names (lowercased for comparison)
+  const altsByDiscordId = new Map<string, Set<string>>();
+  for (const alt of allAlts) {
+    if (!altsByDiscordId.has(alt.discordId)) {
+      altsByDiscordId.set(alt.discordId, new Set());
+    }
+    altsByDiscordId.get(alt.discordId)!.add(alt.altName.toLowerCase());
+  }
 
   // Fetch OSRS item data for items that have an itemId
   const itemsWithData = await Promise.all(
@@ -42,10 +53,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const osrsData =
         item.itemId !== null ? await fetchOSRSItem(item.itemId) : null;
 
+      const mainName = user?.nickname ?? user?.discordId;
+      const osrsName = item.osrsName;
+      const userAlts = altsByDiscordId.get(item.destinationDiscordId);
+      const isAlt =
+        osrsName != null &&
+        userAlts != null &&
+        userAlts.has(osrsName.toLowerCase());
+      const nickname = isAlt ? `${osrsName} (${mainName})` : mainName;
+
       return {
         ...item,
         osrsData,
-        nickname: user?.nickname,
+        nickname,
       };
     }),
   );

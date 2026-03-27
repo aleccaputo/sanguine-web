@@ -43,3 +43,10 @@ export const getUserAlts = async (
   const alts = await prisma.userAlts.findMany({ where: { discordId } });
   return alts.map(alt => ({ id: alt.id, altName: alt.altName }));
 };
+
+export const getAllUserAlts = async (): Promise<
+  (ISanguineUserAlt & { discordId: string })[]
+> => {
+  const alts = await prisma.userAlts.findMany();
+  return alts.map(alt => ({ id: alt.id, altName: alt.altName, discordId: alt.discordId }));
+};
