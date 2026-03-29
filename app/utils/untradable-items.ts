@@ -134,4 +134,9 @@ export const untradeableItems: Record<number, string> = {
   28323: "siren's staff",
   29786: 'jar of venom',
   28325: "leviathan's lure",
+
+  25440: "zealot's boots",
+  25438: "zealot's helm",
+  25436: "zealot's robe bottom",
+  25434: "zealot's robe top",
 };
