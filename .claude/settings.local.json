@@ -4,7 +4,9 @@
       "Read(//mnt/c/Users/alecc/dev/**)",
       "Bash(npm run typecheck)",
       "Bash(npm run:*)",
-      "WebFetch(domain:oldschool.runescape.wiki)"
+      "WebFetch(domain:oldschool.runescape.wiki)",
+      "Bash(npm install:*)",
+      "Bash(npm test:*)"
     ]
   }
 }

@@ -23,13 +23,14 @@ import {
   YAxis,
 } from 'recharts';
 import dayjs from 'dayjs';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
 import { AccountsTooltip } from '~/components/AccountsTooltip';
 import { DropItem } from '~/components/DropItem';
 import { Pagination } from '~/components/Pagination';
 import { getClanFromWom } from '~/services/wom-api-service.server';
 import { fetchRankImage } from '~/utils/clan-ranks';
+import { matchesAccountName } from '~/utils/account-matching';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = data?.user?.nickname
@@ -74,11 +75,13 @@ export async function loader({ params }: LoaderFunctionArgs) {
       x => x.player.displayName.toLowerCase() === name.toLowerCase(),
     )?.role;
 
-  const womRoles: Record<string, string | undefined> = {};
-  if (user.nickname) womRoles[user.nickname] = findWomRole(user.nickname);
-  for (const alt of userAlts) {
-    womRoles[alt.altName] = findWomRole(alt.altName);
-  }
+  const allAccountNames = [
+    ...(user.nickname ? [user.nickname] : []),
+    ...userAlts.map(alt => alt.altName),
+  ];
+  const womRoles = Object.fromEntries(
+    allAccountNames.map(name => [name, findWomRole(name)]),
+  );
 
   return json({
     user,
@@ -104,46 +107,29 @@ export default function UserById() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  const matchesAccount = useCallback(
-    (osrsName: string | null, accountName: string) => {
-      if (accountName === mainName) {
-        // Main: legacy null records + explicitly named main records
-        return (
-          osrsName === null ||
-          osrsName.toLowerCase() === mainName.toLowerCase()
-        );
-      }
-      return osrsName?.toLowerCase() === accountName.toLowerCase();
-    },
-    [mainName],
-  );
-
   const filteredItems = useMemo(() => {
     if (selectedAccount === ALL_ACCOUNTS) return allItemsLogged;
     return allItemsLogged.filter(item =>
-      matchesAccount(item.osrsName, selectedAccount),
+      matchesAccountName(item.osrsName, selectedAccount, mainName),
     );
-  }, [selectedAccount, allItemsLogged, matchesAccount]);
+  }, [selectedAccount, allItemsLogged, mainName]);
 
   const filteredAuditData = useMemo(() => {
     if (selectedAccount === ALL_ACCOUNTS) return auditData;
     return auditData.filter(item =>
-      matchesAccount(item.osrsName, selectedAccount),
+      matchesAccountName(item.osrsName, selectedAccount, mainName),
     );
-  }, [selectedAccount, auditData, matchesAccount]);
+  }, [selectedAccount, auditData, mainName]);
 
-  const dropCountByAccount = useMemo(() => {
-    const counts: Record<string, number> = { [ALL_ACCOUNTS]: allItemsLogged.length };
-    counts[mainName] = allItemsLogged.filter(item =>
-      matchesAccount(item.osrsName, mainName),
-    ).length;
-    for (const alt of userAlts) {
-      counts[alt.altName] = allItemsLogged.filter(item =>
-        matchesAccount(item.osrsName, alt.altName),
-      ).length;
-    }
-    return counts;
-  }, [allItemsLogged, userAlts, mainName, matchesAccount]);
+  const dropCountByAccount: Record<string, number> = useMemo(() => ({
+    [ALL_ACCOUNTS]: allItemsLogged.length,
+    ...Object.fromEntries(
+      [mainName, ...userAlts.map(alt => alt.altName)].map(name => [
+        name,
+        allItemsLogged.filter(item => matchesAccountName(item.osrsName, name, mainName)).length,
+      ]),
+    ),
+  }), [allItemsLogged, userAlts, mainName]);
 
   const currentWomRole =
     selectedAccount === ALL_ACCOUNTS

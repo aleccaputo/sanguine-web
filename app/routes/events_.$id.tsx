@@ -8,6 +8,7 @@ import {
 import { Response } from '@remix-run/web-fetch';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import { getAuditDataForDateRange } from '~/data/points-audit';
+import { getAllUserAlts } from '~/data/user';
 import {
   fetchOSRSItem,
   type OSRSItem,
@@ -30,11 +31,14 @@ import { CompetitionHeader } from '~/components/CompetitionHeader';
 import { ParticipantListItem } from '~/components/ParticipantListItem';
 import { ParticipantBreakdownDialog } from '~/components/ParticipantBreakdownDialog';
 import { ClickableUserName } from '~/components/ClickableUserName';
+import { buildAltsByDiscordId } from '~/utils/account-matching';
 
 interface ParticipantInfo {
+  participantKey: string;
   discordId: string;
   nickname: string;
   displayName: string;
+  isAlt: boolean;
   startProgress: number;
   endProgress: number;
   gained: number;
@@ -83,10 +87,12 @@ export async function loader({ params }: LoaderFunctionArgs) {
     womComp.startsAt.toISOString(),
     womComp.endsAt.toISOString(),
   );
+  const userAltsPromise = getAllUserAlts();
 
-  const [sanguineUsers, pointAudit] = await Promise.all([
+  const [sanguineUsers, pointAudit, userAlts] = await Promise.all([
     sanguineUsersPromise,
     pointAuditPromise,
+    userAltsPromise,
   ]);
 
   const filteredAuditData = pointAudit.filter(x => x.type !== 'ONE_TIME');
@@ -108,9 +114,10 @@ export async function loader({ params }: LoaderFunctionArgs) {
   return json(
     {
       auditData: filteredAuditData,
-      sanguineUsers: sanguineUsers,
+      sanguineUsers,
       compDetails: womComp,
       itemDetails,
+      userAlts,
     },
     {
       headers: {
@@ -156,6 +163,35 @@ const formatDate = (dateString: string): string => {
   });
 };
 
+/**
+ * Given an audit record's discordId and osrsName, find which participant entry it belongs to.
+ * For alts, osrsName matches the alt's displayName. For mains, osrsName is null or matches
+ * the main nickname. Uses the altKeyLookup for O(1) alt resolution.
+ */
+const resolveParticipantKey = (
+  discordId: string,
+  osrsName: string | null,
+  participantMap: Map<string, ParticipantInfo>,
+  altKeyLookup?: Map<string, string>,
+): string | null => {
+  if (osrsName && altKeyLookup) {
+    const altKey = altKeyLookup.get(`${discordId}:${osrsName.toLowerCase().trim()}`);
+    if (altKey) return altKey;
+  }
+
+  // Fall back to main account entry
+  return participantMap.has(discordId) ? discordId : null;
+};
+
+const matchesMetric = (
+  audit: { bossName?: string | null },
+  metric: string,
+  compMetric: string,
+): boolean =>
+  metric === 'EHB' || metric === 'EHP'
+    ? true
+    : audit.bossName?.toLowerCase().replaceAll(' ', '_') === compMetric;
+
 const getEventStatus = (startsAt: string, endsAt: string): EventStatus => {
   const now = new Date();
   const start = new Date(startsAt);
@@ -173,36 +209,83 @@ const EventById = () => {
   const [chartTopN, setChartTopN] = useState(10);
   const [hoveredLine, setHoveredLine] = useState<string | null>(null);
 
-  const selectedDiscordId = searchParams.get('participant');
-  const selectParticipant = (discordId: string) =>
-    setSearchParams({ participant: discordId }, { preventScrollReset: true });
+  const selectedParticipantKey = searchParams.get('participant');
+  const selectParticipant = (participantKey: string) =>
+    setSearchParams({ participant: participantKey }, { preventScrollReset: true });
   const clearParticipant = () =>
     setSearchParams({}, { preventScrollReset: true });
   const metric = getMetricType(data.compDetails.metric);
   const compMetric = data.compDetails.metric;
 
-  // Build participant map with competition data, including discordId for downstream lookups
+  // Build participant map with competition data — main and alt accounts are separate entries
   const participantMap = useMemo(() => {
-    const map = new Map<string, ParticipantInfo>();
-    data.compDetails.participations.forEach(participation => {
-      const sanguineUser = data.sanguineUsers.find(
-        user =>
-          user.nickname?.toLowerCase().trim() ===
-          participation.player.displayName.toLowerCase().trim(),
+    const altsByDiscordId = buildAltsByDiscordId(data.userAlts);
+    // Reverse lookup: lowercased alt name -> { discordId, mainNickname }
+    const altOwners = new Map(
+      data.sanguineUsers
+        .filter(user => user.nickname && altsByDiscordId.has(user.discordId))
+        .flatMap(user =>
+          [...altsByDiscordId.get(user.discordId)!].map(
+            altNameLower =>
+              [altNameLower, { discordId: user.discordId, mainNickname: user.nickname! }] as const,
+          ),
+        ),
+    );
+
+    return data.compDetails.participations.reduce((map, participation) => {
+      const rsn = participation.player.displayName.toLowerCase().trim();
+      const progress = participation.progress;
+
+      // Try matching as a main account first
+      const mainUser = data.sanguineUsers.find(
+        user => user.nickname?.toLowerCase().trim() === rsn,
       );
-      if (sanguineUser?.nickname) {
-        map.set(sanguineUser.discordId, {
-          discordId: sanguineUser.discordId,
-          nickname: sanguineUser.nickname,
+      if (mainUser?.nickname) {
+        map.set(mainUser.discordId, {
+          participantKey: mainUser.discordId,
+          discordId: mainUser.discordId,
+          nickname: mainUser.nickname,
           displayName: participation.player.displayName,
-          startProgress: participation.progress.start,
-          endProgress: participation.progress.end,
-          gained: participation.progress.gained,
+          isAlt: false,
+          startProgress: progress.start,
+          endProgress: progress.end,
+          gained: progress.gained,
+        });
+        return map;
+      }
+
+      // Try matching as an alt account
+      const altInfo = altOwners.get(rsn);
+      if (altInfo) {
+        const altName = participation.player.displayName;
+        const key = `${altInfo.discordId}:${altName}`;
+        map.set(key, {
+          participantKey: key,
+          discordId: altInfo.discordId,
+          nickname: `${altName} (${altInfo.mainNickname})`,
+          displayName: altName,
+          isAlt: true,
+          startProgress: progress.start,
+          endProgress: progress.end,
+          gained: progress.gained,
         });
       }
-    });
-    return map;
+      return map;
+    }, new Map<string, ParticipantInfo>());
   }, [data]);
+
+  // Reverse lookup: "discordId:altNameLower" -> participantKey for O(1) audit routing
+  const altKeyLookup = useMemo(
+    () =>
+      [...participantMap.entries()]
+        .filter(([, info]) => info.isAlt)
+        .reduce(
+          (map, [key, info]) =>
+            map.set(`${info.discordId}:${info.displayName.toLowerCase().trim()}`, key),
+          new Map<string, string>(),
+        ),
+    [participantMap],
+  );
 
   // Build cumulative chart data: pre-group audit by (discordId, unit) in O(A),
   // then accumulate running totals in O(P×U) instead of O(P×U²)
@@ -216,68 +299,69 @@ const EventById = () => {
       ? Math.max(0, chartEndDate.diff(startDate, 'hours') + 1)
       : days;
 
-    const auditByKey = new Map<string, number>();
-    for (const audit of data.auditData) {
-      if (!audit.destinationDiscordId) continue;
-      const isMatch =
-        metric === 'EHB' || metric === 'EHP'
-          ? true
-          : audit.bossName?.toLowerCase().replaceAll(' ', '_') === compMetric;
-      if (!isMatch) continue;
-      const unitKey = hourly
-        ? dayjs(audit.createdAt).format('DD/MM/YYYY HH')
-        : dayjs(audit.createdAt).format('DD/MM/YYYY');
-      const key = `${audit.destinationDiscordId}:${unitKey}`;
-      auditByKey.set(key, (auditByKey.get(key) ?? 0) + audit.pointsGiven);
-    }
+    // Map each audit record to a participant key based on discordId + osrsName
+    const auditByKey = data.auditData
+      .filter(audit => audit.destinationDiscordId && matchesMetric(audit, metric, compMetric))
+      .reduce((map, audit) => {
+        const pKey = resolveParticipantKey(
+          audit.destinationDiscordId!,
+          audit.osrsName,
+          participantMap,
+          altKeyLookup,
+        );
+        if (!pKey) return map;
+
+        const unitKey = hourly
+          ? dayjs(audit.createdAt).format('DD/MM/YYYY HH')
+          : dayjs(audit.createdAt).format('DD/MM/YYYY');
+        const compositeKey = `${pKey}:${unitKey}`;
+        return map.set(compositeKey, (map.get(compositeKey) ?? 0) + audit.pointsGiven);
+      }, new Map<string, number>());
 
     const runningTotals = new Map(
       [...participantMap.keys()].map(id => [id, 0] as [string, number]),
     );
-    const cumulativeDataArr: ChartData[] = [];
 
-    for (let i = 0; i < chartUnits; i++) {
+    const cumulativeDataArr = Array.from({ length: chartUnits }, (_, i) => {
       const currentUnit = hourly
         ? startDate.add(i, 'hours')
         : startDate.add(i, 'days');
-      const unitLabel = hourly
-        ? currentUnit.format('MMM D ha')
-        : currentUnit.format('MMM DD');
       const unitKey = hourly
         ? currentUnit.format('DD/MM/YYYY HH')
         : currentUnit.format('DD/MM/YYYY');
-      const cumDay: ChartData = { name: unitLabel };
 
-      participantMap.forEach((userInfo, discordId) => {
-        const points = auditByKey.get(`${discordId}:${unitKey}`) ?? 0;
-        const cumulative = (runningTotals.get(discordId) ?? 0) + points;
-        runningTotals.set(discordId, cumulative);
+      const cumDay: ChartData = {
+        name: hourly ? currentUnit.format('MMM D ha') : currentUnit.format('MMM DD'),
+      };
+
+      participantMap.forEach((userInfo, pKey) => {
+        const points = auditByKey.get(`${pKey}:${unitKey}`) ?? 0;
+        const cumulative = (runningTotals.get(pKey) ?? 0) + points;
+        runningTotals.set(pKey, cumulative);
         cumDay[`${userInfo.nickname}_points`] = cumulative;
       });
 
-      cumulativeDataArr.push(cumDay);
-    }
+      return cumDay;
+    });
 
     return { cumulativeData: cumulativeDataArr, useHourly: hourly };
-  }, [data, participantMap, metric, compMetric]);
+  }, [data, participantMap, altKeyLookup, metric, compMetric]);
 
   // Pre-compute per-participant event points once for spoon stats and leaderboard
   const participantPoints = useMemo(() => {
-    const pointsMap = new Map<string, number>();
-    for (const audit of data.auditData) {
-      if (!audit.destinationDiscordId || !participantMap.has(audit.destinationDiscordId)) continue;
-      const isMatch =
-        metric === 'EHB' || metric === 'EHP'
-          ? true
-          : audit.bossName?.toLowerCase().replaceAll(' ', '_') === compMetric;
-      if (!isMatch) continue;
-      pointsMap.set(
-        audit.destinationDiscordId,
-        (pointsMap.get(audit.destinationDiscordId) ?? 0) + audit.pointsGiven,
-      );
-    }
-    return pointsMap;
-  }, [data, participantMap, metric, compMetric]);
+    return data.auditData
+      .filter(audit => audit.destinationDiscordId && matchesMetric(audit, metric, compMetric))
+      .reduce((map, audit) => {
+        const pKey = resolveParticipantKey(
+          audit.destinationDiscordId!,
+          audit.osrsName,
+          participantMap,
+          altKeyLookup,
+        );
+        if (!pKey) return map;
+        return map.set(pKey, (map.get(pKey) ?? 0) + audit.pointsGiven);
+      }, new Map<string, number>());
+  }, [data, participantMap, altKeyLookup, metric, compMetric]);
 
   const chartParticipants = useMemo(() => {
     const finalDay = cumulativeData[cumulativeData.length - 1];
@@ -295,30 +379,28 @@ const EventById = () => {
   }, [cumulativeData, participantMap, chartTopN]);
 
   // Breakdown dialog derived data
-  const selectedParticipantInfo = selectedDiscordId
-    ? (participantMap.get(selectedDiscordId) ?? null)
+  const selectedParticipantInfo = selectedParticipantKey
+    ? (participantMap.get(selectedParticipantKey) ?? null)
     : null;
 
-  const selectedTotalPoints = selectedDiscordId
-    ? (participantPoints.get(selectedDiscordId) ?? 0)
+  const selectedTotalPoints = selectedParticipantKey
+    ? (participantPoints.get(selectedParticipantKey) ?? 0)
     : 0;
 
   const breakdownDrops = useMemo(() => {
-    if (!selectedDiscordId) return [];
+    if (!selectedParticipantKey) return [];
     return data.auditData
-      .filter(
-        a =>
-          a.destinationDiscordId === selectedDiscordId &&
-          (metric === 'EHB' || metric === 'EHP'
-            ? true
-            : a.bossName?.toLowerCase().replaceAll(' ', '_') === compMetric),
+      .filter(a =>
+        a.destinationDiscordId &&
+        matchesMetric(a, metric, compMetric) &&
+        resolveParticipantKey(a.destinationDiscordId, a.osrsName, participantMap, altKeyLookup) === selectedParticipantKey,
       )
       .map(a => ({
         ...a,
         osrsData: a.itemId != null ? (data.itemDetails[a.itemId] ?? null) : null,
       }))
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [selectedDiscordId, data.auditData, data.itemDetails, metric, compMetric]);
+  }, [selectedParticipantKey, data.auditData, data.itemDetails, metric, compMetric, participantMap, altKeyLookup]);
 
   const breakdownChartData = useMemo(() => {
     if (!selectedParticipantInfo) return [];
@@ -522,7 +604,7 @@ const EventById = () => {
                   <Flex direction="column" gap="1.5">
                     {Array.from(participantMap.values())
                       .map(userInfo => {
-                        const totalPoints = participantPoints.get(userInfo.discordId) ?? 0;
+                        const totalPoints = participantPoints.get(userInfo.participantKey) ?? 0;
                         return {
                           ...userInfo,
                           totalPoints,
@@ -533,10 +615,10 @@ const EventById = () => {
                       .slice(0, 3)
                       .map((participant, index) => (
                         <Flex
-                          key={participant.nickname}
+                          key={participant.participantKey}
                           justify="between"
                           align="center"
-                          onClick={() => selectParticipant(participant.discordId)}
+                          onClick={() => selectParticipant(participant.participantKey)}
                           className="cursor-pointer rounded-lg border border-gray-700 px-2 py-1.5 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"
                         >
                           <Flex align="center" gap="2">
@@ -569,7 +651,7 @@ const EventById = () => {
                   <Flex direction="column" gap="1.5">
                     {Array.from(participantMap.values())
                       .map(userInfo => {
-                        const totalPoints = participantPoints.get(userInfo.discordId) ?? 0;
+                        const totalPoints = participantPoints.get(userInfo.participantKey) ?? 0;
                         return {
                           ...userInfo,
                           totalPoints,
@@ -580,10 +662,10 @@ const EventById = () => {
                       .slice(0, 3)
                       .map((participant, index) => (
                         <Flex
-                          key={participant.nickname}
+                          key={participant.participantKey}
                           justify="between"
                           align="center"
-                          onClick={() => selectParticipant(participant.discordId)}
+                          onClick={() => selectParticipant(participant.participantKey)}
                           className="cursor-pointer rounded-lg border border-gray-700 px-2 py-1.5 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"
                         >
                           <Flex align="center" gap="2">
@@ -645,7 +727,7 @@ const EventById = () => {
                 {Array.from(participantMap.values())
                   .map(userInfo => ({
                     ...userInfo,
-                    totalPoints: participantPoints.get(userInfo.discordId) ?? 0,
+                    totalPoints: participantPoints.get(userInfo.participantKey) ?? 0,
                   }))
                   .sort((a, b) => {
                     if (sortBy === 'points') {
@@ -656,11 +738,11 @@ const EventById = () => {
                   })
                   .map((participant, index) => (
                     <ParticipantListItem
-                      key={participant.nickname}
+                      key={participant.participantKey}
                       participant={participant}
                       rank={index + 1}
                       metric={metric}
-                      onSelect={selectParticipant}
+                      onSelect={() => selectParticipant(participant.participantKey)}
                     />
                   ))}
               </Flex>
@@ -669,9 +751,9 @@ const EventById = () => {
         )}
       </Flex>
 
-      {selectedParticipantInfo && selectedDiscordId && (
+      {selectedParticipantInfo && selectedParticipantKey && (
         <ParticipantBreakdownDialog
-          discordId={selectedDiscordId}
+          discordId={selectedParticipantInfo.discordId}
           nickname={selectedParticipantInfo.nickname}
           gained={selectedParticipantInfo.gained}
           totalPoints={selectedTotalPoints}

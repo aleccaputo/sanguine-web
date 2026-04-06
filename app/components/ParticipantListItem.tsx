@@ -13,7 +13,7 @@ interface ParticipantListItemProps {
   participant: Participant;
   rank: number;
   metric: string;
-  onSelect?: (discordId: string) => void;
+  onSelect?: () => void;
 }
 
 export function ParticipantListItem({
@@ -26,7 +26,7 @@ export function ParticipantListItem({
 
   const handleActivate = () => {
     if (onSelect) {
-      onSelect(participant.discordId);
+      onSelect();
     } else {
       navigate(`/users/${participant.discordId}`);
     }

@@ -11,7 +11,9 @@
     "typecheck": "tsc",
     "prettier": "prettier ./app --write",
     "build:icons": "tsx other/build-icons.ts",
-    "prisma:generate": "npx prisma generate"
+    "prisma:generate": "npx prisma generate",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@epic-web/remember": "^1.0.2",
@@ -68,7 +70,8 @@
     "tsx": "^4.7.1",
     "typescript": "^5.1.6",
     "vite": "^5.1.7",
-    "vite-tsconfig-paths": "^4.2.1"
+    "vite-tsconfig-paths": "^4.2.1",
+    "vitest": "^4.1.2"
   },
   "engines": {
     "node": ">=18.0.0"
