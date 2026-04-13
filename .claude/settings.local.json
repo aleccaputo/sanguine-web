@@ -7,7 +7,30 @@
       "WebFetch(domain:oldschool.runescape.wiki)",
       "Bash(npm install:*)",
       "Bash(npm test:*)",
-      "Bash(npm -v)"
+      "Bash(npm -v)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/drops)",
+      "Bash(pkill -f \"remix vite:dev\")",
+      "Bash(npx tsc:*)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(fish -lc \"which node && which npm\")",
+      "Bash(fish -lc 'echo $PATH')",
+      "Read(//home/a/.nvm/**)",
+      "Read(//home/a/**)",
+      "Bash(fish -ic \"node --version && npm --version\")",
+      "Bash(fish -ic \"npm run typecheck\")",
+      "Bash(fish -ic 'node -e \":*)",
+      "Bash(fish -ic 'curl -s -o /dev/null -w '\\\\''%{http_code} %{url_effective}\\\\n'\\\\'' \\\\:*)",
+      "Bash(fish -ic 'curl -s -o /dev/null -w '\\\\''%{http_code} %{url}\\\\n'\\\\'' \\\\:*)",
+      "Bash(fish -ic 'for url in \\\\:*)",
+      "Bash(fish -ic \"rm -rf node_modules/.vite\")",
+      "Bash(fish -ic \"npx tsc --noEmit 2>&1 | head -30\")",
+      "Bash(fish -ic \"npm run dev\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:5174/drop-stats)",
+      "Bash(fish -ic \"npx tsc --noEmit 2>&1 | grep -v vitest | head -10\")",
+      "Bash(fish -ic \"npx tsc --noEmit --pretty 2>&1 | head -30\")",
+      "Bash(fish -ic \"npx tsc --noEmit --pretty 2>&1 | grep -v vitest\")",
+      "Bash(git stash:*)",
+      "Bash(fish -ic \"npx tsc --noEmit 2>&1 | grep 'drop-stats' | head -20\")"
     ]
   }
 }

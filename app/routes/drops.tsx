@@ -2,12 +2,12 @@ import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData } from '@remix-run/react';
 import {
   Box,
+  Button,
   Card,
   Container,
   Flex,
   Heading,
   Text,
-  Button,
 } from '@radix-ui/themes';
 import { getClanDropsPaginated } from '~/data/points-audit';
 import { getAllUserAlts } from '~/data/user';

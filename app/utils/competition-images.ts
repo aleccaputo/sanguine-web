@@ -114,15 +114,38 @@ function getOSRSWikiImageUrl(imageName: string): string {
   // Special cases that don't follow the _icon.png pattern
   const specialCases: Record<string, string> = {
     'Tombs of Amascut - Normal Mode icon':
-      'Tombs_of_Amascut_-_Normal_Mode_icon.png',
+      "Tumeken%27s_Warden_(level-544).png",
     'Tombs of Amascut - Expert Mode icon':
-      'Tombs_of_Amascut_-_Expert_Mode_icon.png',
+      "Tumeken%27s_Warden_(level-544).png",
     'Chambers of Xeric': 'Great_Olm.png',
+    'Theatre of Blood': 'Verzik_Vitur.png',
     Yama: 'Yama_chathead.png',
     Callisto: 'Callisto_cub_chathead.png',
     "Phosani's Nightmare": 'The_Nightmare.png',
     Vardorvis: 'Vardorvis.png',
     'The Whisperer': 'The_Whisperer.png',
+    'Chaos Elemental': 'Chaos_Elemental.png',
+    'Chaos Fanatic': 'Chaos_Fanatic.png',
+    'Crazy Archaeologist': 'Crazy_archaeologist.png',
+    'Deranged Archaeologist': 'Deranged_archaeologist.png',
+    Scorpia: 'Scorpia.png',
+    Venenatis: 'Venenatis.png',
+    'Dagannoth Prime': 'Dagannoth_Prime.png',
+    'Dagannoth Rex': 'Dagannoth_Rex.png',
+    'Dagannoth Supreme': 'Dagannoth_Supreme.png',
+    'Duke Sucellus': 'Duke_Sucellus.png',
+    'The Leviathan': 'The_Leviathan.png',
+    'The Gauntlet': 'The_Gauntlet.png',
+    'Corrupted Gauntlet': 'Corrupted_Hunllef.png',
+    Zulrah: 'Zulrah_(serpentine).png',
+    'Abyssal Sire': 'Abyssal_Sire.png',
+    'Alchemical Hydra': 'Alchemical_Hydra_(serpentine).png',
+    'Clue scroll': 'Reward_casket_(hard)_detail.png',
+    'Clue scroll (easy)': 'Reward_casket_(easy)_detail.png',
+    'Clue scroll (medium)': 'Reward_casket_(medium)_detail.png',
+    'Clue scroll (hard)': 'Reward_casket_(hard)_detail.png',
+    'Clue scroll (elite)': 'Reward_casket_(elite)_detail.png',
+    'Clue scroll (master)': 'Reward_casket_(master)_detail.png',
     'Sanguine fallback': SanguineLogo,
   };
 
@@ -191,4 +214,62 @@ export function getMetricType(metric: string): string {
 export function getFallbackImageUrl(): string {
   // Return the imported Sanguine logo path
   return SanguineLogo;
+}
+
+// Boss display names that need special wiki image filenames
+const BOSS_IMAGE_OVERRIDES: Record<string, string> = {
+  'Chambers of Xeric': 'Great_Olm.png',
+  'Chambers of Xeric: Challenge Mode': 'Great_Olm.png',
+  'Chambers of Xeric Challenge Mode': 'Great_Olm.png',
+  'Theatre of Blood': 'Verzik_Vitur.png',
+  'Theatre of Blood: Hard Mode': 'Verzik_Vitur.png',
+  'Theatre of Blood Hard Mode': 'Verzik_Vitur.png',
+  'Tombs of Amascut': "Tumeken%27s_Warden_(level-544).png",
+  'Tombs of Amascut: Expert Mode': "Tumeken%27s_Warden_(level-544).png",
+  'Tombs of Amascut Expert Mode': "Tumeken%27s_Warden_(level-544).png",
+  "Phosani's Nightmare": 'The_Nightmare.png',
+  'The Gauntlet': 'The_Gauntlet.png',
+  'The Corrupted Gauntlet': 'Corrupted_Hunllef.png',
+  'Corrupted Gauntlet': 'Corrupted_Hunllef.png',
+  'Crazy Archaeologist': 'Crazy_archaeologist.png',
+  'Deranged Archaeologist': 'Deranged_archaeologist.png',
+  Zulrah: 'Zulrah_(serpentine).png',
+  Barrows: 'Ahrim_the_Blighted.png',
+  'Lunar Chest': 'Eclipse_Moon.png',
+  Araxyte: 'Araxyte_(lv_96).png',
+  'Abyssal Sire': 'Abyssal_Sire.png',
+  'abyssal sire': 'Abyssal_Sire.png',
+  'Phantom Muspah': 'Phantom_Muspah_(ranged).png',
+  'Alchemical Hydra': 'Alchemical_Hydra_(serpentine).png',
+  'Clue Scroll (Beginner)': 'Reward_casket_(easy)_detail.png',
+  'Clue Scroll (Easy)': 'Reward_casket_(easy)_detail.png',
+  'Clue Scroll (Medium)': 'Reward_casket_(medium)_detail.png',
+  'Clue Scroll (Hard)': 'Reward_casket_(hard)_detail.png',
+  'Clue Scroll (Elite)': 'Reward_casket_(elite)_detail.png',
+  'Clue Scroll (Master)': 'Reward_casket_(master)_detail.png',
+  'Thermonuclear Smoke Devil': 'Thermonuclear_smoke_devil.png',
+  'Dark Beast': 'Dark_beast.png',
+  Nightmare: 'The_Nightmare.png',
+  'Grotesque Guardians': 'Dawn.png',
+  Hueycoatl: 'The_Hueycoatl.png',
+  'The Fortis Colosseum': 'Fortis_Colosseum.png',
+  'Moons of Peril': 'Perilous_Moons.png',
+  'Reward pool (Tempoross)': 'Spirit_pool.png',
+  Elf: 'Iorwerth_Warrior_(1).png',
+  'Tormented Demon': 'Tormented_Demon_(1).png',
+};
+
+/**
+ * Gets the OSRS Wiki image URL for a boss by its display name
+ */
+export function getBossImageUrl(bossName: string): string {
+  if (bossName === 'Unknown') return SanguineLogo;
+
+  const override = BOSS_IMAGE_OVERRIDES[bossName];
+  if (override) {
+    return `https://oldschool.runescape.wiki/images/${override}`;
+  }
+
+  const formatted = bossName.replace(/\s+/g, '_').replace(/'/g, '%27');
+  return `https://oldschool.runescape.wiki/images/${formatted}.png`;
 }

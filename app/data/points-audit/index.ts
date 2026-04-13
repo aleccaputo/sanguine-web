@@ -36,6 +36,22 @@ export const getRecentClanDrops = (limit: number = 50) => {
   });
 };
 
+export const getAllClanDrops = () => {
+  return prisma.pointAudit.findMany({
+    where: { type: 'AUTOMATED' },
+    select: {
+      id: true,
+      itemId: true,
+      bossName: true,
+      pointsGiven: true,
+      createdAt: true,
+      destinationDiscordId: true,
+      osrsName: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+};
+
 export const getClanDropsPaginated = async (
   page: number = 1,
   pageSize: number = 10,
