@@ -35,7 +35,8 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in d.get\\('scripts',{}\\).items\\(\\) if 'test' in k.lower\\(\\)}, indent=2\\)\\); print\\(json.dumps\\({k:v for k,v in d.get\\('devDependencies',{}\\).items\\(\\) if 'vitest' in k or 'jest' in k}, indent=2\\)\\)\")",
       "Bash(fish -ic \"npm test\")",
       "Bash(fish -ic \"npx vitest run\")",
-      "Bash(fish -ic \"npm install\")"
+      "Bash(fish -ic \"npm install\")",
+      "Bash(fish -ic \"node --version\")"
     ]
   }
 }
