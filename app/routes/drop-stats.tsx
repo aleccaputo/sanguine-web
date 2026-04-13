@@ -130,8 +130,10 @@ export default function DropStats() {
 
   const itemMap = useMemo(
     () =>
-      new Map(
-        Object.entries(serializedItemMap).map(([k, v]) => [Number(k), v]),
+      new Map<number, OSRSItem>(
+        Object.entries(serializedItemMap).map(
+          ([k, v]) => [Number(k), v as OSRSItem] as const,
+        ),
       ),
     [serializedItemMap],
   );
@@ -139,7 +141,9 @@ export default function DropStats() {
   const filteredDrops = useMemo(() => {
     if (period.days == null) return enrichedDrops;
     const cutoff = dayjs().subtract(period.days, 'day');
-    return enrichedDrops.filter(d => dayjs(d.createdAt).isAfter(cutoff));
+    return enrichedDrops.filter(
+      (d: (typeof enrichedDrops)[number]) => dayjs(d.createdAt).isAfter(cutoff),
+    );
   }, [enrichedDrops, period]);
 
   const totals = useMemo(
