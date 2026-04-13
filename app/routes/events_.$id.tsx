@@ -32,6 +32,7 @@ import { ParticipantListItem } from '~/components/ParticipantListItem';
 import { ParticipantBreakdownDialog } from '~/components/ParticipantBreakdownDialog';
 import { ClickableUserName } from '~/components/ClickableUserName';
 import { buildAltsByDiscordId } from '~/utils/account-matching';
+import { EVENTS_EXCLUDED_DISCORD_IDS } from '~/utils/events-config';
 
 interface ParticipantInfo {
   participantKey: string;
@@ -241,6 +242,7 @@ const EventById = () => {
         user => user.nickname?.toLowerCase().trim() === rsn,
       );
       if (mainUser?.nickname) {
+        if (EVENTS_EXCLUDED_DISCORD_IDS.has(mainUser.discordId)) return map;
         map.set(mainUser.discordId, {
           participantKey: mainUser.discordId,
           discordId: mainUser.discordId,
@@ -256,7 +258,7 @@ const EventById = () => {
 
       // Try matching as an alt account
       const altInfo = altOwners.get(rsn);
-      if (altInfo) {
+      if (altInfo && !EVENTS_EXCLUDED_DISCORD_IDS.has(altInfo.discordId)) {
         const altName = participation.player.displayName;
         const key = `${altInfo.discordId}:${altName}`;
         map.set(key, {
