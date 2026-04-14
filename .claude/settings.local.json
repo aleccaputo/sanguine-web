@@ -36,7 +36,9 @@
       "Bash(fish -ic \"npm test\")",
       "Bash(fish -ic \"npx vitest run\")",
       "Bash(fish -ic \"npm install\")",
-      "Bash(fish -ic \"node --version\")"
+      "Bash(fish -ic \"node --version\")",
+      "Bash(fish -ic \"npx tsc --noEmit --pretty 2>&1 | head -40\")",
+      "Bash(fish -ic \"npm run build 2>&1 | tail -10\")"
     ]
   }
 }
