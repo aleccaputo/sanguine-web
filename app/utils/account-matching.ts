@@ -38,6 +38,23 @@ export const buildAltsByDiscordId = (
   }, new Map<string, Set<string>>());
 
 /**
+ * Resolve the display name parts for an account.
+ * For an alt, `name` is the alt's osrsName and `mainAccount` is the main nickname.
+ * For a main, `name` is the main nickname and `mainAccount` is null.
+ */
+export const resolveDisplayParts = (
+  osrsName: string | null,
+  mainNickname: string,
+  altNames: Set<string>,
+): { name: string; mainAccount: string | null } => {
+  const isAlt =
+    osrsName != null && altNames.has(osrsName.toLowerCase().trim());
+  return isAlt
+    ? { name: osrsName, mainAccount: mainNickname }
+    : { name: mainNickname, mainAccount: null };
+};
+
+/**
  * Resolve the display name for a drop recipient.
  * Returns "AltName (MainName)" for alts, or mainNickname for mains.
  */
@@ -46,7 +63,10 @@ export const resolveDisplayName = (
   mainNickname: string,
   altNames: Set<string>,
 ): string => {
-  const isAlt =
-    osrsName != null && altNames.has(osrsName.toLowerCase().trim());
-  return isAlt ? `${osrsName} (${mainNickname})` : mainNickname;
+  const { name, mainAccount } = resolveDisplayParts(
+    osrsName,
+    mainNickname,
+    altNames,
+  );
+  return mainAccount ? `${name} (${mainAccount})` : name;
 };

@@ -6,6 +6,7 @@
   "scripts": {
     "build": "remix vite:build",
     "dev": "remix vite:dev",
+    "dev:mock": "cross-env MOCK_MODE=1 remix vite:dev",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "start": "remix-serve ./build/server/index.js",
     "typecheck": "tsc",
@@ -47,6 +48,7 @@
     "tailwindcss-radix": "^2.8.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.4.0",
     "@flydotio/dockerfile": "^0.5.2",
     "@remix-run/dev": "^2.8.1",
     "@types/compression": "^1.7.5",

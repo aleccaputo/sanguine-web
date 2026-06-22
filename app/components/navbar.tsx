@@ -2,6 +2,94 @@ import { Icon } from '~/components/icon';
 import { useLocation } from 'react-router';
 import { Link } from '@remix-run/react';
 import { useEffect, useState } from 'react';
+import * as NavigationMenu from '@radix-ui/react-navigation-menu';
+
+type SubLink = { to: string; label: string };
+
+const eventsLinks: SubLink[] = [
+  { to: '/events', label: 'Events' },
+  { to: '/bingo', label: 'Bingo' },
+  { to: '/monthly-winners', label: 'Monthly Winners' },
+];
+
+const dropsLinks: SubLink[] = [
+  { to: '/drops', label: 'Drops' },
+  { to: '/drop-stats', label: 'Drop Stats' },
+];
+
+const topLinks = [
+  { to: '/', label: 'Home', match: (p: string) => p === '/' },
+  { to: '/about', label: 'About', match: (p: string) => p === '/about' },
+  {
+    to: '/users',
+    label: 'Members',
+    match: (p: string) => p.startsWith('/users'),
+  },
+];
+
+const topLinkClass = (active: boolean) =>
+  `block rounded px-3 py-2 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red ${
+    active ? 'text-sanguine-red' : 'text-gray-900 dark:text-white'
+  } hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent`;
+
+const DropdownNav = ({
+  label,
+  links,
+  pathname,
+}: {
+  label: string;
+  links: SubLink[];
+  pathname: string;
+}) => {
+  const active = links.some(({ to }) => pathname.startsWith(to));
+  return (
+    <NavigationMenu.Item className="md:relative">
+      <NavigationMenu.Trigger
+        className={`${topLinkClass(active)} group flex w-full items-center justify-between md:w-auto md:gap-1`}
+      >
+        {label}
+        <svg
+          className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180"
+          aria-hidden="true"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 10 6"
+        >
+          <path
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="m1 1 4 4 4-4"
+          />
+        </svg>
+      </NavigationMenu.Trigger>
+      <NavigationMenu.Content className="mt-1 md:absolute md:left-0 md:top-full md:mt-0 md:min-w-[12rem] md:pt-2">
+        <ul className="m-0 list-none space-y-1 p-0 pl-3 md:space-y-0 md:rounded-lg md:border md:border-gray-100 md:bg-white md:p-2 md:pl-2 md:shadow-lg dark:md:border-gray-700 dark:md:bg-gray-900">
+          {links.map(({ to, label: linkLabel }) => {
+            const linkActive = pathname.startsWith(to);
+            return (
+              <li key={to}>
+                <NavigationMenu.Link asChild active={linkActive}>
+                  <Link
+                    to={to}
+                    className={`block rounded px-3 py-2 ${
+                      linkActive
+                        ? 'text-sanguine-red'
+                        : 'text-gray-900 dark:text-white'
+                    } hover:bg-gray-100 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red dark:hover:bg-gray-700`}
+                  >
+                    {linkLabel}
+                  </Link>
+                </NavigationMenu.Link>
+              </li>
+            );
+          })}
+        </ul>
+      </NavigationMenu.Content>
+    </NavigationMenu.Item>
+  );
+};
 
 const Navbar = () => {
   const location = useLocation();
@@ -21,11 +109,10 @@ const Navbar = () => {
           </span>
         </a>
         <button
-          data-collapse-toggle="navbar-default"
           type="button"
           className="inline-flex h-10 w-10 items-center justify-center rounded-lg p-2 text-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 md:hidden dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
           aria-controls="navbar-default"
-          aria-expanded="false"
+          aria-expanded={hamburgerOpen}
           onClick={() => setHamburgerOpen(!hamburgerOpen)}
         >
           <span className="sr-only">Open main menu</span>
@@ -46,72 +133,38 @@ const Navbar = () => {
           </svg>
         </button>
         <div
-          className={`${!hamburgerOpen ? 'hidden' : null} w-full md:block md:w-auto`}
+          className={`${!hamburgerOpen ? 'hidden' : ''} w-full md:block md:w-auto`}
           id="navbar-default"
         >
-          <ul
-            className={
-              'mt-4 flex flex-col rounded-lg border border-gray-100 bg-gray-50 p-4 font-medium md:mt-0 md:flex-row md:space-x-8 md:border-0 md:bg-white md:p-0 rtl:space-x-reverse dark:border-gray-700 dark:bg-gray-800 md:dark:bg-gray-900'
-            }
+          <NavigationMenu.Root
+            delayDuration={100}
+            className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4 font-medium md:mt-0 md:border-0 md:bg-white md:p-0 dark:border-gray-700 dark:bg-gray-800 md:dark:bg-gray-900"
           >
-            <li>
-              <Link
-                to="/"
-                className={`block rounded px-3 py-2 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red ${location.pathname === '/' ? 'text-sanguine-red' : 'text-gray-900'} hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent dark:${location.pathname === '/' ? 'text-sanguine-red' : 'text-white'} dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent`}
-                aria-current="page"
-              >
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/about"
-                className={`block rounded px-3 py-2 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red ${location.pathname === '/about' ? 'text-sanguine-red' : 'text-gray-900'} hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent dark:${location.pathname === '/about' ? 'text-sanguine-red' : 'text-white'} dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent`}
-              >
-                About
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/users"
-                className={`block rounded px-3 py-2 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red ${location.pathname.startsWith('/users') ? 'text-sanguine-red' : 'text-gray-900'} hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent dark:${location.pathname.startsWith('/users') ? 'text-sanguine-red' : 'text-white'} dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent`}
-              >
-                Members
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/events"
-                className={`block rounded px-3 py-2 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red ${location.pathname.startsWith('/events') ? 'text-sanguine-red' : 'text-gray-900'} hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent dark:${location.pathname.startsWith('/events') ? 'text-sanguine-red' : 'text-white'} dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent`}
-              >
-                Events
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/drops"
-                className={`block rounded px-3 py-2 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red ${location.pathname === '/drops' ? 'text-sanguine-red' : 'text-gray-900'} hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent dark:${location.pathname === '/drops' ? 'text-sanguine-red' : 'text-white'} dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent`}
-              >
-                Drops
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/drop-stats"
-                className={`block rounded px-3 py-2 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red ${location.pathname === '/drop-stats' ? 'text-sanguine-red' : 'text-gray-900'} hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent dark:${location.pathname === '/drop-stats' ? 'text-sanguine-red' : 'text-white'} dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent`}
-              >
-                Drop Stats
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/bingo"
-                className={`block rounded px-3 py-2 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red ${location.pathname === '/bingo' ? 'text-sanguine-red' : 'text-gray-900'} hover:bg-gray-100 md:border-0 md:p-0 md:hover:bg-transparent dark:${location.pathname === '/bingo' ? 'text-sanguine-red' : 'text-white'} dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent`}
-              >
-                Bingo
-              </Link>
-            </li>
-          </ul>
+            <NavigationMenu.List className="m-0 flex list-none flex-col p-0 md:flex-row md:space-x-8 rtl:space-x-reverse">
+              {topLinks.map(({ to, label, match }) => {
+                const active = match(location.pathname);
+                return (
+                  <NavigationMenu.Item key={to}>
+                    <NavigationMenu.Link asChild active={active}>
+                      <Link to={to} className={topLinkClass(active)}>
+                        {label}
+                      </Link>
+                    </NavigationMenu.Link>
+                  </NavigationMenu.Item>
+                );
+              })}
+              <DropdownNav
+                label="Drops"
+                links={dropsLinks}
+                pathname={location.pathname}
+              />
+              <DropdownNav
+                label="Events"
+                links={eventsLinks}
+                pathname={location.pathname}
+              />
+            </NavigationMenu.List>
+          </NavigationMenu.Root>
         </div>
       </div>
     </nav>

@@ -3,6 +3,7 @@ import {
   matchesAccountName,
   buildAltsByDiscordId,
   resolveDisplayName,
+  resolveDisplayParts,
 } from './account-matching';
 
 describe('matchesAccountName', () => {
@@ -114,5 +115,38 @@ describe('resolveDisplayName', () => {
 
   it('handles empty alt set', () => {
     expect(resolveDisplayName('MyAlt', mainNickname, new Set())).toBe('MainRSN');
+  });
+});
+
+describe('resolveDisplayParts', () => {
+  const mainNickname = 'MainRSN';
+  const altNames = new Set(['myalt', 'anotherone']);
+
+  it('returns main name with no main account when osrsName is null', () => {
+    expect(resolveDisplayParts(null, mainNickname, altNames)).toEqual({
+      name: 'MainRSN',
+      mainAccount: null,
+    });
+  });
+
+  it('returns main name with no main account when osrsName is the main', () => {
+    expect(resolveDisplayParts('MainRSN', mainNickname, altNames)).toEqual({
+      name: 'MainRSN',
+      mainAccount: null,
+    });
+  });
+
+  it('returns the alt name and the main account when osrsName is an alt', () => {
+    expect(resolveDisplayParts('MyAlt', mainNickname, altNames)).toEqual({
+      name: 'MyAlt',
+      mainAccount: 'MainRSN',
+    });
+  });
+
+  it('matches alt names case-insensitively', () => {
+    expect(resolveDisplayParts('MYALT', mainNickname, altNames)).toEqual({
+      name: 'MYALT',
+      mainAccount: 'MainRSN',
+    });
   });
 });

@@ -38,7 +38,32 @@
       "Bash(fish -ic \"npm install\")",
       "Bash(fish -ic \"node --version\")",
       "Bash(fish -ic \"npx tsc --noEmit --pretty 2>&1 | head -40\")",
-      "Bash(fish -ic \"npm run build 2>&1 | tail -10\")"
+      "Bash(fish -ic \"npm run build 2>&1 | tail -10\")",
+      "Bash(fish -ic \"npm run prisma:generate\")",
+      "Bash(fish -ic \"npm run lint\")",
+      "Bash(echo \"started, pid=$!\")",
+      "Bash(curl -s -o /tmp/mw.html -w \"HTTP %{http_code}\\\\nsize %{size_download}\\\\n\" http://localhost:5173/monthly-winners)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(kill %1)",
+      "Bash(fish -ic \"npm run typecheck && npm run lint\")",
+      "Bash(disown)",
+      "Bash(curl -s -o /tmp/mw.html -w \"HTTP %{http_code}\\\\n\" http://localhost:5173/monthly-winners)",
+      "Bash(curl -s -o /tmp/mw-mock.html -w \"HTTP %{http_code}\\\\n\" \"http://localhost:5173/monthly-winners?mock=1\")",
+      "Bash(fish -ic \"npm install --save-dev @faker-js/faker\")",
+      "Bash(fish *)",
+      "Bash(curl -s -o /tmp/mock-home.html -w \"%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -I http://localhost:3000/users)",
+      "Bash(curl -s -o /tmp/mock-home.html -w \"%{http_code}\\\\n\" http://localhost:5174/)",
+      "Bash(curl -s -o /tmp/mock-users.html -w \"%{http_code} users\\\\n\" http://localhost:5174/users)",
+      "Bash(curl -s -o /tmp/mock-drops.html -w \"%{http_code} drops\\\\n\" http://localhost:5174/drops)",
+      "Bash(curl -s -o /tmp/mock-drop-stats.html -w \"%{http_code} drop-stats\\\\n\" http://localhost:5174/drop-stats)",
+      "Bash(curl -s -o /tmp/mock-mw.html -w \"%{http_code} monthly-winners\\\\n\" http://localhost:5174/monthly-winners)",
+      "Bash(curl -s -o /tmp/mock-user1.html -w \"%{http_code} user-detail\\\\n\" http://localhost:5174/users/249049195733280453)",
+      "Bash(curl -s -o /tmp/mock-evt1.html -w \"%{http_code} event-detail\\\\n\" http://localhost:5174/events/100000)",
+      "Bash(kill 35179)",
+      "Bash(pkill -9 -f \"remix vite\")",
+      "Bash(cd /home/a/development/osrs-discord-clan-manager)",
+      "Bash(cat models/UserAlt.ts)"
     ]
   }
 }

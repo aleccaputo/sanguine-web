@@ -40,3 +40,22 @@ model UserAlts {
   discordId String
   altName  String
 }
+
+model ClanEvents {
+  id              String  @id @default(auto()) @map("_id") @db.ObjectId
+  v               Int     @map("__v")
+  type            String
+  startDate       String
+  endDate         String
+  winnerDiscordId String?
+  winnerOsrsName  String?
+}
+
+model EventPolls {
+  id                 String  @id @default(auto()) @map("_id") @db.ObjectId
+  v                  Int     @map("__v")
+  pollType           String
+  status             String
+  winnerMetric       String?
+  relatedClanEventId String? @db.ObjectId
+}

@@ -251,6 +251,12 @@ export default function DropStats() {
     { key: 'totalGP', direction: 'desc' },
   );
 
+  const sortedCommon = useSortableData(
+    commonItems,
+    (item, key: 'name' | 'count') => item[key],
+    { key: 'count', direction: 'desc' },
+  );
+
   return (
     <Container size="4" mt="3" px="3">
       <Flex direction="column" gap="4">
@@ -435,33 +441,44 @@ export default function DropStats() {
                     <Heading size="5" className="mb-4 text-white">
                       Most Common Items
                     </Heading>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-                      {commonItems.map(item => (
-                        <Flex
-                          key={item.itemId}
-                          align="center"
-                          gap="3"
-                          className="rounded-lg border border-gray-800 bg-gray-950 p-3"
-                        >
-                          {item.icon && (
-                            <Box className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
-                              <img
-                                src={item.icon}
-                                alt={item.name}
-                                className="max-h-8 max-w-8 object-contain"
-                              />
-                            </Box>
-                          )}
-                          <Flex direction="column" className="min-w-0">
-                            <Text size="2" weight="medium" className="truncate text-white">
-                              {item.name}
-                            </Text>
-                            <Text size="1" className="text-gray-400">
-                              {item.count.toLocaleString()} drops
-                            </Text>
-                          </Flex>
-                        </Flex>
-                      ))}
+                    <div className="overflow-x-auto">
+                      <Table.Root>
+                        <Table.Header>
+                          <Table.Row>
+                            <Table.ColumnHeaderCell className="cursor-pointer select-none text-gray-400" onClick={() => sortedCommon.toggle('name')}>
+                              Item<SortIndicator columnKey="name" activeSort={sortedCommon.activeSort} />
+                            </Table.ColumnHeaderCell>
+                            <Table.ColumnHeaderCell className="cursor-pointer select-none text-gray-400" align="right" onClick={() => sortedCommon.toggle('count')}>
+                              Drops<SortIndicator columnKey="count" activeSort={sortedCommon.activeSort} />
+                            </Table.ColumnHeaderCell>
+                          </Table.Row>
+                        </Table.Header>
+                        <Table.Body>
+                          {sortedCommon.sorted.map(item => (
+                            <Table.Row key={item.itemId}>
+                              <Table.Cell className="text-white">
+                                <Flex align="center" gap="3">
+                                  {item.icon && (
+                                    <Box className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                                      <img
+                                        src={item.icon}
+                                        alt={item.name}
+                                        className="max-h-8 max-w-8 object-contain"
+                                      />
+                                    </Box>
+                                  )}
+                                  <Text size="2" weight="medium">
+                                    {item.name}
+                                  </Text>
+                                </Flex>
+                              </Table.Cell>
+                              <Table.Cell align="right" className="text-gray-300">
+                                {item.count.toLocaleString()}
+                              </Table.Cell>
+                            </Table.Row>
+                          ))}
+                        </Table.Body>
+                      </Table.Root>
                     </div>
                   </Box>
                 </Card>
