@@ -14,14 +14,21 @@ import {
   Container,
   Grid,
   Heading,
+  Select,
+  IconButton,
 } from '@radix-ui/themes';
 
 import {
   MagnifyingGlassIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
 } from '@radix-ui/react-icons';
 import { getClanFromWom } from '~/services/wom-api-service.server';
-import { fetchRankImage } from '~/utils/clan-ranks';
+import { fetchRankImage, getRankSortIndex } from '~/utils/clan-ranks';
 import { MembershipWithPlayer } from '@wise-old-man/utils';
+
+type SortField = 'rank' | 'points' | 'name';
+type SortDirection = 'asc' | 'desc';
 
 export const meta: MetaFunction = () => {
   return [
@@ -52,6 +59,8 @@ export default function Index() {
   const { users, sanguineWomMembers } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState<SortField>('rank');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   // Get rank text based on points
   const getRankText = (
@@ -67,21 +76,37 @@ export default function Index() {
     );
   };
 
-  // Filter users based on search term. Put guests at bottom
-  const filteredUsers = users
-    .filter(x => x !== null)
+  // Filter on search, then sort by the selected field and direction. Rank
+  // ascending lists the highest rank first; guests fall to the bottom.
+  const visibleUsers = users
+    .filter((user): user is ISanguineUserWithNickname => user !== null)
     .filter(
       user =>
         user.nickname?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false,
     )
+    .map(user => ({ user, rank: getRankText(sanguineWomMembers, user) }))
     .sort((a, b) => {
-      const aIsGuest = getRankText(sanguineWomMembers, a) === 'Guest';
-      const bIsGuest = getRankText(sanguineWomMembers, b) === 'Guest';
-
-      return (
-        Number(aIsGuest) - Number(bIsGuest) || (a.points < b.points ? 1 : -1)
-      );
+      const direction = sortDirection === 'asc' ? 1 : -1;
+      // Within equal primary keys, list the highest points first.
+      const pointsTiebreak = b.user.points - a.user.points;
+      switch (sortField) {
+        case 'name':
+          return (
+            direction *
+              (a.user.nickname ?? '').localeCompare(b.user.nickname ?? '') ||
+            pointsTiebreak
+          );
+        case 'points':
+          return direction * (a.user.points - b.user.points);
+        case 'rank':
+        default:
+          return (
+            direction *
+              (getRankSortIndex(a.rank) - getRankSortIndex(b.rank)) ||
+            pointsTiebreak
+          );
+      }
     });
 
   // Get rank icon based on points
@@ -123,9 +148,38 @@ export default function Index() {
               />
             </Flex>
           </Box>
+          <Flex gap="2" align="center">
+            <Text size="2" className="text-gray-400">
+              Sort by
+            </Text>
+            <Select.Root
+              value={sortField}
+              onValueChange={value => setSortField(value as SortField)}
+            >
+              <Select.Trigger />
+              <Select.Content>
+                <Select.Item value="rank">Rank</Select.Item>
+                <Select.Item value="points">Points</Select.Item>
+                <Select.Item value="name">Name</Select.Item>
+              </Select.Content>
+            </Select.Root>
+            <IconButton
+              variant="soft"
+              aria-label={`Sort ${
+                sortDirection === 'asc' ? 'ascending' : 'descending'
+              }`}
+              onClick={() =>
+                setSortDirection(direction =>
+                  direction === 'asc' ? 'desc' : 'asc',
+                )
+              }
+            >
+              {sortDirection === 'asc' ? <ArrowUpIcon /> : <ArrowDownIcon />}
+            </IconButton>
+          </Flex>
         </Flex>
         <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="4">
-          {filteredUsers.map(user => (
+          {visibleUsers.map(({ user, rank }) => (
             <Card
               key={user.discordId}
               className="cursor-pointer border border-gray-800 bg-gray-900 transition-all duration-200 hover:border-sanguine-red"
@@ -134,7 +188,7 @@ export default function Index() {
               <Flex p="3" gap="3" align="center" justify="between">
                 <Box>
                   <Flex align="center" gap="2">
-                    {getRankIcon(getRankText(sanguineWomMembers, user))}
+                    {getRankIcon(rank)}
                     <Text
                       as="div"
                       size="4"
