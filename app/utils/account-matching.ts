@@ -55,6 +55,15 @@ export const resolveDisplayParts = (
 };
 
 /**
+ * Format an account label as "AccountName (MainNickname)" — the shared convention for showing an
+ * alt alongside the main it belongs to. Used wherever an alt account is surfaced (drops, PBs, …).
+ */
+export const formatAccountWithMain = (
+  accountName: string,
+  mainNickname: string,
+): string => `${accountName} (${mainNickname})`;
+
+/**
  * Resolve the display name for a drop recipient.
  * Returns "AltName (MainName)" for alts, or mainNickname for mains.
  */
@@ -68,5 +77,5 @@ export const resolveDisplayName = (
     mainNickname,
     altNames,
   );
-  return mainAccount ? `${name} (${mainAccount})` : name;
+  return mainAccount ? formatAccountWithMain(name, mainAccount) : name;
 };

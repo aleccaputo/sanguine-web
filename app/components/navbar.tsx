@@ -25,6 +25,11 @@ const topLinks = [
     label: 'Members',
     match: (p: string) => p.startsWith('/users'),
   },
+  {
+    to: '/personal-bests',
+    label: 'PBs',
+    match: (p: string) => p.startsWith('/personal-bests'),
+  },
 ];
 
 const topLinkClass = (active: boolean) =>

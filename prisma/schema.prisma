@@ -59,3 +59,23 @@ model EventPolls {
   winnerMetric       String?
   relatedClanEventId String? @db.ObjectId
 }
+
+model PersonalBests {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  v                     Int?     @map("__v")
+  bossName              String
+  raidLevel             Int?
+  scale                 Int
+  categoryKey           String
+  timeDisplay           String
+  timeSeconds           Float
+  participantDiscordIds String[]
+  participantAltNames   String[]
+  submitterDiscordId    String
+  screenshotUrl         String?
+  proofMessageUrl       String?
+  approvalMessageId     String   @unique
+  approvedByDiscordId   String
+  createdAt             String
+  approvedAt            String
+}

@@ -7,12 +7,27 @@ import {
   Container,
   Flex,
   Heading,
+  Table,
   Tabs,
   Text,
 } from '@radix-ui/themes';
-import { getUserWithNickname } from '~/services/sanguine-service.server';
+import {
+  getNicknameMapByDiscordIds,
+  getUserWithNickname,
+} from '~/services/sanguine-service.server';
 import { getAuditDataForUserById } from '~/data/points-audit';
 import { getUserAlts } from '~/data/user';
+import {
+  getPersonalBestCategoryKeysForDiscordId,
+  getPersonalBestsByCategoryKeys,
+} from '~/data/personal-bests';
+import {
+  buildUserCategoryBests,
+  collectParticipantDiscordIds,
+  formatScaleLabel,
+} from '~/utils/personal-bests';
+import { buildBossImageMap } from '~/utils/pb-boss-image.server';
+import { PbTeam, rankBadge } from '~/components/PbTeam';
 import {
   Bar,
   BarChart,
@@ -47,13 +62,27 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 export async function loader({ params }: LoaderFunctionArgs) {
   const discordId = params.id ?? '';
 
-  const [user, userAuditData, sanguineWomMembers, userAlts] = await Promise.all(
-    [
+  const [user, userAuditData, sanguineWomMembers, userAlts, pbCategoryKeys] =
+    await Promise.all([
       getUserWithNickname(discordId),
       getAuditDataForUserById(discordId),
       getClanFromWom(18435),
       getUserAlts(discordId),
-    ],
+      getPersonalBestCategoryKeysForDiscordId(discordId),
+    ]);
+
+  // Pull the full field for the member's categories so their times can be ranked against the clan.
+  const allPbsInCategories =
+    await getPersonalBestsByCategoryKeys(pbCategoryKeys);
+  const personalBests = buildUserCategoryBests(discordId, allPbsInCategories);
+
+  // Only resolve names for the people who actually appear in those PBs ({} and no query if none).
+  const pbNameByDiscordId = await getNicknameMapByDiscordIds(
+    collectParticipantDiscordIds(allPbsInCategories),
+  );
+
+  const pbBossImageByName = buildBossImageMap(
+    personalBests.map(pb => pb.bossName),
   );
 
   const allAutomatedItems = userAuditData
@@ -89,6 +118,9 @@ export async function loader({ params }: LoaderFunctionArgs) {
     allItemsLogged: itemsWithData,
     womRoles,
     userAlts,
+    personalBests,
+    pbNameByDiscordId,
+    pbBossImageByName,
   });
 }
 
@@ -96,11 +128,30 @@ export async function loader({ params }: LoaderFunctionArgs) {
 const ALL_ACCOUNTS = 'all';
 
 export default function UserById() {
-  const { user, auditData, allItemsLogged, womRoles, userAlts } =
-    useLoaderData<typeof loader>();
+  const {
+    user,
+    auditData,
+    allItemsLogged,
+    womRoles,
+    userAlts,
+    personalBests,
+    pbNameByDiscordId,
+    pbBossImageByName,
+  } = useLoaderData<typeof loader>();
 
   const hasAlts = userAlts.length > 0;
   const mainName = user.nickname ?? '';
+
+  // How many distinct categories each boss spans for this member, so we know when to print a
+  // scale/invocation sublabel to disambiguate (e.g. a solo CoX row next to a trio CoX row).
+  const pbBossCounts = useMemo(
+    () =>
+      personalBests.reduce(
+        (map, pb) => map.set(pb.bossName, (map.get(pb.bossName) ?? 0) + 1),
+        new Map<string, number>(),
+      ),
+    [personalBests],
+  );
 
   // selectedAccount is either ALL_ACCOUNTS, mainName, or an alt's altName
   const [selectedAccount, setSelectedAccount] = useState(ALL_ACCOUNTS);
@@ -316,6 +367,118 @@ export default function UserById() {
                   </Tabs.List>
                 </Tabs.Root>
               </Flex>
+            </Box>
+          </Card>
+        )}
+
+        {/* Personal Bests Section — keyed to the member (discordId), so it spans every account
+            and isn't affected by the account switcher above. */}
+        {personalBests.length > 0 && (
+          <Card className="border border-gray-800 bg-gray-900">
+            <Box p="5">
+              <Heading size="5" className="mb-4 text-white">
+                Personal Bests
+              </Heading>
+              <div className="overflow-x-auto">
+                <Table.Root size="1">
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.ColumnHeaderCell className="text-gray-400">
+                        Boss / Raid
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell className="text-gray-400">
+                        Time
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell
+                        className="text-gray-400"
+                        align="center"
+                      >
+                        Clan Rank
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell className="hidden text-gray-400 sm:table-cell">
+                        Team
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell className="text-gray-400">
+                        Proof
+                      </Table.ColumnHeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {personalBests.map(pb => (
+                      <Table.Row key={pb.categoryKey}>
+                        <Table.Cell className="text-white">
+                          <Flex align="center" gap="2">
+                            <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
+                              <img
+                                src={pbBossImageByName[pb.bossName]}
+                                alt={pb.bossName}
+                                className="max-h-7 max-w-7 object-contain"
+                              />
+                            </Box>
+                            <Flex direction="column">
+                              <Text size="2" weight="medium">
+                                {pb.bossName}
+                              </Text>
+                              {(pb.scale > 1 ||
+                                pb.raidLevel != null ||
+                                (pbBossCounts.get(pb.bossName) ?? 0) > 1) && (
+                                <Text size="1" className="text-gray-400">
+                                  {formatScaleLabel(pb.scale, pb.raidLevel)}
+                                </Text>
+                              )}
+                              {pb.userAltName && (
+                                <Text size="1" className="text-gray-500">
+                                  on {pb.userAltName}
+                                </Text>
+                              )}
+                            </Flex>
+                          </Flex>
+                        </Table.Cell>
+                        <Table.Cell className="whitespace-nowrap font-medium text-amber-400">
+                          {pb.best.timeDisplay}
+                        </Table.Cell>
+                        <Table.Cell align="center">
+                          <Flex align="center" justify="center" gap="1">
+                            <Text size="2" className="text-white">
+                              {pb.rank <= 3
+                                ? rankBadge(pb.rank)
+                                : `#${pb.rank}`}
+                            </Text>
+                            {pb.totalEntries > 1 && (
+                              <Text size="1" className="text-gray-500">
+                                of {pb.totalEntries}
+                              </Text>
+                            )}
+                          </Flex>
+                        </Table.Cell>
+                        <Table.Cell className="hidden sm:table-cell">
+                          <PbTeam
+                            participantDiscordIds={pb.best.participantDiscordIds}
+                            participantAltNames={pb.best.participantAltNames}
+                            nameByDiscordId={pbNameByDiscordId}
+                          />
+                        </Table.Cell>
+                        <Table.Cell>
+                          {pb.best.proofMessageUrl ? (
+                            <a
+                              href={pb.best.proofMessageUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-gray-400 transition-colors hover:text-sanguine-red"
+                            >
+                              View
+                            </a>
+                          ) : (
+                            <Text size="2" className="text-gray-600">
+                              —
+                            </Text>
+                          )}
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table.Root>
+              </div>
             </Box>
           </Card>
         )}

@@ -94,6 +94,13 @@ const METRIC_TO_IMAGE_NAME: Record<string, string> = {
 };
 
 /**
+ * Whether we have an explicit image mapping for a competition metric (vs. falling back).
+ */
+export function hasCompetitionImage(metric: string): boolean {
+  return metric in METRIC_TO_IMAGE_NAME;
+}
+
+/**
  * Gets the OSRS Wiki image URL for a competition metric
  */
 export function getCompetitionImageUrl(metric: string): string {

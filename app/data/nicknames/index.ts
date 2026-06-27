@@ -11,3 +11,9 @@ export const getNicknameById = (discordId: string) => {
 export const getNicknames = () => {
   return prisma.userNicknames.findMany();
 };
+
+export const getNicknamesByDiscordIds = (discordIds: string[]) => {
+  return prisma.userNicknames.findMany({
+    where: { discordId: { in: discordIds } },
+  });
+};
