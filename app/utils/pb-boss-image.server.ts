@@ -1,4 +1,4 @@
-import { Boss, getMetricName } from '@wise-old-man/utils';
+import { Boss, MetricProps } from '@wise-old-man/utils';
 import {
   getBossImageUrl,
   getCompetitionImageUrl,
@@ -9,7 +9,7 @@ import {
 // "Chambers Of Xeric (CM)"), which differs in casing from the drop boss names. Map each display
 // name back to its WOM metric key so we can reuse the curated competition images.
 const metricKeyByDisplayName: Record<string, string> = Object.fromEntries(
-  Object.values(Boss).map(boss => [getMetricName(boss), boss as string]),
+  Object.values(Boss).map(boss => [MetricProps[boss].name, boss as string]),
 );
 
 // Resolves a boss/raid image URL for a PB boss name, preferring the curated competition image and

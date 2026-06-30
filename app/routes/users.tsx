@@ -23,9 +23,11 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
 } from '@radix-ui/react-icons';
-import { getClanFromWom } from '~/services/wom-api-service.server';
+import {
+  getClanFromWom,
+  type MembershipWithPlayer,
+} from '~/services/wom-api-service.server';
 import { fetchRankImage, getRankSortIndex } from '~/utils/clan-ranks';
-import { MembershipWithPlayer } from '@wise-old-man/utils';
 
 type SortField = 'rank' | 'points' | 'name';
 type SortDirection = 'asc' | 'desc';

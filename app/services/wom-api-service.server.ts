@@ -1,7 +1,11 @@
-import { MembershipWithPlayer, WOMClient } from '@wise-old-man/utils';
+import { GroupDetailsResponse, WOMClient } from '@wise-old-man/utils';
 import { remember } from '@epic-web/remember';
 import * as process from 'process';
 import chalk from 'chalk';
+
+// v4 of @wise-old-man/utils no longer exports a `MembershipWithPlayer` type, so we derive the
+// membership-with-player shape from the group details response the client returns.
+export type MembershipWithPlayer = GroupDetailsResponse['memberships'][number];
 
 // Price cache
 let womMemberCache: MembershipWithPlayer[] = [];

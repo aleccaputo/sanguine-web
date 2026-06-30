@@ -29,7 +29,7 @@
     "@sentry/remix": "^7.113.0",
     "@sentry/vite-plugin": "^2.16.1",
     "@tanstack/react-table": "^8.21.2",
-    "@wise-old-man/utils": "^3.1.18",
+    "@wise-old-man/utils": "^4.0.17",
     "chalk": "^5.3.0",
     "class-variance-authority": "^0.7.0",
     "compression": "^1.7.4",

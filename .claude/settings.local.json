@@ -63,7 +63,8 @@
       "Bash(kill 35179)",
       "Bash(pkill -9 -f \"remix vite\")",
       "Bash(cd /home/a/development/osrs-discord-clan-manager)",
-      "Bash(cat models/UserAlt.ts)"
+      "Bash(cat models/UserAlt.ts)",
+      "Bash(tar xzf *)"
     ]
   }
 }
