@@ -141,6 +141,7 @@ export const untradeableItems: Record<number, string> = {
   28319: "executioner's axe head",
   13201: 'magma mutagen',
   13200: 'tanzanite mutagen',
+  25746: 'sanguine dust',
 
   25440: "zealot's boots",
   25438: "zealot's helm",
