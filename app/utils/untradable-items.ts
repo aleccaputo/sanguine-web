@@ -82,6 +82,7 @@ export const untradeableItems: Record<number, string> = {
   31283: 'soup',
   31285: 'gull (pet)',
   33124: 'beef',
+  33642: 'maggot marquess',
 
   // Metamorphic dust (untradeable CoX reward)
   22386: 'metamorphic dust',
@@ -130,13 +131,22 @@ export const untradeableItems: Record<number, string> = {
   29790: 'noxious point',
   28321: 'eye of the duke',
   28279: 'bellator vestige',
+  28285: 'ultor vestige',
+  28283: 'venator vestige',
+  28281: 'magus vestige',
   31109: 'mokhaiotl cloth',
   28323: "siren's staff",
   29786: 'jar of venom',
   28325: "leviathan's lure",
+  28319: "executioner's axe head",
+  13201: 'magma mutagen',
+  13200: 'tanzanite mutagen',
 
   25440: "zealot's boots",
   25438: "zealot's helm",
   25436: "zealot's robe bottom",
   25434: "zealot's robe top",
+
+  33634: 'elder venator fang',
+  33631: 'crimson kisten',
 };
