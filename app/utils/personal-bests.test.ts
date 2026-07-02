@@ -3,23 +3,64 @@ import type { IPersonalBest } from '~/data/personal-bests';
 import {
   buildCategoryLeaderboards,
   buildUserCategoryBests,
+  comparePbTimes,
 } from './personal-bests';
 
 // Minimal PB factory — only the fields the leaderboard logic reads. Times are passed already
-// ascending, matching the time-ascending order the queries return.
-const pb = (overrides: Partial<IPersonalBest>): IPersonalBest => ({
-  id: overrides.timeDisplay ?? 'id',
-  bossName: 'Zulrah',
-  scale: 1,
-  raidLevel: undefined,
-  categoryKey: 'zulrah|0|1',
-  timeDisplay: '0:00',
-  timeSeconds: 0,
-  participantDiscordIds: ['a'],
-  participantAltNames: [''],
-  proofMessageUrl: undefined,
-  createdAt: '2026-01-01',
-  ...overrides,
+// ascending, matching the effective-time-ascending order the data layer returns. Precision and
+// effective time are derived the same way the data layer derives them for legacy rows, unless a
+// test overrides them explicitly.
+const pb = (overrides: Partial<IPersonalBest>): IPersonalBest => {
+  const merged = {
+    id: overrides.timeDisplay ?? 'id',
+    bossName: 'Zulrah',
+    scale: 1,
+    raidLevel: undefined,
+    categoryKey: 'zulrah|0|1',
+    timeDisplay: '0:00',
+    timeSeconds: 0,
+    participantDiscordIds: ['a'],
+    participantAltNames: [''],
+    proofMessageUrl: undefined,
+    createdAt: '2026-01-01',
+    ...overrides,
+  };
+  const isPreciseTime =
+    overrides.isPreciseTime ?? merged.timeDisplay.includes('.');
+  return {
+    ...merged,
+    isPreciseTime,
+    effectiveTimeSeconds:
+      overrides.effectiveTimeSeconds ??
+      merged.timeSeconds + (isPreciseTime ? 0 : 0.4),
+  };
+};
+
+describe('comparePbTimes', () => {
+  it('ranks an imprecise time at its +0.4s worst case', () => {
+    // Imprecise 0:55 ranks as 55.4: precise 0:55.20 beats it, precise 0:55.60 loses to it.
+    const imprecise = pb({ timeDisplay: '0:55', timeSeconds: 55 });
+    expect(
+      comparePbTimes(
+        pb({ timeDisplay: '0:55.20', timeSeconds: 55.2 }),
+        imprecise,
+      ),
+    ).toBeLessThan(0);
+    expect(
+      comparePbTimes(
+        pb({ timeDisplay: '0:55.60', timeSeconds: 55.6 }),
+        imprecise,
+      ),
+    ).toBeGreaterThan(0);
+  });
+
+  it('breaks an effective-time tie in favor of the precise submission', () => {
+    // A genuine 0:55.40 must sit above an imprecise 0:55 assumed to be 55.4.
+    const precise = pb({ timeDisplay: '0:55.40', timeSeconds: 55.4 });
+    const imprecise = pb({ timeDisplay: '0:55', timeSeconds: 55 });
+    expect(comparePbTimes(precise, imprecise)).toBeLessThan(0);
+    expect(comparePbTimes(imprecise, precise)).toBeGreaterThan(0);
+  });
 });
 
 describe('buildCategoryLeaderboards', () => {
@@ -132,6 +173,27 @@ describe('buildUserCategoryBests', () => {
     expect(best.best.timeDisplay).toBe('0:45');
     expect(best.rank).toBe(1);
     expect(best.totalEntries).toBe(1);
+  });
+
+  it('ranks a precise time ahead of an imprecise one inside its rounding window', () => {
+    // Effective order: precise 0:55.20 (55.2) < imprecise 0:55 for 'me' (ranked 55.4).
+    const field = [
+      pb({
+        timeDisplay: '0:55.20',
+        timeSeconds: 55.2,
+        participantDiscordIds: ['a'],
+      }),
+      pb({
+        timeDisplay: '0:55',
+        timeSeconds: 55,
+        participantDiscordIds: ['me'],
+      }),
+    ];
+
+    const [best] = buildUserCategoryBests('me', field);
+
+    expect(best.rank).toBe(2);
+    expect(best.totalEntries).toBe(2);
   });
 
   it('counts a recurring teammate group as one competitor when ranking', () => {

@@ -1,6 +1,22 @@
 import type { IPersonalBest } from '~/data/personal-bests';
 import { formatAccountWithMain } from '~/utils/account-matching';
 
+// OSRS kill times are tick-aligned (0.6s ticks), so a real time's decimal is always .0/.2/.4/.6/.8.
+// With the in-game "precise timing" setting off, the game rounds the displayed time to the nearest
+// second, so a submitted "0:55" could truly be anything from 54.6 to 55.4. To keep imprecise
+// submissions from outranking precise ones, they rank at the worst (slowest) candidate: +0.4s.
+// Mirrors IMPRECISE_PB_PENALTY_SECONDS in the Discord bot (osrs-discord-clan-manager).
+export const IMPRECISE_PB_PENALTY_SECONDS = 0.4;
+
+// The fields ranking needs — kept narrow so tests and partial rows can use the comparator too.
+type PbTimeLike = Pick<IPersonalBest, 'isPreciseTime' | 'effectiveTimeSeconds'>;
+
+// Ranking order: effective (worst-case) time ascending; at an exact tie the precise time wins,
+// since the imprecise one is only *assumed* to be that fast.
+export const comparePbTimes = (a: PbTimeLike, b: PbTimeLike): number =>
+  a.effectiveTimeSeconds - b.effectiveTimeSeconds ||
+  Number(b.isPreciseTime) - Number(a.isPreciseTime);
+
 export interface IResolvedParticipant {
   discordId: string;
   // "AltName (MainName)" when the player ran on a registered alt, the main nickname otherwise, or
@@ -100,7 +116,8 @@ const participantSetKey = (pb: IPersonalBest): string =>
   [...new Set(pb.participantDiscordIds)].sort().join(',');
 
 // Collapses a time-ascending list to each distinct team's fastest time. Input must be ascending
-// (the queries order by timeSeconds), so a team's first appearance is already its best; order is
+// (the data layer sorts by effective time via comparePbTimes), so a team's first appearance is
+// already its best; order is
 // preserved, so the result stays fastest-first. A team that holds several fast times therefore
 // occupies a single slot, so more of the clan lands on the board rather than one team taking every
 // spot. This is the shared "one entry per unique team" rule behind both the leaderboard and a
@@ -118,9 +135,10 @@ const fastestPerTeam = (sortedPersonalBests: IPersonalBest[]): IPersonalBest[] =
 };
 
 // Groups raw PBs into category leaderboards: each distinct team's fastest time, fastest first, up
-// to `limit` per category. Input is assumed time-ascending (the queries order by timeSeconds), so
-// the first time seen per team is already their fastest. Records are grouped per category in full
-// before trimming — capping during grouping would hide a team's faster-but-later-grouped run.
+// to `limit` per category. Input is assumed effective-time-ascending (the data layer sorts with
+// comparePbTimes), so the first time seen per team is already their fastest. Records are grouped
+// per category in full before trimming — capping during grouping would hide a team's
+// faster-but-later-grouped run.
 export const buildCategoryLeaderboards = (
   personalBests: IPersonalBest[],
   limit = 5,
@@ -200,8 +218,8 @@ export const buildUserCategoryBests = (
 ): IUserCategoryBest[] => {
   // Group every submission by category once, then collapse each group to one entry per unique team,
   // so rank/total are read from the relevant team field rather than re-scanning the whole set.
-  // Input is time-ascending (the query orders by timeSeconds), so each category slice stays
-  // ascending and fastestPerTeam keeps each team's best.
+  // Input is effective-time-ascending (the data layer sorts with comparePbTimes), so each category
+  // slice stays ascending and fastestPerTeam keeps each team's best.
   const submissionsByCategory = allInCategories.reduce((map, pb) => {
     const existing = map.get(pb.categoryKey);
     if (existing) {
@@ -240,7 +258,7 @@ export const buildUserCategoryBests = (
         raidLevel: best.raidLevel,
         best,
         rank:
-          teamField.filter(pb => pb.timeSeconds < best.timeSeconds).length + 1,
+          teamField.filter(pb => comparePbTimes(pb, best) < 0).length + 1,
         totalEntries: teamField.length,
         userAltName:
           best.participantAltNames[

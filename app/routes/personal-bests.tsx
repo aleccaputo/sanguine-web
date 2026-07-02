@@ -23,7 +23,7 @@ import {
 } from '~/utils/personal-bests';
 import { buildBossImageMap } from '~/utils/pb-boss-image.server';
 import { StatBox } from '~/components/StatBox';
-import { PbTeam, rankBadge } from '~/components/PbTeam';
+import { PbTeam, PbTime, rankBadge } from '~/components/PbTeam';
 
 const LEADERBOARD_LIMIT = 5;
 
@@ -210,7 +210,10 @@ export default function PersonalBests() {
                                       {rankBadge(index + 1)}
                                     </Table.Cell>
                                     <Table.Cell className="whitespace-nowrap font-medium text-amber-400">
-                                      {entry.timeDisplay}
+                                      <PbTime
+                                        timeDisplay={entry.timeDisplay}
+                                        isPreciseTime={entry.isPreciseTime}
+                                      />
                                     </Table.Cell>
                                     <Table.Cell>
                                       <PbTeam

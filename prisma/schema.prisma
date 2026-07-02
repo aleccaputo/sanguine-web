@@ -69,6 +69,11 @@ model PersonalBests {
   categoryKey           String
   timeDisplay           String
   timeSeconds           Float
+  // Whether the time was submitted with a decimal (in-game precise timing on). Optional: legacy
+  // rows lack these until the bot's backfillPbPreciseTiming migration runs; readers coalesce.
+  isPreciseTime         Boolean?
+  // Ranking value: timeSeconds, plus the worst-case +0.4s penalty when the time had no decimal.
+  effectiveTimeSeconds  Float?
   participantDiscordIds String[]
   participantAltNames   String[]
   submitterDiscordId    String

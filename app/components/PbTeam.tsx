@@ -1,11 +1,34 @@
 import { Fragment } from 'react';
 import { Link } from '@remix-run/react';
 import { Text } from '@radix-ui/themes';
-import { resolvePbParticipants } from '~/utils/personal-bests';
+import {
+  IMPRECISE_PB_PENALTY_SECONDS,
+  resolvePbParticipants,
+} from '~/utils/personal-bests';
 
 // Medal for the top three, plain ordinal afterwards. Shared by the leaderboard and profile tables.
 export const rankBadge = (rank: number): string =>
   rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+
+interface IPbTimeProps {
+  timeDisplay: string;
+  isPreciseTime: boolean;
+}
+
+// A PB time. A time submitted without a decimal shows its assumed worst case (e.g. "0:55.40*",
+// two decimal digits to match precise times) so the column reads uniformly. The "*" is
+// deliberately unexplained. toFixed avoids float noise (0.4 * 100 !== 40 in JS).
+export function PbTime({ timeDisplay, isPreciseTime }: IPbTimeProps) {
+  if (isPreciseTime) {
+    return <>{timeDisplay}</>;
+  }
+  return (
+    <>
+      {timeDisplay}.{IMPRECISE_PB_PENALTY_SECONDS.toFixed(2).slice(2)}
+      <span className="text-gray-400">*</span>
+    </>
+  );
+}
 
 interface IPbTeamProps {
   participantDiscordIds: string[];

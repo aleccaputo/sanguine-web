@@ -27,7 +27,7 @@ import {
   formatScaleLabel,
 } from '~/utils/personal-bests';
 import { buildBossImageMap } from '~/utils/pb-boss-image.server';
-import { PbTeam, rankBadge } from '~/components/PbTeam';
+import { PbTeam, PbTime, rankBadge } from '~/components/PbTeam';
 import {
   Bar,
   BarChart,
@@ -435,7 +435,10 @@ export default function UserById() {
                           </Flex>
                         </Table.Cell>
                         <Table.Cell className="whitespace-nowrap font-medium text-amber-400">
-                          {pb.best.timeDisplay}
+                          <PbTime
+                            timeDisplay={pb.best.timeDisplay}
+                            isPreciseTime={pb.best.isPreciseTime}
+                          />
                         </Table.Cell>
                         <Table.Cell align="center">
                           <Flex align="center" justify="center" gap="1">
