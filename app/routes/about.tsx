@@ -136,6 +136,12 @@ export default function AboutRoute() {
                 <Flex align="center" gap="3">
                   <Text className="text-green-400">✓</Text>
                   <Text size="3" className="text-gray-300">
+                    10 kc in either ToB, CoX, or ToA Expert
+                  </Text>
+                </Flex>
+                <Flex align="center" gap="3">
+                  <Text className="text-green-400">✓</Text>
+                  <Text size="3" className="text-gray-300">
                     Active Discord participation
                   </Text>
                 </Flex>
