@@ -1,4 +1,17 @@
 import { MOCK_DROPS } from '~/mocks/fixtures.server';
+import { isLegacyCompetitionAudit } from '~/utils/point-types';
+
+export const getLegacyCompetitionPointsByDiscordId = async (): Promise<
+  Record<string, number>
+> =>
+  MOCK_DROPS.filter(isLegacyCompetitionAudit).reduce<Record<string, number>>(
+    (acc, d) => ({
+      ...acc,
+      [d.destinationDiscordId]:
+        (acc[d.destinationDiscordId] ?? 0) + d.pointsGiven,
+    }),
+    {},
+  );
 
 export const getAuditDataForDateRange = async (
   startDate: string,

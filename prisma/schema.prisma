@@ -19,6 +19,12 @@ model PointAudit {
   itemId               Int?
   bossName             String?
   osrsName             String?
+  // COMPETITION audits only — the WOM competition that paid out, stamped by the bot at award
+  // time (older rows backfilled best-guess by the bot's backfillCompetitionAudits migration).
+  competitionId        Int?
+  competitionTitle     String?
+  // 1-based finishing position (ties share it); absent when the member couldn't be ranked.
+  placement            Int?
 }
 
 model Users {
@@ -27,6 +33,9 @@ model Users {
   discordId String @unique
   joined    String
   points    Int
+  // Separate bucket for clan activity (group raids, events, competitions). Optional: legacy user
+  // docs predate the field until the bot touches them; readers coalesce to 0.
+  clanPoints Int?
 }
 
 model UserNicknames {
@@ -58,6 +67,38 @@ model EventPolls {
   status             String
   winnerMetric       String?
   relatedClanEventId String? @db.ObjectId
+}
+
+// Per-participant award breakdown embedded in a RaidCompletion (written by the Discord bot).
+type RaidParticipantAward {
+  discordId             String
+  basePoints            Int
+  bonusPoints           Int
+  newTeammateDiscordIds String[]
+  rotwApplied           Boolean
+  capped                Boolean
+  totalPoints           Int
+}
+
+model RaidCompletions {
+  id                    String                 @id @default(auto()) @map("_id") @db.ObjectId
+  v                     Int?                   @map("__v")
+  // Exact WOM variant metric submitted, e.g. 'theatre_of_blood_hard_mode'.
+  raidMetric            String
+  // Normal-mode metric of the same raid, e.g. 'theatre_of_blood'.
+  baseRaidMetric        String
+  // Human-readable name at save time, e.g. 'Theatre Of Blood Hard Mode'.
+  raidDisplayName       String
+  participantDiscordIds String[]
+  submitterDiscordId    String
+  screenshotUrl         String?
+  proofMessageUrl       String?
+  approvalMessageId     String                 @unique
+  approvedByDiscordId   String
+  rotwApplied           Boolean
+  awards                RaidParticipantAward[]
+  createdAt             String
+  approvedAt            String
 }
 
 model PersonalBests {

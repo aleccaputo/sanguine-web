@@ -3,6 +3,7 @@ import { MOCK_USERS, findMockUser } from '~/mocks/fixtures.server';
 export interface ISanguineUser {
   discordId: string;
   points: number;
+  clanPoints: number;
   joined: string;
 }
 
@@ -15,6 +16,7 @@ export const getUserById = async (id: string): Promise<ISanguineUser> => {
     discordId: user.discordId,
     joined: user.joined,
     points: user.points,
+    clanPoints: user.clanPoints,
   };
 };
 
@@ -22,6 +24,7 @@ export const getAllUsers = async (): Promise<ISanguineUser[]> =>
   MOCK_USERS.map(u => ({
     discordId: u.discordId,
     points: u.points,
+    clanPoints: u.clanPoints,
     joined: u.joined,
   }));
 

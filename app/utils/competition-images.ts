@@ -42,6 +42,7 @@ const METRIC_TO_IMAGE_NAME: Record<string, string> = {
   dagannoth_rex: 'Dagannoth Rex',
   dagannoth_supreme: 'Dagannoth Supreme',
   yama: 'Yama',
+  maggot_king: 'Maggot King',
 
   // Nightmare bosses
   nightmare: 'The Nightmare',
@@ -127,6 +128,7 @@ function getOSRSWikiImageUrl(imageName: string): string {
     'Chambers of Xeric': 'Great_Olm.png',
     'Theatre of Blood': 'Verzik_Vitur.png',
     Yama: 'Yama_chathead.png',
+    'Maggot King': 'Maggot_King.png',
     Callisto: 'Callisto_cub_chathead.png',
     "Phosani's Nightmare": 'The_Nightmare.png',
     Vardorvis: 'Vardorvis.png',

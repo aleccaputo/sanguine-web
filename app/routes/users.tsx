@@ -27,9 +27,10 @@ import {
   getClanFromWom,
   type MembershipWithPlayer,
 } from '~/services/wom-api-service.server';
+import { getLegacyCompetitionPointsByDiscordId } from '~/data/points-audit';
 import { fetchRankImage, getRankSortIndex } from '~/utils/clan-ranks';
 
-type SortField = 'rank' | 'points' | 'name';
+type SortField = 'rank' | 'points' | 'clanPoints' | 'name';
 type SortDirection = 'asc' | 'desc';
 
 export const meta: MetaFunction = () => {
@@ -40,9 +41,22 @@ export const meta: MetaFunction = () => {
 };
 
 export async function loader() {
-  const users = await getUsersWithNicknames();
-  const sanguineWomMembers = await getClanFromWom(18435);
-  const filteredUsers = users.filter(x => x.nickname);
+  const [users, sanguineWomMembers, legacyCompetitionPoints] =
+    await Promise.all([
+      getUsersWithNicknames(),
+      getClanFromWom(18435),
+      getLegacyCompetitionPointsByDiscordId(),
+    ]);
+  // Pre-cutover COMPETITION awards count as clan points retroactively but were only ever added
+  // to the drop bucket on the user record — credit them here so cards and sorting agree with
+  // the profile page.
+  const filteredUsers = users
+    .filter(x => x.nickname)
+    .map(user => ({
+      ...user,
+      clanPoints:
+        user.clanPoints + (legacyCompetitionPoints[user.discordId] ?? 0),
+    }));
   return defer(
     {
       users: filteredUsers,
@@ -62,7 +76,7 @@ export default function Index() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('rank');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   // Get rank text based on points
   const getRankText = (
@@ -79,7 +93,7 @@ export default function Index() {
   };
 
   // Filter on search, then sort by the selected field and direction. Rank
-  // ascending lists the highest rank first; guests fall to the bottom.
+  // descending lists the highest rank first; guests fall to the bottom.
   const visibleUsers = users
     .filter((user): user is ISanguineUserWithNickname => user !== null)
     .filter(
@@ -92,6 +106,11 @@ export default function Index() {
       const direction = sortDirection === 'asc' ? 1 : -1;
       // Within equal primary keys, list the highest points first.
       const pointsTiebreak = b.user.points - a.user.points;
+      // Points sorts keep guests at the bottom regardless of direction, sorted
+      // amongst themselves by the same field.
+      const guestOrder =
+        Number(a.rank.toLocaleLowerCase() === 'guest') -
+        Number(b.rank.toLocaleLowerCase() === 'guest');
       switch (sortField) {
         case 'name':
           return (
@@ -100,12 +119,18 @@ export default function Index() {
             pointsTiebreak
           );
         case 'points':
-          return direction * (a.user.points - b.user.points);
+          return guestOrder || direction * (a.user.points - b.user.points);
+        case 'clanPoints':
+          return (
+            guestOrder ||
+            direction * (a.user.clanPoints - b.user.clanPoints) ||
+            pointsTiebreak
+          );
         case 'rank':
         default:
           return (
             direction *
-              (getRankSortIndex(a.rank) - getRankSortIndex(b.rank)) ||
+              (getRankSortIndex(b.rank) - getRankSortIndex(a.rank)) ||
             pointsTiebreak
           );
       }
@@ -161,7 +186,8 @@ export default function Index() {
               <Select.Trigger />
               <Select.Content>
                 <Select.Item value="rank">Rank</Select.Item>
-                <Select.Item value="points">Points</Select.Item>
+                <Select.Item value="points">Drop Points</Select.Item>
+                <Select.Item value="clanPoints">Clan Points</Select.Item>
                 <Select.Item value="name">Name</Select.Item>
               </Select.Content>
             </Select.Root>
@@ -200,7 +226,17 @@ export default function Index() {
                     </Text>
                   </Flex>
                   <Text as="div" size="2" className="mt-1 text-gray-400">
-                    {user.points} points
+                    {user.points} drop points
+                  </Text>
+                  {/* Always rendered so every card is the same height in the grid */}
+                  <Text
+                    as="div"
+                    size="2"
+                    className={
+                      user.clanPoints > 0 ? 'text-amber-400' : 'text-gray-600'
+                    }
+                  >
+                    {user.clanPoints} clan points
                   </Text>
                 </Box>
               </Flex>

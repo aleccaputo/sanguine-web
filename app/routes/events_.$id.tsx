@@ -27,6 +27,7 @@ import {
 } from 'recharts';
 import { Text, Container, Heading, Box, Flex, Card } from '@radix-ui/themes';
 import { getMetricType } from '~/utils/competition-images';
+import { isClanPointAudit } from '~/utils/point-types';
 import { CompetitionHeader } from '~/components/CompetitionHeader';
 import { ParticipantListItem } from '~/components/ParticipantListItem';
 import { ParticipantBreakdownDialog } from '~/components/ParticipantBreakdownDialog';
@@ -96,7 +97,12 @@ export async function loader({ params }: LoaderFunctionArgs) {
     userAltsPromise,
   ]);
 
-  const filteredAuditData = pointAudit.filter(x => x.type !== 'ONE_TIME');
+  // ONE_TIME awards and clan-bucket payouts (raids, manual clan adjustments, post-cutover
+  // competition rewards) don't count toward event drop totals — same exclusion the bot applies
+  // to its monthly leaderboard.
+  const filteredAuditData = pointAudit.filter(
+    x => x.type !== 'ONE_TIME' && !isClanPointAudit(x),
+  );
 
   const uniqueItemIds = [
     ...new Set(

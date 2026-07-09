@@ -46,12 +46,20 @@ export type MockUser = {
   nickname: string;
   joined: string;
   points: number;
+  clanPoints: number;
   womRole: string;
   alts: { id: string; altName: string }[];
 };
 
 const buildUsers = (): MockUser[] => {
-  const roles = ['Owner', 'Deputy_owner', 'Coordinator', 'Officer', 'Member', 'Guest'];
+  const roles = [
+    'Owner',
+    'Deputy_owner',
+    'Coordinator',
+    'Officer',
+    'Member',
+    'Guest',
+  ];
   return Array.from({ length: 30 }, (_, i) => {
     const id = faker.string.numeric(18);
     const nickname = faker.internet.username().slice(0, 12).replace(/\./g, '_');
@@ -67,6 +75,7 @@ const buildUsers = (): MockUser[] => {
         .between({ from: '2020-01-01', to: '2024-12-31' })
         .toISOString(),
       points: faker.number.int({ min: 0, max: 5000 }),
+      clanPoints: faker.number.int({ min: 0, max: 200 }),
       womRole: i === 0 ? 'Owner' : faker.helpers.arrayElement(roles),
       alts: Array.from({ length: altCount }, () => ({
         id: faker.string.uuid(),
@@ -80,7 +89,8 @@ export const MOCK_USERS: MockUser[] = buildUsers();
 
 const userByDiscordId = new Map(MOCK_USERS.map(u => [u.discordId, u]));
 
-export const findMockUser = (discordId: string) => userByDiscordId.get(discordId);
+export const findMockUser = (discordId: string) =>
+  userByDiscordId.get(discordId);
 
 export type MockDrop = {
   id: string;
@@ -161,7 +171,9 @@ const buildMonthlyWinners = (): MockMonthlyWinner[] => {
         const start = new Date(end);
         start.setDate(end.getDate() - 6);
         return {
-          eventId: faker.string.hexadecimal({ length: 24, casing: 'lower' }).slice(2),
+          eventId: faker.string
+            .hexadecimal({ length: 24, casing: 'lower' })
+            .slice(2),
           type,
           metric,
           winnerDiscordId: winner.discordId,

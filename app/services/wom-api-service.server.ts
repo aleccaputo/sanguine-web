@@ -1,4 +1,8 @@
-import { GroupDetailsResponse, WOMClient } from '@wise-old-man/utils';
+import {
+  CompetitionResponse,
+  GroupDetailsResponse,
+  WOMClient,
+} from '@wise-old-man/utils';
 import { remember } from '@epic-web/remember';
 import * as process from 'process';
 import chalk from 'chalk';
@@ -22,12 +26,25 @@ const client = remember('wom', () => {
   });
 });
 
+// Competition list cache — user profiles join audit rows against this on every view, so
+// don't hit WOM each time. `limit` doesn't affect the endpoint (see note below), so one
+// shared cache entry is safe.
+let womCompCache: CompetitionResponse[] | null = null;
+let lastCompFetch = 0;
+const WOM_COMP_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 // limit actually doesn't work for this endpoint. This is apparently by design
 export const getCompetitions = async (limit?: number) => {
+  const now = Date.now();
+  if (womCompCache !== null && now - lastCompFetch < WOM_COMP_CACHE_DURATION) {
+    return womCompCache;
+  }
   try {
     const compettions = await client.groups.getGroupCompetitions(groupId, {
       limit: limit,
     });
+    womCompCache = compettions;
+    lastCompFetch = now;
     return compettions;
   } catch (e) {
     chalk['red'](e);

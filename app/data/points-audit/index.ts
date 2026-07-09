@@ -1,4 +1,24 @@
 import { prisma } from '~/utils/db.server';
+import { COMPETITION_CLAN_POINTS_CUTOVER } from '~/utils/point-types';
+
+// Pre-cutover COMPETITION awards paid into the drop-points bucket on the user record, but
+// retroactively count as clan points too. Sums them per member so displays can credit them on
+// top of the stored clanPoints total.
+export const getLegacyCompetitionPointsByDiscordId = async (): Promise<
+  Record<string, number>
+> => {
+  const rows = await prisma.pointAudit.groupBy({
+    by: ['destinationDiscordId'],
+    where: {
+      type: 'COMPETITION',
+      createdAt: { lt: COMPETITION_CLAN_POINTS_CUTOVER },
+    },
+    _sum: { pointsGiven: true },
+  });
+  return Object.fromEntries(
+    rows.map(row => [row.destinationDiscordId, row._sum.pointsGiven ?? 0]),
+  );
+};
 
 export const getAuditDataForDateRange = (
   startDate: string,
