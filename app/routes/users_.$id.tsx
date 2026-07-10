@@ -507,7 +507,7 @@ export default function UserById() {
         {/* Points band: the two buckets — `points` is drop-driven (the number next to a
             member's name), `clanPoints` covers clan activity: team raids, events,
             competitions. */}
-        <Box className="border-b border-t-2 border-gray-800 border-t-sanguine-red bg-sanguine-red/[0.06]">
+        <Box className="border-b border-t-2 border-gray-800 border-t-sanguine-red bg-sanguine-red/[0.04]">
           <div className="grid grid-cols-2 px-4">
             <Flex align="baseline" gap="2" className="py-3 pr-5">
               <span className="text-2xl leading-none text-white">
@@ -588,7 +588,7 @@ export default function UserById() {
                   {personalBests.map(pb => (
                     <Table.Row
                       key={pb.categoryKey}
-                      className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
+                      className="even:bg-sanguine-red/[0.03] hover:bg-sanguine-red/[0.06]"
                     >
                       <Table.Cell className="text-white">
                         <Flex align="center" gap="2">
@@ -715,7 +715,7 @@ export default function UserById() {
                         {currentRaids.map(raid => (
                           <Table.Row
                             key={raid.id}
-                            className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
+                            className="even:bg-sanguine-red/[0.03] hover:bg-sanguine-red/[0.06]"
                           >
                             <Table.Cell className="text-white">
                               <Flex align="center" gap="2">
@@ -824,7 +824,7 @@ export default function UserById() {
                         {competitionAwards.map(award => (
                           <Table.Row
                             key={award.id}
-                            className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
+                            className="even:bg-sanguine-red/[0.03] hover:bg-sanguine-red/[0.06]"
                           >
                             <Table.Cell className="text-white">
                               <Flex align="center" gap="2">
@@ -879,7 +879,7 @@ export default function UserById() {
                         ))}
                         {/* Awards that predate reliable competition records, rolled up */}
                         {historicalCompetitions && (
-                          <Table.Row className="even:bg-sanguine-red/[0.05]">
+                          <Table.Row className="even:bg-sanguine-red/[0.03]">
                             <Table.Cell>
                               <Flex align="center" gap="2">
                                 <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
@@ -983,7 +983,7 @@ export default function UserById() {
                   {currentItems.map(item => (
                     <div
                       key={item.id}
-                      className="px-2 even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
+                      className="px-2 even:bg-sanguine-red/[0.03] hover:bg-sanguine-red/[0.06]"
                     >
                       <DropItem
                         item={item}

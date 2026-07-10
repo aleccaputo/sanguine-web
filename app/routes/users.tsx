@@ -406,7 +406,7 @@ export default function Index() {
                 }}
                 role="link"
                 tabIndex={0}
-                className={`${rowGridClass} group cursor-pointer py-2 even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]`}
+                className={`${rowGridClass} group cursor-pointer py-2 even:bg-sanguine-red/[0.03] hover:bg-sanguine-red/[0.06]`}
               >
                 <Text as="div" size="2" className="text-right text-gray-600">
                   {index + 1}
