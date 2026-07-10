@@ -404,6 +404,31 @@ export default function UserById() {
     (sum, item) => sum + (item.osrsData?.price || 0),
     0,
   );
+  // Top boss — where the member's fortune has come from, across all accounts.
+  // Ranked by gp with drop count as the tiebreaker; drops without a recorded
+  // boss don't count toward one.
+  const topBoss = [
+    ...allItemsLogged
+      .reduce(
+        (map, item) => {
+          if (!item.bossName) return map;
+          const existing = map.get(item.bossName) ?? {
+            count: 0,
+            gp: 0,
+            points: 0,
+          };
+          return map.set(item.bossName, {
+            count: existing.count + 1,
+            gp: existing.gp + (item.osrsData?.price ?? 0),
+            points: existing.points + item.pointsGiven,
+          });
+        },
+        new Map<string, { count: number; gp: number; points: number }>(),
+      )
+      .entries(),
+  ]
+    .map(([bossName, totals]) => ({ bossName, ...totals }))
+    .sort((a, b) => b.gp - a.gp || b.count - a.count)[0];
   const pbGolds = personalBests.filter(pb => pb.rank === 1).length;
   const pbSilvers = personalBests.filter(pb => pb.rank === 2).length;
   const pbBronzes = personalBests.filter(pb => pb.rank === 3).length;
@@ -580,6 +605,26 @@ export default function UserById() {
                 </dd>
               </div>
             )}
+            {topBoss && (
+              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
+                <dt className="text-sm text-gray-500">Top boss</dt>
+                <dd className="text-sm text-gray-200">
+                  {topBoss.bossName}
+                  <span className="block text-gray-500">
+                    {topBoss.count} {topBoss.count === 1 ? 'drop' : 'drops'}
+                    {topBoss.gp > 0 && (
+                      <>
+                        {' · '}
+                        <span className="text-osrs-gold">
+                          {topBoss.gp.toLocaleString()} gp
+                        </span>
+                      </>
+                    )}
+                    {topBoss.points > 0 && <> · {topBoss.points} pts</>}
+                  </span>
+                </dd>
+              </div>
+            )}
             {raids.length > 0 && (
               <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
                 <dt className="text-sm text-gray-500">Raids</dt>
@@ -675,6 +720,28 @@ export default function UserById() {
                 <span className="text-osrs-gold">
                   {allDropsGP.toLocaleString()} gp
                 </span>
+                .
+              </>
+            )}
+            {topBoss && topBoss.gp > 0 && (
+              <>
+                {' '}
+                Their most profitable boss has been{' '}
+                <span className="text-white">{topBoss.bossName}</span> —{' '}
+                <span className="text-white">{topBoss.count}</span>{' '}
+                {topBoss.count === 1 ? 'drop' : 'drops'} worth{' '}
+                <span className="text-osrs-gold">
+                  {topBoss.gp.toLocaleString()} gp
+                </span>
+                {topBoss.points > 0 && (
+                  <>
+                    {' '}
+                    and{' '}
+                    <span className="text-white">
+                      {topBoss.points} drop points
+                    </span>
+                  </>
+                )}
                 .
               </>
             )}
