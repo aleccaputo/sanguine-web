@@ -1,5 +1,6 @@
 import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import {
+  Link,
   ShouldRevalidateFunction,
   useLoaderData,
   useSearchParams,
@@ -137,6 +138,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
         createdAt,
         pointsGiven,
         competitionTitle,
+        competitionId,
         placement,
         imageUrl:
           metric === undefined
@@ -891,9 +893,20 @@ export default function UserById() {
                                         className="max-h-7 max-w-7 object-contain"
                                       />
                                     </Box>
-                                    <Text size="2" weight="medium">
-                                      {award.competitionTitle}
-                                    </Text>
+                                    {award.competitionId !== null ? (
+                                      <Link
+                                        to={`/events/${award.competitionId}`}
+                                        className="transition-colors hover:text-sanguine-red"
+                                      >
+                                        <Text size="2" weight="medium">
+                                          {award.competitionTitle}
+                                        </Text>
+                                      </Link>
+                                    ) : (
+                                      <Text size="2" weight="medium">
+                                        {award.competitionTitle}
+                                      </Text>
+                                    )}
                                   </Flex>
                                 </Table.Cell>
                                 <Table.Cell className="whitespace-nowrap">
