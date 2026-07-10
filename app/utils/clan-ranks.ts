@@ -13,11 +13,12 @@ export const fetchRankImage = (rankName: string) => {
 
 // WOM reports the monthly winner ranks under generic role names (see
 // RANK_IMAGE_OVERRIDES); spell out what they actually mean wherever a rank is
-// shown as text.
+// shown as text. The wrath rank is Sanguine's grandmaster tier.
 const RANK_LABEL_OVERRIDES: Record<string, string> = {
   blood: 'RotW winner',
   leader: 'BotW winner',
   skiller: 'SotW winner',
+  wrath: 'grandmaster',
 };
 
 export const rankLabel = (rank: string) =>
