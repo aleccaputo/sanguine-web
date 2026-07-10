@@ -507,8 +507,8 @@ export default function UserById() {
         {/* Points band: the two buckets — `points` is drop-driven (the number next to a
             member's name), `clanPoints` covers clan activity: team raids, events,
             competitions. */}
-        <Box className="border-b border-t-2 border-gray-800 border-t-sanguine-red">
-          <div className="grid grid-cols-2">
+        <Box className="border-b border-t-2 border-gray-800 border-t-sanguine-red bg-sanguine-red/[0.06]">
+          <div className="grid grid-cols-2 px-4">
             <Flex align="baseline" gap="2" className="py-3 pr-5">
               <span className="text-2xl leading-none text-white">
                 {user.points.toLocaleString()}
@@ -539,7 +539,7 @@ export default function UserById() {
                   onClick={() => handleTabChange(tab.value)}
                   className={`-mb-px border-b-2 px-3 py-2 text-sm ${
                     active
-                      ? 'border-sanguine-red text-white'
+                      ? 'border-sanguine-red bg-sanguine-red/10 text-white'
                       : 'border-transparent text-gray-400 hover:text-osrs-gold'
                   }`}
                 >
@@ -588,7 +588,7 @@ export default function UserById() {
                   {personalBests.map(pb => (
                     <Table.Row
                       key={pb.categoryKey}
-                      className="even:bg-white/[0.025] hover:bg-white/[0.05]"
+                      className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
                     >
                       <Table.Cell className="text-white">
                         <Flex align="center" gap="2">
@@ -715,7 +715,7 @@ export default function UserById() {
                         {currentRaids.map(raid => (
                           <Table.Row
                             key={raid.id}
-                            className="even:bg-white/[0.025] hover:bg-white/[0.05]"
+                            className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
                           >
                             <Table.Cell className="text-white">
                               <Flex align="center" gap="2">
@@ -824,7 +824,7 @@ export default function UserById() {
                         {competitionAwards.map(award => (
                           <Table.Row
                             key={award.id}
-                            className="even:bg-white/[0.025] hover:bg-white/[0.05]"
+                            className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
                           >
                             <Table.Cell className="text-white">
                               <Flex align="center" gap="2">
@@ -879,7 +879,7 @@ export default function UserById() {
                         ))}
                         {/* Awards that predate reliable competition records, rolled up */}
                         {historicalCompetitions && (
-                          <Table.Row className="even:bg-white/[0.025]">
+                          <Table.Row className="even:bg-sanguine-red/[0.05]">
                             <Table.Cell>
                               <Flex align="center" gap="2">
                                 <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
@@ -967,6 +967,11 @@ export default function UserById() {
                       {totalGP > 0 && (
                         <>
                           {' worth '}
+                          <img
+                            src="https://oldschool.runescape.wiki/images/Coins_detail.png"
+                            alt=""
+                            className="inline h-3.5 w-3.5 object-contain align-[-2px]"
+                          />{' '}
                           <span className="text-osrs-gold">
                             {totalGP.toLocaleString()}
                           </span>{' '}
@@ -976,12 +981,16 @@ export default function UserById() {
                     </Text>
                   </Flex>
                   {currentItems.map(item => (
-                    <DropItem
+                    <div
                       key={item.id}
-                      item={item}
-                      showRecipient={false}
-                      size="small"
-                    />
+                      className="px-2 even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
+                    >
+                      <DropItem
+                        item={item}
+                        showRecipient={false}
+                        size="small"
+                      />
+                    </div>
                   ))}
                   <Pagination
                     page={currentPage}
