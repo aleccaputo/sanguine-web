@@ -448,11 +448,6 @@ export default function UserById() {
   // Historical awards are competitions too — they just predate placement records.
   const totalComps =
     competitionAwards.length + (historicalCompetitions?.count ?? 0);
-  const raidTeammates = new Set(
-    raids
-      .flatMap(raid => raid.participantDiscordIds)
-      .filter(id => id !== user.discordId),
-  ).size;
   const mainRole = womRoles[mainName] ?? 'Guest';
   const isGuest = !womRoles[mainName];
   const mainRankLabel = rankLabel(mainRole);
@@ -539,7 +534,8 @@ export default function UserById() {
 
       <div className="flex flex-col gap-6 lg:flex-row-reverse lg:gap-8">
         {/* Infobox — a functional table of vitals, portrait on top, wiki-style. */}
-        <aside className="mt-6 w-full shrink-0 self-start border border-gray-700 lg:w-80">
+        {/* Sticky below the fixed 73px navbar so the vitals ride along on tall pages */}
+        <aside className="mt-6 w-full shrink-0 self-start border border-gray-700 lg:sticky lg:top-[89px] lg:w-80">
           <Text
             as="div"
             size="3"
@@ -629,6 +625,19 @@ export default function UserById() {
               <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
                 <dt className="text-sm text-gray-500">Raids</dt>
                 <dd className="text-sm text-gray-200">{raids.length}</dd>
+              </div>
+            )}
+            {totalComps > 0 && (
+              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
+                <dt className="text-sm text-gray-500">Competitions</dt>
+                <dd className="text-sm text-gray-200">
+                  {totalComps}
+                  {compPodiums > 0 && (
+                    <span className="ml-2 text-gray-400">
+                      top three ×{compPodiums}
+                    </span>
+                  )}
+                </dd>
               </div>
             )}
             {personalBests.length > 0 && (
@@ -757,39 +766,6 @@ export default function UserById() {
                     <span className="text-osrs-gold">
                       {pbGolds} of them clan records
                     </span>
-                  </>
-                )}
-                .
-              </>
-            )}
-            {raids.length > 0 && (
-              <>
-                {' '}
-                They have run{' '}
-                <span className="text-white">{raids.length}</span> clan{' '}
-                {raids.length === 1 ? 'raid' : 'raids'}
-                {raidTeammates > 0 && (
-                  <>
-                    {' '}
-                    alongside{' '}
-                    <span className="text-white">{raidTeammates}</span>{' '}
-                    different{' '}
-                    {raidTeammates === 1 ? 'teammate' : 'teammates'}
-                  </>
-                )}
-                .
-              </>
-            )}
-            {totalComps > 0 && (
-              <>
-                {' '}
-                They have entered{' '}
-                <span className="text-white">{totalComps}</span> clan{' '}
-                {totalComps === 1 ? 'competition' : 'competitions'}
-                {compPodiums > 0 && (
-                  <>
-                    , finishing top three in{' '}
-                    <span className="text-white">{compPodiums}</span>
                   </>
                 )}
                 .
