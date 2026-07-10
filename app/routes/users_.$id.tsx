@@ -435,22 +435,19 @@ export default function UserById() {
   // boss don't count toward one.
   const topBoss = [
     ...allItemsLogged
-      .reduce(
-        (map, item) => {
-          if (!item.bossName) return map;
-          const existing = map.get(item.bossName) ?? {
-            count: 0,
-            gp: 0,
-            points: 0,
-          };
-          return map.set(item.bossName, {
-            count: existing.count + 1,
-            gp: existing.gp + (item.osrsData?.price ?? 0),
-            points: existing.points + item.pointsGiven,
-          });
-        },
-        new Map<string, { count: number; gp: number; points: number }>(),
-      )
+      .reduce((map, item) => {
+        if (!item.bossName) return map;
+        const existing = map.get(item.bossName) ?? {
+          count: 0,
+          gp: 0,
+          points: 0,
+        };
+        return map.set(item.bossName, {
+          count: existing.count + 1,
+          gp: existing.gp + (item.osrsData?.price ?? 0),
+          points: existing.points + item.pointsGiven,
+        });
+      }, new Map<string, { count: number; gp: number; points: number }>())
       .entries(),
   ]
     .map(([bossName, totals]) => ({ bossName, ...totals }))
@@ -717,7 +714,9 @@ export default function UserById() {
                 <dd className="text-base text-gray-200">
                   {personalBests.length}
                   {pbMedalSummary && (
-                    <span className="ml-2 text-sm text-gray-400">{pbMedalSummary}</span>
+                    <span className="ml-2 text-sm text-gray-400">
+                      {pbMedalSummary}
+                    </span>
                   )}
                 </dd>
               </div>
@@ -795,8 +794,7 @@ export default function UserById() {
                 >
                   {topBoss.bossName}
                 </a>{' '}
-                —{' '}
-                <span className="text-white">{topBoss.count}</span>{' '}
+                — <span className="text-white">{topBoss.count}</span>{' '}
                 {topBoss.count === 1 ? 'drop' : 'drops'} worth{' '}
                 <span className="text-osrs-gold">
                   {topBoss.gp.toLocaleString()} gp
@@ -939,7 +937,7 @@ export default function UserById() {
                   {currentItems.map(item => (
                     <div
                       key={item.id}
-                      className="px-2 even:bg-sanguine-red/[0.03] hover:bg-sanguine-red/[0.06]"
+                      className="px-2 even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
                     >
                       <DropItem
                         item={item}
@@ -1013,7 +1011,7 @@ export default function UserById() {
                     {personalBests.map(pb => (
                       <Table.Row
                         key={pb.categoryKey}
-                        className="even:bg-sanguine-red/[0.03] hover:bg-sanguine-red/[0.06]"
+                        className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
                       >
                         <Table.Cell className="text-white">
                           <Flex align="center" gap="2">
@@ -1174,7 +1172,7 @@ export default function UserById() {
                           {currentRaids.map(raid => (
                             <Table.Row
                               key={raid.id}
-                              className="even:bg-sanguine-red/[0.03] hover:bg-sanguine-red/[0.06]"
+                              className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
                             >
                               <Table.Cell className="text-white">
                                 <Flex align="center" gap="2">
@@ -1288,7 +1286,7 @@ export default function UserById() {
                           {competitionAwards.map(award => (
                             <Table.Row
                               key={award.id}
-                              className="even:bg-sanguine-red/[0.03] hover:bg-sanguine-red/[0.06]"
+                              className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
                             >
                               <Table.Cell className="text-white">
                                 <Flex align="center" gap="2">
@@ -1350,7 +1348,7 @@ export default function UserById() {
                           ))}
                           {/* Awards that predate reliable competition records, rolled up */}
                           {historicalCompetitions && (
-                            <Table.Row className="even:bg-sanguine-red/[0.03]">
+                            <Table.Row className="even:bg-sanguine-red/[0.05]">
                               <Table.Cell>
                                 <Flex align="center" gap="2">
                                   <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
