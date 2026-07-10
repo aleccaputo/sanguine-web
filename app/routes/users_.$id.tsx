@@ -413,6 +413,14 @@ export default function UserById() {
   const compPodiums = competitionAwards.filter(
     award => award.placement != null && award.placement <= 3,
   ).length;
+  // Historical awards are competitions too — they just predate placement records.
+  const totalComps =
+    competitionAwards.length + (historicalCompetitions?.count ?? 0);
+  const raidTeammates = new Set(
+    raids
+      .flatMap(raid => raid.participantDiscordIds)
+      .filter(id => id !== user.discordId),
+  ).size;
   const mainRole = womRoles[mainName] ?? 'Guest';
   const isGuest = !womRoles[mainName];
   const mainRankLabel = rankLabel(mainRole);
@@ -670,12 +678,37 @@ export default function UserById() {
                 .
               </>
             )}
-            {compPodiums > 0 && (
+            {raids.length > 0 && (
               <>
                 {' '}
-                They have finished top three in{' '}
-                <span className="text-white">{compPodiums}</span> clan{' '}
-                {compPodiums === 1 ? 'competition' : 'competitions'}.
+                They have run{' '}
+                <span className="text-white">{raids.length}</span> clan{' '}
+                {raids.length === 1 ? 'raid' : 'raids'}
+                {raidTeammates > 0 && (
+                  <>
+                    {' '}
+                    alongside{' '}
+                    <span className="text-white">{raidTeammates}</span>{' '}
+                    different{' '}
+                    {raidTeammates === 1 ? 'teammate' : 'teammates'}
+                  </>
+                )}
+                .
+              </>
+            )}
+            {totalComps > 0 && (
+              <>
+                {' '}
+                They have entered{' '}
+                <span className="text-white">{totalComps}</span> clan{' '}
+                {totalComps === 1 ? 'competition' : 'competitions'}
+                {compPodiums > 0 && (
+                  <>
+                    , finishing top three in{' '}
+                    <span className="text-white">{compPodiums}</span>
+                  </>
+                )}
+                .
               </>
             )}
             {!hasAnyRecord && <> So far, nothing interesting happens.</>}
