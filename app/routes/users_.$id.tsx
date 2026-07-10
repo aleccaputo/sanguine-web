@@ -368,6 +368,13 @@ export default function UserById() {
     (historicalCompetitions?.points ?? 0);
   const hasClanPointHistory =
     raids.length > 0 || hasCompetitionHistory || otherAwards !== null;
+  // Subsection headers exist to divide multiple point sources (their totals reconcile
+  // the section figure). With a single source they'd just repeat the h2 total — skip them.
+  const clanPointSources = [
+    raids.length > 0,
+    hasCompetitionHistory,
+    otherAwards !== null,
+  ].filter(Boolean).length;
 
   // The page reads as the member's wiki article: sections with data render (and appear in
   // Contents); the chart always does, carrying its own empty state.
@@ -968,21 +975,26 @@ export default function UserById() {
               <Flex direction="column" gap="5" mt="4">
                 {raids.length > 0 && (
                   <Box>
-                    <Flex
-                      align="baseline"
-                      justify="between"
-                      className="pb-1 pt-2"
-                    >
-                      <Text size="3" className="text-osrs-orange">
-                        Raids
-                      </Text>
-                      <Text size="2" className="whitespace-nowrap text-gray-500">
-                        <span className="text-osrs-gold">
-                          {raidsPointsTotal}
-                        </span>{' '}
-                        clan points
-                      </Text>
-                    </Flex>
+                    {clanPointSources > 1 && (
+                      <Flex
+                        align="baseline"
+                        justify="between"
+                        className="pb-1 pt-2"
+                      >
+                        <Text size="3" className="text-osrs-orange">
+                          Raids
+                        </Text>
+                        <Text
+                          size="2"
+                          className="whitespace-nowrap text-gray-500"
+                        >
+                          <span className="text-osrs-gold">
+                            {raidsPointsTotal}
+                          </span>{' '}
+                          clan points
+                        </Text>
+                      </Flex>
+                    )}
                     <div className="overflow-x-auto">
                       <Table.Root size="2">
                         <Table.Header>
@@ -1074,24 +1086,29 @@ export default function UserById() {
 
                 {hasCompetitionHistory && (
                   <Box>
-                    <Flex
-                      align="baseline"
-                      justify="between"
-                      className="pb-1 pt-2"
-                    >
-                      <Text size="3" className="text-osrs-orange">
-                        Competitions{' '}
-                        <span className="hidden text-gray-600 sm:inline">
-                          weeklies and one-off comps
-                        </span>
-                      </Text>
-                      <Text size="2" className="whitespace-nowrap text-gray-500">
-                        <span className="text-osrs-gold">
-                          {competitionsPointsTotal}
-                        </span>{' '}
-                        clan points
-                      </Text>
-                    </Flex>
+                    {clanPointSources > 1 && (
+                      <Flex
+                        align="baseline"
+                        justify="between"
+                        className="pb-1 pt-2"
+                      >
+                        <Text size="3" className="text-osrs-orange">
+                          Competitions{' '}
+                          <span className="hidden text-gray-600 sm:inline">
+                            weeklies and one-off comps
+                          </span>
+                        </Text>
+                        <Text
+                          size="2"
+                          className="whitespace-nowrap text-gray-500"
+                        >
+                          <span className="text-osrs-gold">
+                            {competitionsPointsTotal}
+                          </span>{' '}
+                          clan points
+                        </Text>
+                      </Flex>
+                    )}
                     <div className="overflow-x-auto">
                       <Table.Root size="2">
                         <Table.Header>
