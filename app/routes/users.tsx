@@ -1,6 +1,6 @@
 import { defer, MetaFunction, SerializeFrom } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   getUsersWithNicknames,
@@ -71,6 +71,16 @@ export default function Index() {
   const [sortField, setSortField] = useState<SortField>('rank');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [rankFilter, setRankFilter] = useState('all');
+
+  // On touch devices Radix Select leaks a ghost click to whatever sits behind the closing
+  // dropdown (radix-ui/primitives#1658) — the browser dispatches the tap's click after the
+  // content unmounts, landing on a roster row. Ignore navigation clicks that arrive right
+  // after the dropdown closes.
+  const rankFilterClosedAt = useRef(0);
+  const navigateToUser = (discordId: string) => {
+    if (Date.now() - rankFilterClosedAt.current < 400) return;
+    navigate(`/users/${discordId}`);
+  };
 
   // Get rank text based on points
   const getRankText = (
@@ -285,7 +295,7 @@ export default function Index() {
                 {board.entries.map(({ user, rank }, index) => (
                   <button
                     key={user.discordId}
-                    onClick={() => navigate(`/users/${user.discordId}`)}
+                    onClick={() => navigateToUser(user.discordId)}
                     className="group flex w-full min-w-0 items-center gap-3 py-1.5 text-left"
                   >
                     <span
@@ -348,7 +358,13 @@ export default function Index() {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </Flex>
-            <Select.Root value={rankFilter} onValueChange={setRankFilter}>
+            <Select.Root
+              value={rankFilter}
+              onValueChange={setRankFilter}
+              onOpenChange={open => {
+                if (!open) rankFilterClosedAt.current = Date.now();
+              }}
+            >
               <Select.Trigger color="gray" />
               <Select.Content position="popper">
                 {rankOptions.map(option => (
@@ -398,7 +414,7 @@ export default function Index() {
             visibleUsers.map(({ user, rank }, index) => (
               <div
                 key={user.discordId}
-                onClick={() => navigate(`/users/${user.discordId}`)}
+                onClick={() => navigateToUser(user.discordId)}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     navigate(`/users/${user.discordId}`);
