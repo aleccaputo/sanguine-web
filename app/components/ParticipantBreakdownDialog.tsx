@@ -64,7 +64,10 @@ export function ParticipantBreakdownDialog({
     dropsPage * DROPS_PER_PAGE,
   );
 
-  const totalGpGained = drops.reduce((acc, cur) => acc + (cur.osrsData?.price ?? 0), 0)
+  const totalGpGained = drops.reduce(
+    (acc, cur) => acc + (cur.osrsData?.price ?? 0),
+    0,
+  );
 
   if (navigatingAway) return null;
 
@@ -79,15 +82,18 @@ export function ParticipantBreakdownDialog({
           <Flex direction="column" gap="1">
             <Flex justify="between" align="start">
               <Box>
-                <Text size="1" className="uppercase tracking-wide text-gray-400">
+                <Text
+                  size="1"
+                  className="uppercase tracking-wide text-gray-400"
+                >
                   Event Breakdown
                 </Text>
                 <Dialog.Title>
-                  <Link
-                    to={`/users/${discordId}`}
-                    className="group mt-1 block"
-                  >
-                    <Heading size="5" className="text-white transition-colors group-hover:text-sanguine-red">
+                  <Link to={`/users/${discordId}`} className="group mt-1 block">
+                    <Heading
+                      size="5"
+                      className="text-white transition-colors group-hover:text-sanguine-red"
+                    >
                       {nickname}
                     </Heading>
                   </Link>
@@ -100,7 +106,7 @@ export function ParticipantBreakdownDialog({
               </Dialog.Close>
             </Flex>
 
-          {/* Stats row */}
+            {/* Stats row */}
             <Flex gap="6">
               <Box>
                 <Text size="1" className="block text-gray-400">
@@ -118,14 +124,14 @@ export function ParticipantBreakdownDialog({
                   {gained.toLocaleString()}
                 </Text>
               </Box>
-                            <Box>
+              <Box>
                 <Text size="1" className="block text-gray-400">
                   GP Earned
                 </Text>
                 <Text size="4" weight="bold" className="text-amber-400">
                   {totalGpGained.toLocaleString()}
                 </Text>
-              </Box>  
+              </Box>
             </Flex>
           </Flex>
 
@@ -139,9 +145,23 @@ export function ParticipantBreakdownDialog({
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <defs>
-                      <linearGradient id="pointsGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#BB2C23" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#BB2C23" stopOpacity={0.05} />
+                      <linearGradient
+                        id="pointsGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#BB2C23"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#BB2C23"
+                          stopOpacity={0.05}
+                        />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -152,12 +172,48 @@ export function ParticipantBreakdownDialog({
                         if (!active || !payload?.length) return null;
                         const entry = payload[0];
                         return (
-                          <div style={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#F9FAFB', minWidth: '160px' }}>
-                            <div style={{ color: '#9CA3AF', marginBottom: '6px', fontSize: '11px' }}>{label}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#BB2C2322', borderRadius: '4px', padding: '2px 4px', margin: '0 -4px', fontWeight: 600 }}>
+                          <div
+                            style={{
+                              backgroundColor: '#1F2937',
+                              border: '1px solid #374151',
+                              borderRadius: '8px',
+                              padding: '8px 12px',
+                              fontSize: '12px',
+                              color: '#F9FAFB',
+                              minWidth: '160px',
+                            }}
+                          >
+                            <div
+                              style={{
+                                color: '#9CA3AF',
+                                marginBottom: '6px',
+                                fontSize: '11px',
+                              }}
+                            >
+                              {label}
+                            </div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                backgroundColor: '#BB2C2322',
+                                borderRadius: '4px',
+                                padding: '2px 4px',
+                                margin: '0 -4px',
+                                fontWeight: 600,
+                              }}
+                            >
                               <span style={{ color: '#BB2C23' }}>●</span>
                               <span style={{ flex: 1 }}>{nickname}</span>
-                              <span style={{ color: '#D1D5DB', fontVariantNumeric: 'tabular-nums' }}>{entry.value}</span>
+                              <span
+                                style={{
+                                  color: '#D1D5DB',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                {entry.value}
+                              </span>
                             </div>
                           </div>
                         );
@@ -192,7 +248,9 @@ export function ParticipantBreakdownDialog({
                   page={dropsPage}
                   totalPages={totalDropPages}
                   onPrev={() => setDropsPage(p => Math.max(1, p - 1))}
-                  onNext={() => setDropsPage(p => Math.min(totalDropPages, p + 1))}
+                  onNext={() =>
+                    setDropsPage(p => Math.min(totalDropPages, p + 1))
+                  }
                 />
               </Box>
             ) : (

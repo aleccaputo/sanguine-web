@@ -82,7 +82,7 @@ const DropdownNav = ({
                       linkActive
                         ? 'text-sanguine-red'
                         : 'text-gray-900 dark:text-white'
-                    } hover:bg-gray-100 md:hover:text-sanguine-red md:dark:hover:text-sanguine-red dark:hover:bg-gray-700`}
+                    } hover:bg-gray-100 md:hover:text-sanguine-red dark:hover:bg-gray-700 md:dark:hover:text-sanguine-red`}
                   >
                     {linkLabel}
                   </Link>

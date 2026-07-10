@@ -54,7 +54,7 @@ export const computeClanTotals = (
       totalDrops: acc.totalDrops + 1,
       totalGP:
         acc.totalGP +
-        (drop.itemId != null ? (itemMap.get(drop.itemId)?.price ?? 0) : 0),
+        (drop.itemId != null ? itemMap.get(drop.itemId)?.price ?? 0 : 0),
       totalPoints: acc.totalPoints + drop.pointsGiven,
     }),
     { totalDrops: 0, totalGP: 0, totalPoints: 0 },
@@ -75,7 +75,10 @@ export const getMostValuableItems = (
 ): ValuableItem[] => {
   const byItem = new Map<
     number,
-    { count: number; recipients: Map<string, { nickname: string; count: number }> }
+    {
+      count: number;
+      recipients: Map<string, { nickname: string; count: number }>;
+    }
   >();
 
   for (const drop of drops) {
@@ -126,7 +129,7 @@ export const getBossBreakdown = (
       const boss = drop.bossName ?? 'Unknown';
       const existing = acc[boss] ?? { count: 0, gp: 0 };
       const price =
-        drop.itemId != null ? (itemMap.get(drop.itemId)?.price ?? 0) : 0;
+        drop.itemId != null ? itemMap.get(drop.itemId)?.price ?? 0 : 0;
       acc[boss] = { count: existing.count + 1, gp: existing.gp + price };
       return acc;
     },
@@ -184,7 +187,7 @@ export const getMemberLeaderboard = (
     const id = drop.destinationDiscordId;
     const existing = acc[id] ?? { dropCount: 0, totalGP: 0, totalPoints: 0 };
     const price =
-      drop.itemId != null ? (itemMap.get(drop.itemId)?.price ?? 0) : 0;
+      drop.itemId != null ? itemMap.get(drop.itemId)?.price ?? 0 : 0;
     acc[id] = {
       dropCount: existing.dropCount + 1,
       totalGP: existing.totalGP + price,
@@ -209,7 +212,10 @@ export const getDropsByMonth = (drops: DropRecord[]): MonthlyDrops[] => {
 
   return Object.entries(byMonth)
     .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => dayjs(a.date, 'YYYY-MMM').unix() - dayjs(b.date, 'YYYY-MMM').unix());
+    .sort(
+      (a, b) =>
+        dayjs(a.date, 'YYYY-MMM').unix() - dayjs(b.date, 'YYYY-MMM').unix(),
+    );
 };
 
 export const getRecentValuableDrops = (
@@ -224,7 +230,7 @@ export const getRecentValuableDrops = (
     .filter(drop => dayjs(drop.createdAt).isAfter(cutoff))
     .map(drop => ({
       ...drop,
-      osrsData: drop.itemId != null ? (itemMap.get(drop.itemId) ?? null) : null,
+      osrsData: drop.itemId != null ? itemMap.get(drop.itemId) ?? null : null,
     }))
     .filter(drop => (drop.osrsData?.price ?? 0) >= gpThreshold)
     .sort((a, b) => (b.osrsData?.price ?? 0) - (a.osrsData?.price ?? 0));

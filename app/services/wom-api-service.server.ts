@@ -58,15 +58,16 @@ export const getCompetitionById = async (id: number) => {
 
 export const getClanFromWom = async (id: number) => {
   const now = Date.now();
-  if (lastMemberFetch !== null && now - WOM_MEMBER_CACHE_DURATION > lastMemberFetch) {
+  if (
+    lastMemberFetch !== null &&
+    now - WOM_MEMBER_CACHE_DURATION > lastMemberFetch
+  ) {
     const clan = await client.groups.getGroupDetails(id);
     womMemberCache = clan.memberships;
     lastMemberFetch = now;
     return clan.memberships;
-  }
-  else {
+  } else {
     console.info('wom member cache hit');
     return womMemberCache;
   }
 };
-

@@ -42,17 +42,17 @@ export function DiscordWidget({
               loading="lazy"
             />
           )}
-          
+
           {!imageLoaded && !imageError && (
-            <Box className="flex h-24 w-80 items-center justify-center rounded-lg bg-gray-800 border border-gray-700">
+            <Box className="flex h-24 w-80 items-center justify-center rounded-lg border border-gray-700 bg-gray-800">
               <Text size="2" className="text-gray-400">
                 Loading Discord preview...
               </Text>
             </Box>
           )}
-          
+
           {imageError && (
-            <Box className="flex h-24 w-80 items-center justify-center rounded-lg bg-gray-800 border border-gray-700">
+            <Box className="flex h-24 w-80 items-center justify-center rounded-lg border border-gray-700 bg-gray-800">
               <Text size="2" className="text-gray-400">
                 Discord Server Preview
               </Text>

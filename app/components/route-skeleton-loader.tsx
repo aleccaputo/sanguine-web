@@ -62,9 +62,7 @@ function RouteSkeletonLoader() {
 
   return (
     <div className="fixed inset-0 z-40 bg-[#111113]">
-      <div className="h-full overflow-y-auto pt-[73px]">
-        {getSkeleton()}
-      </div>
+      <div className="h-full overflow-y-auto pt-[73px]">{getSkeleton()}</div>
     </div>
   );
 }
@@ -223,7 +221,10 @@ function UserDetailSkeleton() {
                 <div className="mb-4 h-5 w-32 animate-pulse rounded bg-gray-700/50"></div>
                 <div className="space-y-2">
                   {[1, 2, 3].map(j => (
-                    <div key={j} className="h-8 animate-pulse rounded bg-gray-700/30"></div>
+                    <div
+                      key={j}
+                      className="h-8 animate-pulse rounded bg-gray-700/30"
+                    ></div>
                   ))}
                 </div>
               </Box>

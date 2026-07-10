@@ -121,10 +121,8 @@ export function getCompetitionImageUrl(metric: string): string {
 function getOSRSWikiImageUrl(imageName: string): string {
   // Special cases that don't follow the _icon.png pattern
   const specialCases: Record<string, string> = {
-    'Tombs of Amascut - Normal Mode icon':
-      "Tumeken%27s_Warden_(level-544).png",
-    'Tombs of Amascut - Expert Mode icon':
-      "Tumeken%27s_Warden_(level-544).png",
+    'Tombs of Amascut - Normal Mode icon': 'Tumeken%27s_Warden_(level-544).png',
+    'Tombs of Amascut - Expert Mode icon': 'Tumeken%27s_Warden_(level-544).png',
     'Chambers of Xeric': 'Great_Olm.png',
     'Theatre of Blood': 'Verzik_Vitur.png',
     Yama: 'Yama_chathead.png',
@@ -233,9 +231,9 @@ const BOSS_IMAGE_OVERRIDES: Record<string, string> = {
   'Theatre of Blood': 'Verzik_Vitur.png',
   'Theatre of Blood: Hard Mode': 'Verzik_Vitur.png',
   'Theatre of Blood Hard Mode': 'Verzik_Vitur.png',
-  'Tombs of Amascut': "Tumeken%27s_Warden_(level-544).png",
-  'Tombs of Amascut: Expert Mode': "Tumeken%27s_Warden_(level-544).png",
-  'Tombs of Amascut Expert Mode': "Tumeken%27s_Warden_(level-544).png",
+  'Tombs of Amascut': 'Tumeken%27s_Warden_(level-544).png',
+  'Tombs of Amascut: Expert Mode': 'Tumeken%27s_Warden_(level-544).png',
+  'Tombs of Amascut Expert Mode': 'Tumeken%27s_Warden_(level-544).png',
   "Phosani's Nightmare": 'The_Nightmare.png',
   'The Gauntlet': 'The_Gauntlet.png',
   'The Corrupted Gauntlet': 'Corrupted_Hunllef.png',

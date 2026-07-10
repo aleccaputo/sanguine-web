@@ -38,7 +38,10 @@ export const meta: MetaFunction = () => [
 export async function loader() {
   const personalBests = await getAllPersonalBests();
 
-  const categories = buildCategoryLeaderboards(personalBests, LEADERBOARD_LIMIT);
+  const categories = buildCategoryLeaderboards(
+    personalBests,
+    LEADERBOARD_LIMIT,
+  );
   const entryCounts = countEntriesByCategory(personalBests);
   const bossLeaderboards = buildBossLeaderboards(categories, entryCounts);
 
@@ -237,7 +240,10 @@ export default function PersonalBests() {
                                           View
                                         </a>
                                       ) : (
-                                        <Text size="2" className="text-gray-600">
+                                        <Text
+                                          size="2"
+                                          className="text-gray-600"
+                                        >
                                           —
                                         </Text>
                                       )}

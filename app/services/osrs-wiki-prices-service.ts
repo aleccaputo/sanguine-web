@@ -26,10 +26,14 @@ interface MappingItem {
 
 // Pets/items whose wiki image filename doesn't match the standard `{Name}_detail.png` pattern
 const customItemIcons: Record<number, string> = {
-  13323: 'https://oldschool.runescape.wiki/images/Baby_chinchompa_%28grey%29_detail.png',
-  20665: 'https://oldschool.runescape.wiki/images/Rift_guardian_%28fire%29_detail.png',
-  22746: 'https://oldschool.runescape.wiki/images/Ikkle_hydra_%28serpentine%29_detail.png',
-  27590: 'https://oldschool.runescape.wiki/images/Muphin_%28ranged%29_detail.png',
+  13323:
+    'https://oldschool.runescape.wiki/images/Baby_chinchompa_%28grey%29_detail.png',
+  20665:
+    'https://oldschool.runescape.wiki/images/Rift_guardian_%28fire%29_detail.png',
+  22746:
+    'https://oldschool.runescape.wiki/images/Ikkle_hydra_%28serpentine%29_detail.png',
+  27590:
+    'https://oldschool.runescape.wiki/images/Muphin_%28ranged%29_detail.png',
   31285: 'https://oldschool.runescape.wiki/images/Gull_detail.png',
 };
 
@@ -42,17 +46,25 @@ const LONG_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours (items + mapping)
 const PRICE_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 
 // Item cache for assembled OSRSItem objects
-const itemCache: { [itemId: number]: { data: OSRSItem | null; timestamp: number } } = {};
+const itemCache: {
+  [itemId: number]: { data: OSRSItem | null; timestamp: number };
+} = {};
 
 // In-flight deduplication for item fetches
 const itemFetchPromises = new Map<number, Promise<OSRSItem | null>>();
 
 // Price cache
-let priceCache: { data: PricesResponseData | null; timestamp: number } = { data: null, timestamp: 0 };
+let priceCache: { data: PricesResponseData | null; timestamp: number } = {
+  data: null,
+  timestamp: 0,
+};
 let priceFetchPromise: Promise<PricesResponseData> | null = null;
 
 // Mapping cache (id → MappingItem)
-let mappingCache: { data: Record<number, MappingItem> | null; timestamp: number } = { data: null, timestamp: 0 };
+let mappingCache: {
+  data: Record<number, MappingItem> | null;
+  timestamp: number;
+} = { data: null, timestamp: 0 };
 let mappingFetchPromise: Promise<Record<number, MappingItem>> | null = null;
 
 /**
@@ -62,7 +74,9 @@ let mappingFetchPromise: Promise<Record<number, MappingItem>> | null = null;
 function formatItemNameForWiki(name: string): string {
   return name
     .split(' ')
-    .map((word, index) => (index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+    .map((word, index) =>
+      index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word,
+    )
     .join('_');
 }
 
@@ -78,15 +92,22 @@ async function fetchAllMapping(): Promise<Record<number, MappingItem>> {
 
   if (mappingFetchPromise) return mappingFetchPromise;
 
-  mappingFetchPromise = fetch('https://prices.runescape.wiki/api/v1/osrs/mapping', {
-    headers: WIKI_HEADERS,
-  })
+  mappingFetchPromise = fetch(
+    'https://prices.runescape.wiki/api/v1/osrs/mapping',
+    {
+      headers: WIKI_HEADERS,
+    },
+  )
     .then(async response => {
       if (!response.ok) {
-        throw new Error(`Failed to fetch mapping: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch mapping: ${response.status} ${response.statusText}`,
+        );
       }
       const items: MappingItem[] = await response.json();
-      const data = Object.fromEntries(items.map(item => [item.id, item])) as Record<number, MappingItem>;
+      const data = Object.fromEntries(
+        items.map(item => [item.id, item]),
+      ) as Record<number, MappingItem>;
       mappingCache = { data, timestamp: Date.now() };
       return data;
     })
@@ -103,7 +124,10 @@ async function fetchAllMapping(): Promise<Record<number, MappingItem>> {
 export async function fetchOSRSItem(itemId: number): Promise<OSRSItem | null> {
   const now = Date.now();
 
-  if (itemCache[itemId] && now - itemCache[itemId].timestamp < LONG_CACHE_DURATION) {
+  if (
+    itemCache[itemId] &&
+    now - itemCache[itemId].timestamp < LONG_CACHE_DURATION
+  ) {
     return itemCache[itemId].data;
   }
 
@@ -116,9 +140,14 @@ export async function fetchOSRSItem(itemId: number): Promise<OSRSItem | null> {
     const icon =
       itemId === 0
         ? '/sanguine_icon.png'
-        : (customItemIcons[itemId] ?? `https://oldschool.runescape.wiki/images/${formatItemNameForWiki(itemName)}_detail.png`);
+        : customItemIcons[itemId] ??
+          `https://oldschool.runescape.wiki/images/${formatItemNameForWiki(itemName)}_detail.png`;
 
-    const itemData: OSRSItem = { id: itemId, name: toTitleCase(itemName), icon };
+    const itemData: OSRSItem = {
+      id: itemId,
+      name: toTitleCase(itemName),
+      icon,
+    };
     itemCache[itemId] = { data: itemData, timestamp: now };
     return itemData;
   }
@@ -126,7 +155,10 @@ export async function fetchOSRSItem(itemId: number): Promise<OSRSItem | null> {
   // Tradeable items - name + icon from wiki mapping, price from wiki prices
   const fetchPromise = (async () => {
     try {
-      const [mapping, pricesData] = await Promise.all([fetchAllMapping(), fetchAllPrices()]);
+      const [mapping, pricesData] = await Promise.all([
+        fetchAllMapping(),
+        fetchAllPrices(),
+      ]);
 
       const entry = mapping[itemId];
       if (!entry) return null;
@@ -168,12 +200,17 @@ async function fetchAllPrices(): Promise<PricesResponseData> {
   if (priceFetchPromise) return priceFetchPromise;
 
   console.log('Fetching fresh price data from API');
-  priceFetchPromise = fetch('https://prices.runescape.wiki/api/v1/osrs/latest', {
-    headers: WIKI_HEADERS,
-  })
+  priceFetchPromise = fetch(
+    'https://prices.runescape.wiki/api/v1/osrs/latest',
+    {
+      headers: WIKI_HEADERS,
+    },
+  )
     .then(async response => {
       if (!response.ok) {
-        throw new Error(`Failed to fetch prices: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch prices: ${response.status} ${response.statusText}`,
+        );
       }
       const data = await response.json();
       priceCache = { data, timestamp: Date.now() };
