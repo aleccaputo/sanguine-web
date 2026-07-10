@@ -1,4 +1,3 @@
-import { Icon } from '~/components/icon';
 import { useLocation } from 'react-router';
 import { Link } from '@remix-run/react';
 import { useEffect, useState } from 'react';
@@ -108,7 +107,13 @@ const Navbar = () => {
     <nav className="fixed top-0 z-50 w-full border-gray-200 bg-white dark:bg-gray-900">
       <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between p-4">
         <a href="/" className="flex items-center space-x-3 rtl:space-x-reverse">
-          <Icon name={'SanguineIcon'} size={'xl'} />
+          <img
+            src="/sanguine_icon_small.png"
+            alt=""
+            width={28}
+            height={28}
+            className="[image-rendering:pixelated]"
+          />
           <span className="self-center whitespace-nowrap text-3xl dark:text-white">
             Sanguine
           </span>

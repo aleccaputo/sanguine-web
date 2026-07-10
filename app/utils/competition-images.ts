@@ -2,7 +2,9 @@
  * Utility for getting OSRS Wiki images based on competition metrics
  */
 
-import SanguineLogo from '../../other/svg-icons/SanguineIcon.svg';
+// The transparent clan scythe from /public — the SVG sprite variant bakes in a dark
+// square background, so raster fallbacks use this instead.
+const SanguineLogo = '/sanguine_icon_small.png';
 
 // Mapping for complex metric names to proper OSRS Wiki image names
 const METRIC_TO_IMAGE_NAME: Record<string, string> = {
