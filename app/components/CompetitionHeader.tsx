@@ -1,11 +1,4 @@
-import {
-  Avatar,
-  Box,
-  Flex,
-  Heading,
-  IconButton,
-  Text,
-} from '@radix-ui/themes';
+import { Avatar, Box, Flex, Heading, IconButton, Text } from '@radix-ui/themes';
 import { ArrowLeftIcon } from '@radix-ui/react-icons';
 import { useNavigate } from '@remix-run/react';
 import { getCompetitionImageUrl } from '~/utils/competition-images';
@@ -74,7 +67,12 @@ export function CompetitionHeader({
         />
 
         <Box className="flex-1">
-          <Flex justify="between" align="start" mb="3" className="flex-col gap-3 sm:flex-row sm:items-center sm:gap-0">
+          <Flex
+            justify="between"
+            align="start"
+            mb="3"
+            className="flex-col gap-3 sm:flex-row sm:items-center sm:gap-0"
+          >
             <Heading size="6" className="text-sanguine-red sm:text-4xl">
               {competition.title}
             </Heading>

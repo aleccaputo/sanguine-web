@@ -24,11 +24,15 @@ describe('matchesAccountName', () => {
     });
 
     it('matches with surrounding whitespace', () => {
-      expect(matchesAccountName(' MainRSN ', 'MainRSN', mainNickname)).toBe(true);
+      expect(matchesAccountName(' MainRSN ', 'MainRSN', mainNickname)).toBe(
+        true,
+      );
     });
 
     it('does not match a different osrsName', () => {
-      expect(matchesAccountName('SomeAlt', 'MainRSN', mainNickname)).toBe(false);
+      expect(matchesAccountName('SomeAlt', 'MainRSN', mainNickname)).toBe(
+        false,
+      );
     });
   });
 
@@ -92,7 +96,9 @@ describe('resolveDisplayName', () => {
   });
 
   it('returns main nickname when osrsName is not an alt', () => {
-    expect(resolveDisplayName('MainRSN', mainNickname, altNames)).toBe('MainRSN');
+    expect(resolveDisplayName('MainRSN', mainNickname, altNames)).toBe(
+      'MainRSN',
+    );
   });
 
   it('returns "AltName (MainName)" when osrsName is an alt', () => {
@@ -114,7 +120,9 @@ describe('resolveDisplayName', () => {
   });
 
   it('handles empty alt set', () => {
-    expect(resolveDisplayName('MyAlt', mainNickname, new Set())).toBe('MainRSN');
+    expect(resolveDisplayName('MyAlt', mainNickname, new Set())).toBe(
+      'MainRSN',
+    );
   });
 });
 

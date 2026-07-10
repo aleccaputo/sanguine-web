@@ -31,7 +31,12 @@ export function AccountsTooltip({ accounts, children }: IAccountsTooltipProps) {
         {accounts.map(account => (
           <div
             key={account.name}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '2px 0',
+            }}
           >
             {account.role && (
               <img

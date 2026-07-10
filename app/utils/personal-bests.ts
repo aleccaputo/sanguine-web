@@ -46,7 +46,9 @@ export const resolvePbParticipants = (
     }
     return {
       discordId,
-      displayName: altName ? formatAccountWithMain(altName, mainName) : mainName,
+      displayName: altName
+        ? formatAccountWithMain(altName, mainName)
+        : mainName,
       isMember: true,
     };
   });
@@ -122,7 +124,9 @@ const participantSetKey = (pb: IPersonalBest): string =>
 // occupies a single slot, so more of the clan lands on the board rather than one team taking every
 // spot. This is the shared "one entry per unique team" rule behind both the leaderboard and a
 // member's clan-wide rank.
-const fastestPerTeam = (sortedPersonalBests: IPersonalBest[]): IPersonalBest[] => {
+const fastestPerTeam = (
+  sortedPersonalBests: IPersonalBest[],
+): IPersonalBest[] => {
   const seen = new Set<string>();
   return sortedPersonalBests.reduce<IPersonalBest[]>((entries, pb) => {
     const key = participantSetKey(pb);
@@ -164,7 +168,9 @@ export const buildCategoryLeaderboards = (
         entries: fastestPerTeam(categoryPbs).slice(0, limit),
       };
     })
-    .sort((a, b) => a.bossName.localeCompare(b.bossName) || sortCategories(a, b));
+    .sort(
+      (a, b) => a.bossName.localeCompare(b.bossName) || sortCategories(a, b),
+    );
 };
 
 // Total submissions per category (independent of the display `limit`).
@@ -190,7 +196,8 @@ export const buildBossLeaderboards = (
 ): IBossLeaderboard[] => {
   const byBoss = categories.reduce((map, category) => {
     const existing = map.get(category.bossName);
-    const count = entryCounts.get(category.categoryKey) ?? category.entries.length;
+    const count =
+      entryCounts.get(category.categoryKey) ?? category.entries.length;
     if (existing) {
       existing.categories.push(category);
       existing.totalEntries += count;
@@ -205,7 +212,10 @@ export const buildBossLeaderboards = (
   }, new Map<string, IBossLeaderboard>());
 
   return [...byBoss.values()]
-    .map(boss => ({ ...boss, categories: [...boss.categories].sort(sortCategories) }))
+    .map(boss => ({
+      ...boss,
+      categories: [...boss.categories].sort(sortCategories),
+    }))
     .sort((a, b) => a.bossName.localeCompare(b.bossName));
 };
 
@@ -257,8 +267,7 @@ export const buildUserCategoryBests = (
         scale: best.scale,
         raidLevel: best.raidLevel,
         best,
-        rank:
-          teamField.filter(pb => comparePbTimes(pb, best) < 0).length + 1,
+        rank: teamField.filter(pb => comparePbTimes(pb, best) < 0).length + 1,
         totalEntries: teamField.length,
         userAltName:
           best.participantAltNames[

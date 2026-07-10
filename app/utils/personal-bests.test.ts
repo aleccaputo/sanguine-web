@@ -64,12 +64,24 @@ describe('comparePbTimes', () => {
 });
 
 describe('buildCategoryLeaderboards', () => {
-  it('keeps only each team\'s fastest time, then fills with the next unique team', () => {
+  it("keeps only each team's fastest time, then fills with the next unique team", () => {
     // The same solo player holds the top two times.
     const records = [
-      pb({ timeDisplay: '0:43', timeSeconds: 43, participantDiscordIds: ['a'] }),
-      pb({ timeDisplay: '0:48', timeSeconds: 48, participantDiscordIds: ['a'] }),
-      pb({ timeDisplay: '0:50', timeSeconds: 50, participantDiscordIds: ['b'] }),
+      pb({
+        timeDisplay: '0:43',
+        timeSeconds: 43,
+        participantDiscordIds: ['a'],
+      }),
+      pb({
+        timeDisplay: '0:48',
+        timeSeconds: 48,
+        participantDiscordIds: ['a'],
+      }),
+      pb({
+        timeDisplay: '0:50',
+        timeSeconds: 50,
+        participantDiscordIds: ['b'],
+      }),
     ];
 
     const [category] = buildCategoryLeaderboards(records, 5);
@@ -106,14 +118,29 @@ describe('buildCategoryLeaderboards', () => {
     const [category] = buildCategoryLeaderboards(records, 5);
 
     // a+b (in either order, on any account) collapses to its fastest; a+c is a distinct team.
-    expect(category.entries.map(e => e.timeDisplay)).toEqual(['20:00', '22:00']);
+    expect(category.entries.map(e => e.timeDisplay)).toEqual([
+      '20:00',
+      '22:00',
+    ]);
   });
 
   it('caps the board at the limit after de-duping', () => {
     const records = [
-      pb({ timeDisplay: '0:43', timeSeconds: 43, participantDiscordIds: ['a'] }),
-      pb({ timeDisplay: '0:50', timeSeconds: 50, participantDiscordIds: ['b'] }),
-      pb({ timeDisplay: '0:55', timeSeconds: 55, participantDiscordIds: ['c'] }),
+      pb({
+        timeDisplay: '0:43',
+        timeSeconds: 43,
+        participantDiscordIds: ['a'],
+      }),
+      pb({
+        timeDisplay: '0:50',
+        timeSeconds: 50,
+        participantDiscordIds: ['b'],
+      }),
+      pb({
+        timeDisplay: '0:55',
+        timeSeconds: 55,
+        participantDiscordIds: ['c'],
+      }),
     ];
 
     const [category] = buildCategoryLeaderboards(records, 2);
@@ -149,10 +176,26 @@ describe('buildUserCategoryBests', () => {
   it('ranks the member against unique teams, not raw submissions', () => {
     // 'a' holds three of the four times; 'me' is 2nd-fastest team overall.
     const field = [
-      pb({ timeDisplay: '0:40', timeSeconds: 40, participantDiscordIds: ['a'] }),
-      pb({ timeDisplay: '0:45', timeSeconds: 45, participantDiscordIds: ['me'] }),
-      pb({ timeDisplay: '0:48', timeSeconds: 48, participantDiscordIds: ['a'] }),
-      pb({ timeDisplay: '0:55', timeSeconds: 55, participantDiscordIds: ['a'] }),
+      pb({
+        timeDisplay: '0:40',
+        timeSeconds: 40,
+        participantDiscordIds: ['a'],
+      }),
+      pb({
+        timeDisplay: '0:45',
+        timeSeconds: 45,
+        participantDiscordIds: ['me'],
+      }),
+      pb({
+        timeDisplay: '0:48',
+        timeSeconds: 48,
+        participantDiscordIds: ['a'],
+      }),
+      pb({
+        timeDisplay: '0:55',
+        timeSeconds: 55,
+        participantDiscordIds: ['a'],
+      }),
     ];
 
     const [best] = buildUserCategoryBests('me', field);
@@ -164,8 +207,16 @@ describe('buildUserCategoryBests', () => {
 
   it("uses the member's own fastest submission as their best", () => {
     const field = [
-      pb({ timeDisplay: '0:45', timeSeconds: 45, participantDiscordIds: ['me'] }),
-      pb({ timeDisplay: '0:50', timeSeconds: 50, participantDiscordIds: ['me'] }),
+      pb({
+        timeDisplay: '0:45',
+        timeSeconds: 45,
+        participantDiscordIds: ['me'],
+      }),
+      pb({
+        timeDisplay: '0:50',
+        timeSeconds: 50,
+        participantDiscordIds: ['me'],
+      }),
     ];
 
     const [best] = buildUserCategoryBests('me', field);

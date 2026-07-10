@@ -47,8 +47,7 @@ export const resolveDisplayParts = (
   mainNickname: string,
   altNames: Set<string>,
 ): { name: string; mainAccount: string | null } => {
-  const isAlt =
-    osrsName != null && altNames.has(osrsName.toLowerCase().trim());
+  const isAlt = osrsName != null && altNames.has(osrsName.toLowerCase().trim());
   return isAlt
     ? { name: osrsName, mainAccount: mainNickname }
     : { name: mainNickname, mainAccount: null };

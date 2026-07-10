@@ -68,7 +68,12 @@ export function DropItem({
                 </Link>
               )}
             </Flex>
-            <Flex direction="column" gap="1" align="end" className="flex-shrink-0">
+            <Flex
+              direction="column"
+              gap="1"
+              align="end"
+              className="flex-shrink-0"
+            >
               <Text
                 size={isLarge ? { initial: '1', md: '2' } : '1'}
                 className="whitespace-nowrap text-gray-300"

@@ -14,7 +14,10 @@ import { getAllUserAlts } from '~/data/user';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import { DropItem } from '~/components/DropItem';
-import { buildAltsByDiscordId, resolveDisplayName } from '~/utils/account-matching';
+import {
+  buildAltsByDiscordId,
+  resolveDisplayName,
+} from '~/utils/account-matching';
 
 export const meta: MetaFunction = () => {
   return [

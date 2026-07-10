@@ -7,7 +7,12 @@ type PaginationProps = {
   onNext: () => void;
 };
 
-export function Pagination({ page, totalPages, onPrev, onNext }: PaginationProps) {
+export function Pagination({
+  page,
+  totalPages,
+  onPrev,
+  onNext,
+}: PaginationProps) {
   if (totalPages <= 1) return null;
 
   return (

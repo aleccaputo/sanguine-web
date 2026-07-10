@@ -77,7 +77,7 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
   next.searchParams.delete('participant');
   if (current.href === next.href) return false;
   return defaultShouldRevalidate;
-}
+};
 
 export async function loader({ params }: LoaderFunctionArgs) {
   if (!params.id) {
@@ -115,7 +115,9 @@ export async function loader({ params }: LoaderFunctionArgs) {
     uniqueItemIds.map(id => fetchOSRSItem(id)),
   );
   const itemDetails = Object.fromEntries(
-    uniqueItemIds.flatMap((id, i) => (itemResults[i] ? [[id, itemResults[i]]] : [])),
+    uniqueItemIds.flatMap((id, i) =>
+      itemResults[i] ? [[id, itemResults[i]]] : [],
+    ),
   ) as Record<number, OSRSItem>;
 
   return json(
@@ -182,7 +184,9 @@ const resolveParticipantKey = (
   altKeyLookup?: Map<string, string>,
 ): string | null => {
   if (osrsName && altKeyLookup) {
-    const altKey = altKeyLookup.get(`${discordId}:${osrsName.toLowerCase().trim()}`);
+    const altKey = altKeyLookup.get(
+      `${discordId}:${osrsName.toLowerCase().trim()}`,
+    );
     if (altKey) return altKey;
   }
 
@@ -218,7 +222,10 @@ const EventById = () => {
 
   const selectedParticipantKey = searchParams.get('participant');
   const selectParticipant = (participantKey: string) =>
-    setSearchParams({ participant: participantKey }, { preventScrollReset: true });
+    setSearchParams(
+      { participant: participantKey },
+      { preventScrollReset: true },
+    );
   const clearParticipant = () =>
     setSearchParams({}, { preventScrollReset: true });
   const metric = getMetricType(data.compDetails.metric);
@@ -234,7 +241,10 @@ const EventById = () => {
         .flatMap(user =>
           [...altsByDiscordId.get(user.discordId)!].map(
             altNameLower =>
-              [altNameLower, { discordId: user.discordId, mainNickname: user.nickname! }] as const,
+              [
+                altNameLower,
+                { discordId: user.discordId, mainNickname: user.nickname! },
+              ] as const,
           ),
         ),
     );
@@ -289,7 +299,10 @@ const EventById = () => {
         .filter(([, info]) => info.isAlt)
         .reduce(
           (map, [key, info]) =>
-            map.set(`${info.discordId}:${info.displayName.toLowerCase().trim()}`, key),
+            map.set(
+              `${info.discordId}:${info.displayName.toLowerCase().trim()}`,
+              key,
+            ),
           new Map<string, string>(),
         ),
     [participantMap],
@@ -309,7 +322,11 @@ const EventById = () => {
 
     // Map each audit record to a participant key based on discordId + osrsName
     const auditByKey = data.auditData
-      .filter(audit => audit.destinationDiscordId && matchesMetric(audit, metric, compMetric))
+      .filter(
+        audit =>
+          audit.destinationDiscordId &&
+          matchesMetric(audit, metric, compMetric),
+      )
       .reduce((map, audit) => {
         const pKey = resolveParticipantKey(
           audit.destinationDiscordId!,
@@ -323,7 +340,10 @@ const EventById = () => {
           ? dayjs(audit.createdAt).format('DD/MM/YYYY HH')
           : dayjs(audit.createdAt).format('DD/MM/YYYY');
         const compositeKey = `${pKey}:${unitKey}`;
-        return map.set(compositeKey, (map.get(compositeKey) ?? 0) + audit.pointsGiven);
+        return map.set(
+          compositeKey,
+          (map.get(compositeKey) ?? 0) + audit.pointsGiven,
+        );
       }, new Map<string, number>());
 
     const runningTotals = new Map(
@@ -339,7 +359,9 @@ const EventById = () => {
         : currentUnit.format('DD/MM/YYYY');
 
       const cumDay: ChartData = {
-        name: hourly ? currentUnit.format('MMM D ha') : currentUnit.format('MMM DD'),
+        name: hourly
+          ? currentUnit.format('MMM D ha')
+          : currentUnit.format('MMM DD'),
       };
 
       participantMap.forEach((userInfo, pKey) => {
@@ -358,7 +380,11 @@ const EventById = () => {
   // Pre-compute per-participant event points once for spoon stats and leaderboard
   const participantPoints = useMemo(() => {
     return data.auditData
-      .filter(audit => audit.destinationDiscordId && matchesMetric(audit, metric, compMetric))
+      .filter(
+        audit =>
+          audit.destinationDiscordId &&
+          matchesMetric(audit, metric, compMetric),
+      )
       .reduce((map, audit) => {
         const pKey = resolveParticipantKey(
           audit.destinationDiscordId!,
@@ -375,8 +401,12 @@ const EventById = () => {
     const finalDay = cumulativeData[cumulativeData.length - 1];
     return [...participantMap.values()]
       .sort((a, b) => {
-        const aPoints = finalDay ? ((finalDay[`${a.nickname}_points`] as number) || 0) : 0;
-        const bPoints = finalDay ? ((finalDay[`${b.nickname}_points`] as number) || 0) : 0;
+        const aPoints = finalDay
+          ? (finalDay[`${a.nickname}_points`] as number) || 0
+          : 0;
+        const bPoints = finalDay
+          ? (finalDay[`${b.nickname}_points`] as number) || 0
+          : 0;
         return bPoints - aPoints;
       })
       .slice(0, chartTopN)
@@ -388,33 +418,51 @@ const EventById = () => {
 
   // Breakdown dialog derived data
   const selectedParticipantInfo = selectedParticipantKey
-    ? (participantMap.get(selectedParticipantKey) ?? null)
+    ? participantMap.get(selectedParticipantKey) ?? null
     : null;
 
   const selectedTotalPoints = selectedParticipantKey
-    ? (participantPoints.get(selectedParticipantKey) ?? 0)
+    ? participantPoints.get(selectedParticipantKey) ?? 0
     : 0;
 
   const breakdownDrops = useMemo(() => {
     if (!selectedParticipantKey) return [];
     return data.auditData
-      .filter(a =>
-        a.destinationDiscordId &&
-        matchesMetric(a, metric, compMetric) &&
-        resolveParticipantKey(a.destinationDiscordId, a.osrsName, participantMap, altKeyLookup) === selectedParticipantKey,
+      .filter(
+        a =>
+          a.destinationDiscordId &&
+          matchesMetric(a, metric, compMetric) &&
+          resolveParticipantKey(
+            a.destinationDiscordId,
+            a.osrsName,
+            participantMap,
+            altKeyLookup,
+          ) === selectedParticipantKey,
       )
       .map(a => ({
         ...a,
-        osrsData: a.itemId != null ? (data.itemDetails[a.itemId] ?? null) : null,
+        osrsData: a.itemId != null ? data.itemDetails[a.itemId] ?? null : null,
       }))
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [selectedParticipantKey, data.auditData, data.itemDetails, metric, compMetric, participantMap, altKeyLookup]);
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+  }, [
+    selectedParticipantKey,
+    data.auditData,
+    data.itemDetails,
+    metric,
+    compMetric,
+    participantMap,
+    altKeyLookup,
+  ]);
 
   const breakdownChartData = useMemo(() => {
     if (!selectedParticipantInfo) return [];
     return cumulativeData.map(day => ({
       name: day.name,
-      points: (day[`${selectedParticipantInfo.nickname}_points`] as number) || 0,
+      points:
+        (day[`${selectedParticipantInfo.nickname}_points`] as number) || 0,
     }));
   }, [cumulativeData, selectedParticipantInfo]);
 
@@ -432,7 +480,12 @@ const EventById = () => {
           participantCount={participantMap.size}
           formatDate={formatDate}
           navigationSlot={
-            <Flex gap="2" wrap="wrap" align="center" className="justify-start sm:justify-end">
+            <Flex
+              gap="2"
+              wrap="wrap"
+              align="center"
+              className="justify-start sm:justify-end"
+            >
               <button
                 onClick={() =>
                   document
@@ -478,16 +531,22 @@ const EventById = () => {
         />
 
         {/* Chart Section */}
-        <Card id="chart" className="scroll-mt-6 border border-gray-800 bg-gray-900">
+        <Card
+          id="chart"
+          className="scroll-mt-6 border border-gray-800 bg-gray-900"
+        >
           <Box p="5">
             <Flex justify="between" align="center" className="mb-4">
               <Flex direction="column" gap="1">
                 <Heading size="5" className="text-white">
-                  {useHourly ? 'Hourly Points Progress' : 'Daily Points Progress'}
+                  {useHourly
+                    ? 'Hourly Points Progress'
+                    : 'Daily Points Progress'}
                 </Heading>
                 {participantMap.size > 0 && (
                   <Text size="1" className="text-gray-400">
-                    Showing top {Math.min(chartTopN, participantMap.size)} of {participantMap.size} participants
+                    Showing top {Math.min(chartTopN, participantMap.size)} of{' '}
+                    {participantMap.size} participants
                   </Text>
                 )}
               </Flex>
@@ -513,7 +572,10 @@ const EventById = () => {
             {participantMap.size > 0 ? (
               <Box className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={cumulativeData} onMouseLeave={() => setHoveredLine(null)}>
+                  <LineChart
+                    data={cumulativeData}
+                    onMouseLeave={() => setHoveredLine(null)}
+                  >
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis
                       dataKey="name"
@@ -525,8 +587,11 @@ const EventById = () => {
                     <Tooltip
                       content={({ active, payload, label }) => {
                         if (!active || !payload?.length) return null;
-                        const sorted = [...payload]
-                          .sort((a, b) => ((b.value as number) ?? 0) - ((a.value as number) ?? 0));
+                        const sorted = [...payload].sort(
+                          (a, b) =>
+                            ((b.value as number) ?? 0) -
+                            ((a.value as number) ?? 0),
+                        );
                         const hoveredIndex = hoveredLine
                           ? sorted.findIndex(p => p.dataKey === hoveredLine)
                           : 0;
@@ -534,30 +599,108 @@ const EventById = () => {
                         const end = Math.min(sorted.length, hoveredIndex + 3);
                         const visible = sorted.slice(start, end);
                         return (
-                          <div style={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#F9FAFB', minWidth: '160px' }}>
-                            <div style={{ color: '#9CA3AF', marginBottom: '6px', fontSize: '11px' }}>{label}</div>
-                            {start > 0 && <div style={{ color: '#6B7280', marginBottom: '3px', fontSize: '11px' }}>↑ {start} more</div>}
+                          <div
+                            style={{
+                              backgroundColor: '#1F2937',
+                              border: '1px solid #374151',
+                              borderRadius: '8px',
+                              padding: '8px 12px',
+                              fontSize: '12px',
+                              color: '#F9FAFB',
+                              minWidth: '160px',
+                            }}
+                          >
+                            <div
+                              style={{
+                                color: '#9CA3AF',
+                                marginBottom: '6px',
+                                fontSize: '11px',
+                              }}
+                            >
+                              {label}
+                            </div>
+                            {start > 0 && (
+                              <div
+                                style={{
+                                  color: '#6B7280',
+                                  marginBottom: '3px',
+                                  fontSize: '11px',
+                                }}
+                              >
+                                ↑ {start} more
+                              </div>
+                            )}
                             {visible.map((entry, i) => {
                               const rank = start + i + 1;
                               const isHovered = entry.dataKey === hoveredLine;
-                              const name = (entry.dataKey as string).replace('_points', '');
+                              const name = (entry.dataKey as string).replace(
+                                '_points',
+                                '',
+                              );
                               return (
-                                <div key={String(entry.dataKey)} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px', fontWeight: isHovered ? 600 : 400, opacity: isHovered ? 1 : 0.7, backgroundColor: isHovered ? `${entry.stroke}22` : 'transparent', borderRadius: '4px', padding: '2px 4px', margin: '0 -4px 3px' }}>
-                                  <span style={{ color: '#6B7280', fontSize: '11px', minWidth: '20px' }}>#{rank}</span>
-                                  <span style={{ color: entry.stroke as string }}>●</span>
+                                <div
+                                  key={String(entry.dataKey)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    marginBottom: '3px',
+                                    fontWeight: isHovered ? 600 : 400,
+                                    opacity: isHovered ? 1 : 0.7,
+                                    backgroundColor: isHovered
+                                      ? `${entry.stroke}22`
+                                      : 'transparent',
+                                    borderRadius: '4px',
+                                    padding: '2px 4px',
+                                    margin: '0 -4px 3px',
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      color: '#6B7280',
+                                      fontSize: '11px',
+                                      minWidth: '20px',
+                                    }}
+                                  >
+                                    #{rank}
+                                  </span>
+                                  <span
+                                    style={{ color: entry.stroke as string }}
+                                  >
+                                    ●
+                                  </span>
                                   <span style={{ flex: 1 }}>{name}</span>
-                                  <span style={{ color: '#D1D5DB', fontVariantNumeric: 'tabular-nums' }}>{entry.value}</span>
+                                  <span
+                                    style={{
+                                      color: '#D1D5DB',
+                                      fontVariantNumeric: 'tabular-nums',
+                                    }}
+                                  >
+                                    {entry.value}
+                                  </span>
                                 </div>
                               );
                             })}
-                            {end < sorted.length && <div style={{ color: '#6B7280', marginTop: '3px', fontSize: '11px' }}>↓ {sorted.length - end} more</div>}
+                            {end < sorted.length && (
+                              <div
+                                style={{
+                                  color: '#6B7280',
+                                  marginTop: '3px',
+                                  fontSize: '11px',
+                                }}
+                              >
+                                ↓ {sorted.length - end} more
+                              </div>
+                            )}
                           </div>
                         );
                       }}
                     />
                     <Legend
                       formatter={value =>
-                        typeof value === 'string' ? value.replace('_points', '') : value
+                        typeof value === 'string'
+                          ? value.replace('_points', '')
+                          : value
                       }
                       wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
                     />
@@ -594,7 +737,10 @@ const EventById = () => {
 
         {/* Spoons Statistics */}
         {participantMap.size > 0 && (
-          <Card id="spoons" className="scroll-mt-6 border border-gray-800 bg-gray-900">
+          <Card
+            id="spoons"
+            className="scroll-mt-6 border border-gray-800 bg-gray-900"
+          >
             <Box p="4">
               <Heading size="4" className="mb-3 text-white">
                 Spoon Statistics
@@ -612,11 +758,15 @@ const EventById = () => {
                   <Flex direction="column" gap="1.5">
                     {Array.from(participantMap.values())
                       .map(userInfo => {
-                        const totalPoints = participantPoints.get(userInfo.participantKey) ?? 0;
+                        const totalPoints =
+                          participantPoints.get(userInfo.participantKey) ?? 0;
                         return {
                           ...userInfo,
                           totalPoints,
-                          ratio: userInfo.gained > 0 ? totalPoints / userInfo.gained : 0,
+                          ratio:
+                            userInfo.gained > 0
+                              ? totalPoints / userInfo.gained
+                              : 0,
                         };
                       })
                       .sort((a, b) => b.ratio - a.ratio)
@@ -626,7 +776,9 @@ const EventById = () => {
                           key={participant.participantKey}
                           justify="between"
                           align="center"
-                          onClick={() => selectParticipant(participant.participantKey)}
+                          onClick={() =>
+                            selectParticipant(participant.participantKey)
+                          }
                           className="cursor-pointer rounded-lg border border-gray-700 px-2 py-1.5 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"
                         >
                           <Flex align="center" gap="2">
@@ -659,11 +811,13 @@ const EventById = () => {
                   <Flex direction="column" gap="1.5">
                     {Array.from(participantMap.values())
                       .map(userInfo => {
-                        const totalPoints = participantPoints.get(userInfo.participantKey) ?? 0;
+                        const totalPoints =
+                          participantPoints.get(userInfo.participantKey) ?? 0;
                         return {
                           ...userInfo,
                           totalPoints,
-                          ratio: totalPoints > 0 ? userInfo.gained / totalPoints : 0,
+                          ratio:
+                            totalPoints > 0 ? userInfo.gained / totalPoints : 0,
                         };
                       })
                       .sort((a, b) => b.ratio - a.ratio)
@@ -673,7 +827,9 @@ const EventById = () => {
                           key={participant.participantKey}
                           justify="between"
                           align="center"
-                          onClick={() => selectParticipant(participant.participantKey)}
+                          onClick={() =>
+                            selectParticipant(participant.participantKey)
+                          }
                           className="cursor-pointer rounded-lg border border-gray-700 px-2 py-1.5 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"
                         >
                           <Flex align="center" gap="2">
@@ -701,7 +857,10 @@ const EventById = () => {
 
         {/* Participants Summary */}
         {participantMap.size > 0 && (
-          <Card id="leaderboard" className="scroll-mt-6 border border-gray-800 bg-gray-900">
+          <Card
+            id="leaderboard"
+            className="scroll-mt-6 border border-gray-800 bg-gray-900"
+          >
             <Box p="5">
               <Flex justify="between" align="center" className="mb-4">
                 <Heading size="5" className="text-white">
@@ -735,7 +894,8 @@ const EventById = () => {
                 {Array.from(participantMap.values())
                   .map(userInfo => ({
                     ...userInfo,
-                    totalPoints: participantPoints.get(userInfo.participantKey) ?? 0,
+                    totalPoints:
+                      participantPoints.get(userInfo.participantKey) ?? 0,
                   }))
                   .sort((a, b) => {
                     if (sortBy === 'points') {
@@ -750,7 +910,9 @@ const EventById = () => {
                       participant={participant}
                       rank={index + 1}
                       metric={metric}
-                      onSelect={() => selectParticipant(participant.participantKey)}
+                      onSelect={() =>
+                        selectParticipant(participant.participantKey)
+                      }
                     />
                   ))}
               </Flex>

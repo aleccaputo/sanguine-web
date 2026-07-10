@@ -37,7 +37,7 @@ export function ParticipantListItem({
       role="button"
       tabIndex={0}
       onClick={handleActivate}
-      onKeyDown={(e) => {
+      onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           handleActivate();
@@ -48,7 +48,9 @@ export function ParticipantListItem({
       {/* Mobile Layout */}
       <div className="flex flex-col gap-3 sm:hidden">
         <Flex align="center" gap="3">
-          <Box className="w-6 flex-shrink-0 whitespace-nowrap text-sm text-gray-400">#{rank}</Box>
+          <Box className="w-6 flex-shrink-0 whitespace-nowrap text-sm text-gray-400">
+            #{rank}
+          </Box>
           <ClickableUserName
             user={{
               discordId: participant.discordId,
@@ -81,7 +83,9 @@ export function ParticipantListItem({
       {/* Desktop Layout */}
       <Flex justify="between" align="center" className="hidden sm:flex">
         <Flex align="center" gap="3" className="min-w-0 flex-1">
-          <Box className="w-6 flex-shrink-0 whitespace-nowrap text-sm text-gray-400">#{rank}</Box>
+          <Box className="w-6 flex-shrink-0 whitespace-nowrap text-sm text-gray-400">
+            #{rank}
+          </Box>
           <ClickableUserName
             user={{
               discordId: participant.discordId,

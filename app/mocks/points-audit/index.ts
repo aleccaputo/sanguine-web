@@ -16,8 +16,7 @@ export const getLegacyCompetitionPointsByDiscordId = async (): Promise<
 export const getAuditDataForDateRange = async (
   startDate: string,
   endDate: string,
-) =>
-  MOCK_DROPS.filter(d => d.createdAt >= startDate && d.createdAt <= endDate);
+) => MOCK_DROPS.filter(d => d.createdAt >= startDate && d.createdAt <= endDate);
 
 export const getAuditDataForUserById = async (id: string) =>
   MOCK_DROPS.filter(d => d.destinationDiscordId === id);
