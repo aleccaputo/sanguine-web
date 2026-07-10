@@ -927,7 +927,7 @@ export default function UserById() {
                     <Flex
                       align="baseline"
                       justify="between"
-                      className="border-t-2 border-t-sanguine-red pb-1 pt-2"
+                      className="pb-1 pt-2"
                     >
                       <Text size="3" className="text-osrs-orange">
                         Raids
@@ -1033,7 +1033,7 @@ export default function UserById() {
                     <Flex
                       align="baseline"
                       justify="between"
-                      className="border-t-2 border-t-sanguine-red pb-1 pt-2"
+                      className="pb-1 pt-2"
                     >
                       <Text size="3" className="text-osrs-orange">
                         Competitions{' '}
@@ -1194,7 +1194,7 @@ export default function UserById() {
                     align="baseline"
                     justify="between"
                     gap="3"
-                    className="border-t-2 border-t-sanguine-red pb-1 pt-2"
+                    className="pb-1 pt-2"
                   >
                     <Text size="3" className="text-osrs-orange">
                       Other{' '}
