@@ -596,14 +596,14 @@ export default function UserById() {
           </Flex>
           <dl>
             <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-              <dt className="text-sm text-gray-500">Joined</dt>
-              <dd className="text-sm text-gray-200">
+              <dt className="text-base text-gray-500">Joined</dt>
+              <dd className="text-base text-gray-200">
                 {dayjs(user.joined).format('MMMM YYYY')}
               </dd>
             </div>
             {hasAlts && (
               <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-sm text-gray-500">Accounts</dt>
+                <dt className="text-base text-gray-500">Accounts</dt>
                 <dd>
                   <Flex direction="column" gap="1">
                     {accountOptions
@@ -619,7 +619,7 @@ export default function UserById() {
                               className="shrink-0 [image-rendering:pixelated]"
                             />
                           )}
-                          <span className="text-sm text-gray-200">
+                          <span className="text-base text-gray-200">
                             {option.label}
                           </span>
                         </Flex>
@@ -640,29 +640,29 @@ export default function UserById() {
           </Text>
           <dl>
             <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-              <dt className="text-sm text-gray-500">Drop points</dt>
-              <dd className="text-sm text-white">
+              <dt className="text-base text-gray-500">Drop points</dt>
+              <dd className="text-base text-white">
                 {user.points.toLocaleString()}
               </dd>
             </div>
             <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-              <dt className="text-sm text-gray-500">Clan points</dt>
-              <dd className="text-sm text-osrs-gold">
+              <dt className="text-base text-gray-500">Clan points</dt>
+              <dd className="text-base text-osrs-gold">
                 {user.clanPoints.toLocaleString()}
               </dd>
             </div>
             {allItemsLogged.length > 0 && (
               <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-sm text-gray-500">Drops logged</dt>
-                <dd className="text-sm text-gray-200">
+                <dt className="text-base text-gray-500">Drops logged</dt>
+                <dd className="text-base text-gray-200">
                   {allItemsLogged.length}
                 </dd>
               </div>
             )}
             {allDropsGP > 0 && (
               <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-sm text-gray-500">Loot value</dt>
-                <dd className="text-sm text-osrs-gold">
+                <dt className="text-base text-gray-500">Loot value</dt>
+                <dd className="text-base text-osrs-gold">
                   <img
                     src="https://oldschool.runescape.wiki/images/Coins_detail.png"
                     alt=""
@@ -674,10 +674,10 @@ export default function UserById() {
             )}
             {topBoss && (
               <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-sm text-gray-500">Top boss</dt>
-                <dd className="text-sm text-gray-200">
+                <dt className="text-base text-gray-500">Top boss</dt>
+                <dd className="text-base text-gray-200">
                   {topBoss.bossName}
-                  <span className="block text-gray-500">
+                  <span className="block text-sm text-gray-500">
                     {topBoss.count} {topBoss.count === 1 ? 'drop' : 'drops'}
                     {topBoss.gp > 0 && (
                       <>
@@ -694,17 +694,17 @@ export default function UserById() {
             )}
             {raids.length > 0 && (
               <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-sm text-gray-500">Raids</dt>
-                <dd className="text-sm text-gray-200">{raids.length}</dd>
+                <dt className="text-base text-gray-500">Raids</dt>
+                <dd className="text-base text-gray-200">{raids.length}</dd>
               </div>
             )}
             {totalComps > 0 && (
               <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-sm text-gray-500">Competitions</dt>
-                <dd className="text-sm text-gray-200">
+                <dt className="text-base text-gray-500">Competitions</dt>
+                <dd className="text-base text-gray-200">
                   {totalComps}
                   {compPodiums > 0 && (
-                    <span className="ml-2 text-gray-400">
+                    <span className="ml-2 text-sm text-gray-400">
                       top three ×{compPodiums}
                     </span>
                   )}
@@ -713,11 +713,11 @@ export default function UserById() {
             )}
             {personalBests.length > 0 && (
               <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-sm text-gray-500">Personal bests</dt>
-                <dd className="text-sm text-gray-200">
+                <dt className="text-base text-gray-500">Personal bests</dt>
+                <dd className="text-base text-gray-200">
                   {personalBests.length}
                   {pbMedalSummary && (
-                    <span className="ml-2 text-gray-400">{pbMedalSummary}</span>
+                    <span className="ml-2 text-sm text-gray-400">{pbMedalSummary}</span>
                   )}
                 </dd>
               </div>
@@ -855,7 +855,7 @@ export default function UserById() {
                 </Text>
                 <button
                   onClick={() => setTocOpen(open => !open)}
-                  className="text-xs text-gray-500 hover:text-white"
+                  className="text-sm text-gray-500 hover:text-white"
                 >
                   [{tocOpen ? 'hide' : 'show'}]
                 </button>
@@ -866,7 +866,7 @@ export default function UserById() {
                     <li key={section.id}>
                       <a
                         href={`#${section.id}`}
-                        className="text-sm text-sanguine-bright transition-colors hover:text-white"
+                        className="text-base text-sanguine-bright transition-colors hover:text-white"
                       >
                         <span className="mr-2 text-gray-600">{index + 1}.</span>
                         {section.title}
@@ -883,7 +883,7 @@ export default function UserById() {
                             <li key={child.id}>
                               <a
                                 href={`#${child.id}`}
-                                className="text-sm text-sanguine-bright transition-colors hover:text-white"
+                                className="text-base text-sanguine-bright transition-colors hover:text-white"
                               >
                                 <span className="mr-2 text-gray-600">
                                   {index + 1}.{childIndex + 1}
