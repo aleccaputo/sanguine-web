@@ -282,6 +282,14 @@ export default function UserById() {
   const [selectedAccount, setSelectedAccount] = useState(ALL_ACCOUNTS);
   const [currentPage, setCurrentPage] = useState(1);
   const [tocOpen, setTocOpen] = useState(true);
+
+  // Contents links scroll manually: a plain hash anchor triggers a router navigation and
+  // Remix's scroll restoration stomps the browser's anchor jump with the saved position
+  // (the page twitches but lands back where it was until a second click).
+  const jumpToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView();
+    window.history.replaceState(null, '', `#${id}`);
+  };
   const itemsPerPage = 7;
 
   const filteredItems = useMemo(() => {
@@ -793,8 +801,10 @@ export default function UserById() {
                   className="text-sanguine-bright transition-colors hover:text-white"
                 >
                   {topBoss.bossName}
-                </a>{' '}
-                — <span className="text-white">{topBoss.count}</span>{' '}
+                </a>
+                {/* Hard Mode variants already carry a colon — avoid "Hard Mode: 1 drop" */}
+                {topBoss.bossName.includes(':') ? ', with' : ':'}{' '}
+                <span className="text-white">{topBoss.count}</span>{' '}
                 {topBoss.count === 1 ? 'drop' : 'drops'} worth{' '}
                 <span className="text-osrs-gold">
                   {topBoss.gp.toLocaleString()} gp
@@ -864,6 +874,10 @@ export default function UserById() {
                     <li key={section.id}>
                       <a
                         href={`#${section.id}`}
+                        onClick={event => {
+                          event.preventDefault();
+                          jumpToSection(section.id);
+                        }}
                         className="text-base text-sanguine-bright transition-colors hover:text-white"
                       >
                         <span className="mr-2 text-gray-600">{index + 1}.</span>
@@ -881,6 +895,10 @@ export default function UserById() {
                             <li key={child.id}>
                               <a
                                 href={`#${child.id}`}
+                                onClick={event => {
+                                  event.preventDefault();
+                                  jumpToSection(child.id);
+                                }}
                                 className="text-base text-sanguine-bright transition-colors hover:text-white"
                               >
                                 <span className="mr-2 text-gray-600">
