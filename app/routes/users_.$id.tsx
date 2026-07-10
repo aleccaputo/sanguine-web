@@ -281,6 +281,7 @@ export default function UserById() {
   // selectedAccount is either ALL_ACCOUNTS, mainName, or an alt's altName
   const [selectedAccount, setSelectedAccount] = useState(ALL_ACCOUNTS);
   const [currentPage, setCurrentPage] = useState(1);
+  const [tocOpen, setTocOpen] = useState(true);
   const itemsPerPage = 7;
 
   const filteredItems = useMemo(() => {
@@ -377,8 +378,14 @@ export default function UserById() {
   ].filter(Boolean).length;
 
   // The page reads as the member's wiki article: sections with data render (and appear in
-  // Contents); the chart always does, carrying its own empty state.
-  const sections: { id: string; title: string; count?: number }[] = [
+  // Contents); the chart always does, carrying its own empty state. Clan-point subsections
+  // nest under their section (3.1, 3.2 …) exactly when their headers render.
+  const sections: {
+    id: string;
+    title: string;
+    count?: number;
+    children?: { id: string; title: string }[];
+  }[] = [
     ...(allItemsLogged.length > 0
       ? [{ id: 'drops', title: 'Drops', count: allItemsLogged.length }]
       : []),
@@ -392,7 +399,26 @@ export default function UserById() {
         ]
       : []),
     ...(hasClanPointHistory
-      ? [{ id: 'clan-points', title: 'Clan points' }]
+      ? [
+          {
+            id: 'clan-points',
+            title: 'Clan points',
+            children:
+              clanPointSources > 1
+                ? [
+                    ...(raids.length > 0
+                      ? [{ id: 'raids', title: 'Raids' }]
+                      : []),
+                    ...(hasCompetitionHistory
+                      ? [{ id: 'competitions', title: 'Competitions' }]
+                      : []),
+                    ...(otherAwards
+                      ? [{ id: 'other-awards', title: 'Other' }]
+                      : []),
+                  ]
+                : undefined,
+          },
+        ]
       : []),
     { id: 'chart', title: 'Points chart' },
   ];
@@ -474,6 +500,13 @@ export default function UserById() {
     user.clanPoints > 0 ||
     allItemsLogged.length > 0 ||
     personalBests.length > 0;
+  // Categories footer — the wiki's bottom strip, generated from the record.
+  const categories = [
+    ...(isGuest ? [] : [mainRankLabel]),
+    ...(raids.length > 0 ? ['Raiders'] : []),
+    ...(pbGolds > 0 ? ['Clan record holders'] : []),
+    ...(compPodiums > 0 ? ['Competition medalists'] : []),
+  ];
 
   // Shown inside the Drops and Points Chart tabs only — those are the sections it filters.
   // Personal Bests and Raids are keyed to the member and span every account.
@@ -568,6 +601,44 @@ export default function UserById() {
                 {dayjs(user.joined).format('MMMM YYYY')}
               </dd>
             </div>
+            {hasAlts && (
+              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
+                <dt className="text-sm text-gray-500">Accounts</dt>
+                <dd>
+                  <Flex direction="column" gap="1">
+                    {accountOptions
+                      .filter(option => option.key !== ALL_ACCOUNTS)
+                      .map(option => (
+                        <Flex key={option.key} align="center" gap="2">
+                          {option.role && (
+                            <img
+                              src={fetchRankImage(option.role)}
+                              alt={rankLabel(option.role)}
+                              width={16}
+                              height={16}
+                              className="shrink-0 [image-rendering:pixelated]"
+                            />
+                          )}
+                          <span className="text-sm text-gray-200">
+                            {option.label}
+                          </span>
+                        </Flex>
+                      ))}
+                  </Flex>
+                </dd>
+              </div>
+            )}
+          </dl>
+          {/* Second infobox band, wiki-style — vitals above, the clan record below */}
+          <Text
+            as="div"
+            size="2"
+            weight="medium"
+            className="border-t border-gray-800 bg-sanguine-red px-3 py-1 text-center text-white"
+          >
+            Clan record
+          </Text>
+          <dl>
             <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
               <dt className="text-sm text-gray-500">Drop points</dt>
               <dd className="text-sm text-white">
@@ -651,33 +722,6 @@ export default function UserById() {
                 </dd>
               </div>
             )}
-            {hasAlts && (
-              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-sm text-gray-500">Accounts</dt>
-                <dd>
-                  <Flex direction="column" gap="1">
-                    {accountOptions
-                      .filter(option => option.key !== ALL_ACCOUNTS)
-                      .map(option => (
-                        <Flex key={option.key} align="center" gap="2">
-                          {option.role && (
-                            <img
-                              src={fetchRankImage(option.role)}
-                              alt={rankLabel(option.role)}
-                              width={16}
-                              height={16}
-                              className="shrink-0 [image-rendering:pixelated]"
-                            />
-                          )}
-                          <span className="text-sm text-gray-200">
-                            {option.label}
-                          </span>
-                        </Flex>
-                      ))}
-                  </Flex>
-                </dd>
-              </div>
-            )}
           </dl>
         </aside>
 
@@ -723,7 +767,14 @@ export default function UserById() {
             {allItemsLogged.length > 0 && (
               <>
                 {' '}
-                The drop log records{' '}
+                The{' '}
+                <Link
+                  to="/drops"
+                  className="text-sanguine-bright transition-colors hover:text-white"
+                >
+                  drop log
+                </Link>{' '}
+                records{' '}
                 <span className="text-white">{allItemsLogged.length}</span> of
                 their finds, together worth{' '}
                 <span className="text-osrs-gold">
@@ -736,7 +787,15 @@ export default function UserById() {
               <>
                 {' '}
                 Their most profitable boss has been{' '}
-                <span className="text-white">{topBoss.bossName}</span> —{' '}
+                <a
+                  href={`https://oldschool.runescape.wiki/w/${topBoss.bossName.replace(/ /g, '_')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sanguine-bright transition-colors hover:text-white"
+                >
+                  {topBoss.bossName}
+                </a>{' '}
+                —{' '}
                 <span className="text-white">{topBoss.count}</span>{' '}
                 {topBoss.count === 1 ? 'drop' : 'drops'} worth{' '}
                 <span className="text-osrs-gold">
@@ -757,7 +816,14 @@ export default function UserById() {
             {personalBests.length > 0 && (
               <>
                 {' '}
-                On the clan&apos;s personal-best boards they hold{' '}
+                On the clan&apos;s{' '}
+                <Link
+                  to="/personal-bests"
+                  className="text-sanguine-bright transition-colors hover:text-white"
+                >
+                  personal-best boards
+                </Link>{' '}
+                they hold{' '}
                 <span className="text-white">{personalBests.length}</span>{' '}
                 {personalBests.length === 1 ? 'time' : 'times'}
                 {pbGolds > 0 && (
@@ -777,27 +843,62 @@ export default function UserById() {
           {/* Contents — numbered because the sections genuinely are ordered below.
               A single-section article doesn't need a table of contents. */}
           {sections.length > 1 && (
-          <nav className="mt-6 inline-block border border-gray-800 bg-gray-900 px-5 py-3">
-            <Text as="p" size="2" weight="medium" className="text-gray-300">
-              Contents
-            </Text>
-            <ol className="mt-2 space-y-1">
-              {sections.map((section, index) => (
-                <li key={section.id}>
-                  <a
-                    href={`#${section.id}`}
-                    className="text-sm text-sanguine-bright transition-colors hover:text-white"
-                  >
-                    <span className="mr-2 text-gray-600">{index + 1}.</span>
-                    {section.title}
-                    {section.count !== undefined && (
-                      <span className="text-gray-600"> ({section.count})</span>
-                    )}
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </nav>
+            <nav className="mt-6 inline-block border border-gray-800 bg-gray-900">
+              <Flex
+                align="baseline"
+                justify="between"
+                gap="5"
+                className={`px-5 py-1.5 ${tocOpen ? 'border-b border-gray-800' : ''}`}
+              >
+                <Text size="2" weight="medium" className="text-gray-300">
+                  Contents
+                </Text>
+                <button
+                  onClick={() => setTocOpen(open => !open)}
+                  className="text-xs text-gray-500 hover:text-white"
+                >
+                  [{tocOpen ? 'hide' : 'show'}]
+                </button>
+              </Flex>
+              {tocOpen && (
+                <ol className="space-y-1 px-5 py-3">
+                  {sections.map((section, index) => (
+                    <li key={section.id}>
+                      <a
+                        href={`#${section.id}`}
+                        className="text-sm text-sanguine-bright transition-colors hover:text-white"
+                      >
+                        <span className="mr-2 text-gray-600">{index + 1}.</span>
+                        {section.title}
+                        {section.count !== undefined && (
+                          <span className="text-gray-600">
+                            {' '}
+                            ({section.count})
+                          </span>
+                        )}
+                      </a>
+                      {section.children && (
+                        <ol className="mt-1 space-y-1 pl-5">
+                          {section.children.map((child, childIndex) => (
+                            <li key={child.id}>
+                              <a
+                                href={`#${child.id}`}
+                                className="text-sm text-sanguine-bright transition-colors hover:text-white"
+                              >
+                                <span className="mr-2 text-gray-600">
+                                  {index + 1}.{childIndex + 1}
+                                </span>
+                                {child.title}
+                              </a>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </nav>
           )}
 
           {/* Drops — filtered by the account switcher */}
@@ -1027,7 +1128,7 @@ export default function UserById() {
               </Flex>
               <Flex direction="column" gap="5" mt="4">
                 {raids.length > 0 && (
-                  <Box>
+                  <Box id="raids" className="scroll-mt-20">
                     {clanPointSources > 1 && (
                       <Flex
                         align="baseline"
@@ -1138,7 +1239,7 @@ export default function UserById() {
                 )}
 
                 {hasCompetitionHistory && (
-                  <Box>
+                  <Box id="competitions" className="scroll-mt-20">
                     {clanPointSources > 1 && (
                       <Flex
                         align="baseline"
@@ -1305,10 +1406,11 @@ export default function UserById() {
                 {/* Manual awards (event prizes, corrections) — one net figure, not a ledger */}
                 {otherAwards && (
                   <Flex
+                    id="other-awards"
                     align="baseline"
                     justify="between"
                     gap="3"
-                    className="pb-1 pt-2"
+                    className="scroll-mt-20 pb-1 pt-2"
                   >
                     <Text size="3" className="text-osrs-orange">
                       Other{' '}
@@ -1391,6 +1493,25 @@ export default function UserById() {
           </section>
         </Box>
       </div>
+
+      {/* Categories — the wiki's footer strip, generated from the record */}
+      <Box mt="8" className="border border-gray-800 bg-gray-900 px-4 py-2">
+        <Text as="p" size="2" className="text-gray-500">
+          Categories:{' '}
+          <Link
+            to="/users"
+            className="text-sanguine-bright transition-colors hover:text-white"
+          >
+            {isGuest ? 'Sanguine guests' : 'Sanguine members'}
+          </Link>
+          {categories.map(category => (
+            <span key={category} className="text-gray-400">
+              {' | '}
+              {category}
+            </span>
+          ))}
+        </Text>
+      </Box>
     </Container>
   );
 }
