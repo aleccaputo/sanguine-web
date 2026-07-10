@@ -410,6 +410,9 @@ export default function UserById() {
     .filter(([, count]) => count > 0)
     .map(([medal, count]) => `${medal} ${count}`)
     .join(' · ');
+  const compPodiums = competitionAwards.filter(
+    award => award.placement != null && award.placement <= 3,
+  ).length;
   const mainRole = womRoles[mainName] ?? 'Guest';
   const isGuest = !womRoles[mainName];
   const mainRankLabel = rankLabel(mainRole);
@@ -665,6 +668,14 @@ export default function UserById() {
                   </>
                 )}
                 .
+              </>
+            )}
+            {compPodiums > 0 && (
+              <>
+                {' '}
+                They have finished top three in{' '}
+                <span className="text-white">{compPodiums}</span> clan{' '}
+                {compPodiums === 1 ? 'competition' : 'competitions'}.
               </>
             )}
             {!hasAnyRecord && <> So far, nothing interesting happens.</>}
