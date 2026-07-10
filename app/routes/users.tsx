@@ -258,7 +258,7 @@ export default function Index() {
               Members
             </Heading>
           </Flex>
-          <Text as="p" size="2" className="mt-2 text-gray-400">
+          <Text as="p" size="3" className="mt-2 text-gray-400">
             <span className="font-semibold text-sanguine-bright">
               {roster.length}
             </span>{' '}
@@ -289,7 +289,7 @@ export default function Index() {
                     : 'pb-2 sm:pr-5'
                 }
               >
-                <Text as="p" size="1" className="pt-2 text-gray-500">
+                <Text as="p" size="2" className="pt-2 text-gray-500">
                   {board.title}
                 </Text>
                 {board.entries.map(({ user, rank }, index) => (

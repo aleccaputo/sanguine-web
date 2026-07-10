@@ -76,7 +76,7 @@ export function DropItem({
             >
               <Text
                 size={isLarge ? { initial: '1', md: '2' } : '2'}
-                className="whitespace-nowrap text-gray-300"
+                className="whitespace-nowrap text-gray-400"
               >
                 {dayjs(item.createdAt).format('MMM D, YYYY')}
               </Text>
@@ -95,10 +95,11 @@ export function DropItem({
                   </Text>
                 </Flex>
               )}
+              {/* Drop points read white everywhere (red is reserved for members/links) */}
               <Text
                 size={isLarge ? { initial: '1', md: '2' } : '2'}
                 weight="medium"
-                className="text-sanguine-bright"
+                className="text-white"
               >
                 +{item.pointsGiven} pts
               </Text>
