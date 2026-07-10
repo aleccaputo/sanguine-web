@@ -234,7 +234,9 @@ export default function Index() {
             </Heading>
           </Flex>
           <Text as="p" size="2" className="mt-2 text-gray-400">
-            <span className="font-semibold text-white">{roster.length}</span>{' '}
+            <span className="font-semibold text-sanguine-bright">
+              {roster.length}
+            </span>{' '}
             members holding{' '}
             <span className="font-semibold text-white">
               {totalDropPoints.toLocaleString()}
@@ -289,7 +291,7 @@ export default function Index() {
                     />
                     <Text
                       as="div"
-                      className={`min-w-0 flex-1 truncate leading-tight text-white group-hover:text-sanguine-bright ${
+                      className={`min-w-0 flex-1 truncate leading-tight text-sanguine-bright group-hover:text-white ${
                         index === 0 ? 'text-xl' : 'text-base'
                       }`}
                     >
@@ -421,7 +423,7 @@ export default function Index() {
                   <Box className="min-w-0">
                     <Text
                       as="div"
-                      className="truncate leading-tight text-white group-hover:text-sanguine-bright"
+                      className="truncate leading-tight text-sanguine-bright group-hover:text-white"
                     >
                       {user.nickname}
                     </Text>
