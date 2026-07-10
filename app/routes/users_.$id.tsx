@@ -363,11 +363,6 @@ export default function UserById() {
     from: dayjs(historicalCompetitions.from).format('MMM YYYY'),
     to: dayjs(historicalCompetitions.to).format('MMM YYYY'),
   };
-  const historicalRangeLabel =
-    historicalRange &&
-    (historicalRange.from === historicalRange.to
-      ? historicalRange.from
-      : `${historicalRange.from} – ${historicalRange.to}`);
   const competitionsPointsTotal =
     competitionAwards.reduce((sum, a) => sum + a.pointsGiven, 0) +
     (historicalCompetitions?.points ?? 0);
@@ -416,6 +411,7 @@ export default function UserById() {
     .map(([medal, count]) => `${medal} ${count}`)
     .join(' · ');
   const mainRole = womRoles[mainName] ?? 'Guest';
+  const isGuest = !womRoles[mainName];
   const mainRankLabel = rankLabel(mainRole);
   // "the owner of Sanguine" for one-of-a-kind ranks, "a monarch" / "an officer" otherwise.
   const rankArticle = ['owner', 'deputy owner'].includes(
@@ -602,26 +598,37 @@ export default function UserById() {
               actually done. Totals here span all accounts. */}
           <Text as="p" size="3" className="mt-6 leading-7 text-gray-300">
             <strong className="font-medium text-white">{mainName}</strong> is{' '}
-            {rankArticle} {mainRankLabel} of{' '}
+            {rankArticle} {isGuest ? 'guest' : mainRankLabel} of{' '}
             <Link
               to="/"
               className="text-sanguine-bright transition-colors hover:text-white"
             >
               Sanguine
             </Link>
-            , a member since {dayjs(user.joined).format('MMMM YYYY')}
+            , {isGuest ? 'on the record' : 'a member'} since{' '}
+            {dayjs(user.joined).format('MMMM YYYY')}
             {hasAlts && <>, playing across {1 + userAlts.length} accounts</>}.
             {(user.points > 0 || user.clanPoints > 0) && (
               <>
                 {' '}
-                Their time in the clan has earned{' '}
-                <span className="text-white">
-                  {user.points.toLocaleString()} drop points
-                </span>{' '}
-                and{' '}
-                <span className="text-osrs-gold">
-                  {user.clanPoints.toLocaleString()} clan points
-                </span>
+                To date they have earned
+                {user.points > 0 && (
+                  <>
+                    {' '}
+                    <span className="text-white">
+                      {user.points.toLocaleString()} drop points
+                    </span>
+                  </>
+                )}
+                {user.points > 0 && user.clanPoints > 0 && ' and'}
+                {user.clanPoints > 0 && (
+                  <>
+                    {' '}
+                    <span className="text-osrs-gold">
+                      {user.clanPoints.toLocaleString()} clan points
+                    </span>
+                  </>
+                )}
                 .
               </>
             )}
@@ -657,7 +664,9 @@ export default function UserById() {
             {!hasAnyRecord && <> So far, nothing interesting happens.</>}
           </Text>
 
-          {/* Contents — numbered because the sections genuinely are ordered below. */}
+          {/* Contents — numbered because the sections genuinely are ordered below.
+              A single-section article doesn't need a table of contents. */}
+          {sections.length > 1 && (
           <nav className="mt-6 inline-block border border-gray-800 bg-gray-900 px-5 py-3">
             <Text as="p" size="2" weight="medium" className="text-gray-300">
               Contents
@@ -679,6 +688,7 @@ export default function UserById() {
               ))}
             </ol>
           </nav>
+          )}
 
           {/* Drops — filtered by the account switcher */}
           {allItemsLogged.length > 0 && (
@@ -686,6 +696,8 @@ export default function UserById() {
               <Flex
                 align="baseline"
                 justify="between"
+                gap="3"
+                wrap="wrap"
                 className="border-b border-gray-700 pb-1"
               >
                 <Heading size="5" className="font-normal text-gray-100">
@@ -749,6 +761,8 @@ export default function UserById() {
               <Flex
                 align="baseline"
                 justify="between"
+                gap="3"
+                wrap="wrap"
                 className="border-b border-gray-700 pb-1"
               >
                 <Heading size="5" className="font-normal text-gray-100">
@@ -887,12 +901,14 @@ export default function UserById() {
               <Flex
                 align="baseline"
                 justify="between"
+                gap="3"
+                wrap="wrap"
                 className="border-b border-gray-700 pb-1"
               >
                 <Heading size="5" className="font-normal text-gray-100">
                   Clan points
                 </Heading>
-                <Text size="2" className="text-gray-500">
+                <Text size="2" className="whitespace-nowrap text-gray-500">
                   <span className="text-osrs-gold">
                     {user.clanPoints.toLocaleString()}
                   </span>{' '}
@@ -910,7 +926,7 @@ export default function UserById() {
                       <Text size="3" className="text-osrs-orange">
                         Raids
                       </Text>
-                      <Text size="2" className="text-gray-500">
+                      <Text size="2" className="whitespace-nowrap text-gray-500">
                         <span className="text-osrs-gold">
                           {raidsPointsTotal}
                         </span>{' '}
@@ -1015,11 +1031,11 @@ export default function UserById() {
                     >
                       <Text size="3" className="text-osrs-orange">
                         Competitions{' '}
-                        <span className="text-gray-600">
+                        <span className="hidden text-gray-600 sm:inline">
                           weeklies and one-off comps
                         </span>
                       </Text>
-                      <Text size="2" className="text-gray-500">
+                      <Text size="2" className="whitespace-nowrap text-gray-500">
                         <span className="text-osrs-gold">
                           {competitionsPointsTotal}
                         </span>{' '}
@@ -1093,8 +1109,15 @@ export default function UserById() {
                                   </Text>
                                 )}
                               </Table.Cell>
-                              <Table.Cell className="text-gray-400 sm:whitespace-nowrap">
-                                {dayjs(award.createdAt).format('MMM D, YYYY')}
+                              <Table.Cell className="text-gray-400">
+                                {/* Breakable only at the comma, so narrow screens get
+                                    "Jun 25," / "2026" instead of a word-per-line date. */}
+                                <span className="whitespace-nowrap">
+                                  {dayjs(award.createdAt).format('MMM D,')}
+                                </span>{' '}
+                                <span className="whitespace-nowrap">
+                                  {dayjs(award.createdAt).format('YYYY')}
+                                </span>
                               </Table.Cell>
                               <Table.Cell
                                 align="right"
@@ -1127,8 +1150,23 @@ export default function UserById() {
                                   —
                                 </Text>
                               </Table.Cell>
-                              <Table.Cell className="text-gray-400 sm:whitespace-nowrap">
-                                {historicalRangeLabel}
+                              <Table.Cell className="text-gray-400">
+                                {historicalRange &&
+                                  (historicalRange.from ===
+                                  historicalRange.to ? (
+                                    <span className="whitespace-nowrap">
+                                      {historicalRange.from}
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <span className="whitespace-nowrap">
+                                        {historicalRange.from} –
+                                      </span>{' '}
+                                      <span className="whitespace-nowrap">
+                                        {historicalRange.to}
+                                      </span>
+                                    </>
+                                  ))}
                               </Table.Cell>
                               <Table.Cell
                                 align="right"
@@ -1154,7 +1192,7 @@ export default function UserById() {
                   >
                     <Text size="3" className="text-osrs-orange">
                       Other{' '}
-                      <span className="text-gray-600">
+                      <span className="hidden text-gray-600 sm:inline">
                         manual awards across {otherAwards.count}{' '}
                         {otherAwards.count === 1 ? 'entry' : 'entries'}
                       </span>
@@ -1182,6 +1220,8 @@ export default function UserById() {
             <Flex
               align="baseline"
               justify="between"
+              gap="3"
+              wrap="wrap"
               className="border-b border-gray-700 pb-1"
             >
               <Heading size="5" className="font-normal text-gray-100">
