@@ -100,9 +100,24 @@ export default function Index() {
   const totalDropPoints = roster.reduce((sum, x) => sum + x.user.points, 0);
   const totalClanPoints = roster.reduce((sum, x) => sum + x.user.clanPoints, 0);
 
-  const topContributors = [...roster]
-    .sort((a, b) => b.user.clanPoints - a.user.clanPoints)
-    .slice(0, 3);
+  const leaderBoards = [
+    {
+      title: 'Top clan point earners',
+      field: 'clanPoints' as const,
+      valueClass: 'text-osrs-gold',
+      entries: [...roster]
+        .sort((a, b) => b.user.clanPoints - a.user.clanPoints)
+        .slice(0, 3),
+    },
+    {
+      title: 'Top drop point earners',
+      field: 'points' as const,
+      valueClass: 'text-white',
+      entries: [...roster]
+        .sort((a, b) => b.user.points - a.user.points)
+        .slice(0, 3),
+    },
+  ];
 
   // Rank filter chips: All and Staff first, then every non-staff rank present on the
   // roster in hierarchy order.
@@ -237,53 +252,60 @@ export default function Index() {
           mb="6"
           className="border-b border-t-2 border-gray-800 border-t-sanguine-red"
         >
-          <Text as="p" size="1" className="pt-2 text-gray-500">
-            Top clan point earners
-          </Text>
-          <div className="grid grid-cols-1 sm:grid-cols-[1.6fr_1fr_1fr]">
-            {topContributors.map(({ user, rank }, index) => (
-              <button
-                key={user.discordId}
-                onClick={() => navigate(`/users/${user.discordId}`)}
-                className={`group flex min-w-0 items-center gap-3 py-4 pr-4 text-left ${
-                  index > 0
-                    ? 'border-t border-gray-800 sm:border-l sm:border-t-0 sm:pl-4'
-                    : ''
-                }`}
+          <div className="grid grid-cols-1 sm:grid-cols-2">
+            {leaderBoards.map((board, boardIndex) => (
+              <div
+                key={board.field}
+                className={
+                  boardIndex > 0
+                    ? 'border-t border-gray-800 pb-2 sm:border-l sm:border-t-0 sm:pl-5'
+                    : 'pb-2 sm:pr-5'
+                }
               >
-                <span
-                  className={
-                    index === 0
-                      ? 'text-4xl leading-none text-osrs-gold'
-                      : 'text-2xl leading-none text-gray-600'
-                  }
-                >
-                  {index + 1}
-                </span>
-                <img
-                  src={fetchRankImage(rank)}
-                  alt={rankLabel(rank)}
-                  width={index === 0 ? 30 : 24}
-                  height={index === 0 ? 30 : 24}
-                  className="[image-rendering:pixelated]"
-                />
-                <Box className="min-w-0">
-                  <Text
-                    as="div"
-                    className={`truncate leading-tight text-white group-hover:text-sanguine-bright ${
-                      index === 0 ? 'text-2xl' : 'text-xl'
-                    }`}
+                <Text as="p" size="1" className="pt-2 text-gray-500">
+                  {board.title}
+                </Text>
+                {board.entries.map(({ user, rank }, index) => (
+                  <button
+                    key={user.discordId}
+                    onClick={() => navigate(`/users/${user.discordId}`)}
+                    className="group flex w-full min-w-0 items-center gap-3 py-1.5 text-left"
                   >
-                    {user.nickname}
-                  </Text>
-                  <Text as="div" size="1" className="text-gray-400">
-                    <span className="font-semibold text-osrs-gold">
-                      {user.clanPoints.toLocaleString()}
-                    </span>{' '}
-                    clan points
-                  </Text>
-                </Box>
-              </button>
+                    <span
+                      className={`w-5 shrink-0 text-right leading-none ${
+                        index === 0
+                          ? 'text-xl text-osrs-gold'
+                          : 'text-base text-gray-600'
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+                    <img
+                      src={fetchRankImage(rank)}
+                      alt={rankLabel(rank)}
+                      width={22}
+                      height={22}
+                      className="shrink-0 [image-rendering:pixelated]"
+                    />
+                    <Text
+                      as="div"
+                      className={`min-w-0 flex-1 truncate leading-tight text-white group-hover:text-sanguine-bright ${
+                        index === 0 ? 'text-xl' : 'text-base'
+                      }`}
+                    >
+                      {user.nickname}
+                    </Text>
+                    <Text
+                      as="div"
+                      className={`text-right ${board.valueClass} ${
+                        index === 0 ? 'text-xl' : 'text-base'
+                      }`}
+                    >
+                      {user[board.field].toLocaleString()}
+                    </Text>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         </Box>
