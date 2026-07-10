@@ -432,6 +432,8 @@ export default function UserById() {
   const isGuest = !womRoles[mainName];
   const mainRankLabel = rankLabel(mainRole);
   // "the owner of Sanguine" for one-of-a-kind ranks, "a monarch" / "an officer" otherwise.
+  // The monthly winner ranks are held by one member at a time, so they read as
+  // "the current RotW winner of Sanguine".
   const rankArticle = ['owner', 'deputy owner'].includes(
     mainRankLabel.toLocaleLowerCase(),
   )
@@ -439,6 +441,14 @@ export default function UserById() {
     : /^[aeiou]/i.test(mainRankLabel)
       ? 'an'
       : 'a';
+  const isWinnerRank = ['blood', 'leader', 'skiller'].includes(
+    mainRole.toLocaleLowerCase(),
+  );
+  const ledeRankPhrase = isGuest
+    ? `${rankArticle} guest`
+    : isWinnerRank
+      ? `the current ${mainRankLabel}`
+      : `${rankArticle} ${mainRankLabel}`;
   const hasAnyRecord =
     user.points > 0 ||
     user.clanPoints > 0 ||
@@ -622,7 +632,7 @@ export default function UserById() {
               actually done. Totals here span all accounts. */}
           <Text as="p" size="3" className="mt-6 leading-7 text-gray-300">
             <strong className="font-medium text-white">{mainName}</strong> is{' '}
-            {rankArticle} {isGuest ? 'guest' : mainRankLabel} of{' '}
+            {ledeRankPhrase} of{' '}
             <Link
               to="/"
               className="text-sanguine-bright transition-colors hover:text-white"
