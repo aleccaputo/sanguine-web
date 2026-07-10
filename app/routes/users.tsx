@@ -1,28 +1,15 @@
 import { defer, MetaFunction, SerializeFrom } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
 import { useState } from 'react';
+import dayjs from 'dayjs';
 import {
   getUsersWithNicknames,
   ISanguineUserWithNickname,
 } from '~/services/sanguine-service.server';
 
-import {
-  Box,
-  Card,
-  Flex,
-  Text,
-  Container,
-  Grid,
-  Heading,
-  Select,
-  IconButton,
-} from '@radix-ui/themes';
+import { Box, Flex, Text, Container, Heading } from '@radix-ui/themes';
 
-import {
-  MagnifyingGlassIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-} from '@radix-ui/react-icons';
+import { MagnifyingGlassIcon } from '@radix-ui/react-icons';
 import {
   getClanFromWom,
   type MembershipWithPlayer,
@@ -30,8 +17,21 @@ import {
 import { getLegacyCompetitionPointsByDiscordId } from '~/data/points-audit';
 import { fetchRankImage, getRankSortIndex } from '~/utils/clan-ranks';
 
-type SortField = 'rank' | 'points' | 'clanPoints' | 'name';
+type SortField = 'rank' | 'points' | 'clanPoints' | 'name' | 'joined';
 type SortDirection = 'asc' | 'desc';
+
+const STAFF_RANKS = ['owner', 'deputy_owner', 'administrator', 'moderator'];
+
+// WOM reports the monthly winner ranks under generic role names (see clan-ranks.ts);
+// spell out what they actually mean on the roster.
+const RANK_LABEL_OVERRIDES: Record<string, string> = {
+  blood: 'RotW winner',
+  leader: 'BotW winner',
+  skiller: 'SotW winner',
+};
+
+const rankLabel = (rank: string) =>
+  RANK_LABEL_OVERRIDES[rank.toLocaleLowerCase()] ?? rank.replace(/_/g, ' ');
 
 export const meta: MetaFunction = () => {
   return [
@@ -76,15 +76,16 @@ export default function Index() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('rank');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [rankFilter, setRankFilter] = useState('all');
 
   // Get rank text based on points
   const getRankText = (
-    sanguineWomMembers: SerializeFrom<MembershipWithPlayer[]>,
+    womMembers: SerializeFrom<MembershipWithPlayer[]>,
     user: ISanguineUserWithNickname,
   ) => {
     return (
-      sanguineWomMembers.find(
+      womMembers.find(
         x =>
           x.player.displayName.toLocaleLowerCase() ===
           user?.nickname?.toLocaleLowerCase(),
@@ -92,16 +93,52 @@ export default function Index() {
     );
   };
 
-  // Filter on search, then sort by the selected field and direction. Rank
-  // descending lists the highest rank first; guests fall to the bottom.
-  const visibleUsers = users
+  const roster = users
     .filter((user): user is ISanguineUserWithNickname => user !== null)
+    .map(user => ({ user, rank: getRankText(sanguineWomMembers, user) }));
+
+  const totalDropPoints = roster.reduce((sum, x) => sum + x.user.points, 0);
+  const totalClanPoints = roster.reduce((sum, x) => sum + x.user.clanPoints, 0);
+
+  const topContributors = [...roster]
+    .sort((a, b) => b.user.clanPoints - a.user.clanPoints)
+    .slice(0, 3);
+
+  // Rank filter chips: All and Staff first, then every non-staff rank present on the
+  // roster in hierarchy order.
+  const nonStaffRanks = [
+    ...new Set(roster.map(x => x.rank.toLocaleLowerCase())),
+  ]
+    .filter(rank => !STAFF_RANKS.includes(rank))
+    .sort((a, b) => getRankSortIndex(a) - getRankSortIndex(b));
+  const chips = [
+    {
+      key: 'all',
+      label: 'All',
+      test: () => true,
+    },
+    {
+      key: 'staff',
+      label: 'Staff',
+      test: (rank: string) => STAFF_RANKS.includes(rank.toLocaleLowerCase()),
+    },
+    ...nonStaffRanks.map(rank => ({
+      key: rank,
+      label: rankLabel(rank),
+      test: (memberRank: string) => memberRank.toLocaleLowerCase() === rank,
+    })),
+  ];
+  const activeChip = chips.find(c => c.key === rankFilter) ?? chips[0];
+
+  // Filter on search and rank chip, then sort by the selected column. Rank ascending
+  // lists the hierarchy top-first; guests fall to the bottom on points sorts.
+  const visibleUsers = roster
     .filter(
-      user =>
+      ({ user }) =>
         user.nickname?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false,
     )
-    .map(user => ({ user, rank: getRankText(sanguineWomMembers, user) }))
+    .filter(({ rank }) => activeChip.test(rank))
     .sort((a, b) => {
       const direction = sortDirection === 'asc' ? 1 : -1;
       // Within equal primary keys, list the highest points first.
@@ -118,6 +155,11 @@ export default function Index() {
               (a.user.nickname ?? '').localeCompare(b.user.nickname ?? '') ||
             pointsTiebreak
           );
+        case 'joined':
+          return (
+            direction * a.user.joined.localeCompare(b.user.joined) ||
+            pointsTiebreak
+          );
         case 'points':
           return guestOrder || direction * (a.user.points - b.user.points);
         case 'clanPoints':
@@ -129,120 +171,280 @@ export default function Index() {
         case 'rank':
         default:
           return (
-            direction *
-              (getRankSortIndex(b.rank) - getRankSortIndex(a.rank)) ||
+            direction * (getRankSortIndex(a.rank) - getRankSortIndex(b.rank)) ||
             pointsTiebreak
           );
       }
     });
 
-  // Get rank icon based on points
-  const getRankIcon = (rankName: string) => {
-    return (
-      <img
-        src={fetchRankImage(rankName)}
-        alt={rankName}
-        width={26}
-        height={26}
-        className="inline-block"
-      />
+  const onSortColumn = (field: SortField) => {
+    if (field === sortField) {
+      setSortDirection(direction => (direction === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortField(field);
+    // Rank/name/joined read top-down naturally ascending; points columns lead with the
+    // highest earners.
+    setSortDirection(
+      field === 'points' || field === 'clanPoints' ? 'desc' : 'asc',
     );
   };
 
+  const formatJoined = (joined: string) => {
+    const date = dayjs(joined);
+    return date.isValid() ? date.format('MMM YYYY') : '—';
+  };
+
+  const sortColumns: { field: SortField; label: string; className: string }[] =
+    [
+      { field: 'rank', label: '#', className: 'justify-end text-right' },
+      { field: 'name', label: 'Member', className: '' },
+      { field: 'joined', label: 'Joined', className: 'hidden md:flex' },
+      { field: 'points', label: 'Drop pts', className: 'justify-end' },
+      { field: 'clanPoints', label: 'Clan pts', className: 'justify-end' },
+    ];
+
+  const rowGridClass =
+    'grid grid-cols-[28px_1fr_90px_90px] items-center gap-3 px-3 md:grid-cols-[40px_1fr_110px_120px_120px]';
+
   return (
     <Container size="3" mt="3">
-      <Flex direction="column" gap="5">
-        <Box className="text-center">
-          <Heading size="6" className="tracking-wide text-sanguine-red">
-            Sanguine Members
-          </Heading>
-          <Box className="mx-auto mt-2 h-1 w-32 bg-sanguine-red"></Box>
+      <Flex direction="column">
+        {/* Page header */}
+        <Box mb="6">
+          <Flex align="center" gap="3">
+            <img src="/sanguine_icon_small.png" alt="" width={44} height={44} />
+            <Heading size="8" className="font-normal text-sanguine-bright">
+              Members
+            </Heading>
+          </Flex>
+          <Text as="p" size="2" className="mt-2 text-gray-400">
+            <span className="font-semibold text-white">{roster.length}</span>{' '}
+            members holding{' '}
+            <span className="font-semibold text-white">
+              {totalDropPoints.toLocaleString()}
+            </span>{' '}
+            drop points and{' '}
+            <span className="font-semibold text-osrs-gold">
+              {totalClanPoints.toLocaleString()}
+            </span>{' '}
+            clan points
+          </Text>
         </Box>
-        <Flex gap="3" align="center" justify="between" wrap="wrap">
-          <Box className="relative w-full rounded border border-gray-700 px-2 py-1 focus-within:border-sanguine-red md:w-64">
-            <Flex gap="2" align="center">
+
+        {/* Leader band: flat, typographic, no boxes */}
+        <Box
+          mb="6"
+          className="border-b border-t-2 border-gray-800 border-t-sanguine-red"
+        >
+          <Text as="p" size="1" className="pt-2 text-gray-500">
+            Top clan point earners
+          </Text>
+          <div className="grid grid-cols-1 sm:grid-cols-[1.6fr_1fr_1fr]">
+            {topContributors.map(({ user, rank }, index) => (
+              <button
+                key={user.discordId}
+                onClick={() => navigate(`/users/${user.discordId}`)}
+                className={`group flex min-w-0 items-center gap-3 py-4 pr-4 text-left ${
+                  index > 0
+                    ? 'border-t border-gray-800 sm:border-l sm:border-t-0 sm:pl-4'
+                    : ''
+                }`}
+              >
+                <span
+                  className={
+                    index === 0
+                      ? 'text-4xl leading-none text-osrs-gold'
+                      : 'text-2xl leading-none text-gray-600'
+                  }
+                >
+                  {index + 1}
+                </span>
+                <img
+                  src={fetchRankImage(rank)}
+                  alt={rankLabel(rank)}
+                  width={index === 0 ? 30 : 24}
+                  height={index === 0 ? 30 : 24}
+                  className="[image-rendering:pixelated]"
+                />
+                <Box className="min-w-0">
+                  <Text
+                    as="div"
+                    className={`truncate leading-tight text-white group-hover:text-sanguine-bright ${
+                      index === 0 ? 'text-2xl' : 'text-xl'
+                    }`}
+                  >
+                    {user.nickname}
+                  </Text>
+                  <Text as="div" size="1" className="text-gray-400">
+                    <span className="font-semibold text-osrs-gold">
+                      {user.clanPoints.toLocaleString()}
+                    </span>{' '}
+                    clan points
+                  </Text>
+                </Box>
+              </button>
+            ))}
+          </div>
+        </Box>
+
+        {/* Sticky toolbar: search + rank filter chips */}
+        <Box className="sticky top-[73px] z-10 -mx-4 border-b border-gray-800 bg-[#111113] px-4 py-3 sm:-mx-6 sm:px-6">
+          <Flex gap="2" align="center" wrap="wrap">
+            <Flex
+              gap="2"
+              align="center"
+              className="w-60 rounded-sm border border-gray-800 bg-gray-900 px-3 py-1.5 focus-within:border-sanguine-red"
+            >
               <MagnifyingGlassIcon
-                height="16"
-                width="16"
-                className="text-gray-400"
+                height="14"
+                width="14"
+                className="shrink-0 text-gray-500"
               />
               <input
                 type="text"
-                className="w-full bg-transparent font-runescape text-white outline-none"
+                className="w-full bg-transparent text-white outline-none placeholder:text-gray-500"
                 placeholder="Search members..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </Flex>
-          </Box>
-          <Flex gap="2" align="center">
-            <Text size="2" className="text-gray-400">
-              Sort by
-            </Text>
-            <Select.Root
-              value={sortField}
-              onValueChange={value => setSortField(value as SortField)}
-            >
-              <Select.Trigger />
-              <Select.Content>
-                <Select.Item value="rank">Rank</Select.Item>
-                <Select.Item value="points">Drop Points</Select.Item>
-                <Select.Item value="clanPoints">Clan Points</Select.Item>
-                <Select.Item value="name">Name</Select.Item>
-              </Select.Content>
-            </Select.Root>
-            <IconButton
-              variant="soft"
-              aria-label={`Sort ${
-                sortDirection === 'asc' ? 'ascending' : 'descending'
-              }`}
-              onClick={() =>
-                setSortDirection(direction =>
-                  direction === 'asc' ? 'desc' : 'asc',
-                )
-              }
-            >
-              {sortDirection === 'asc' ? <ArrowUpIcon /> : <ArrowDownIcon />}
-            </IconButton>
+            <div className="flex flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none]">
+              {chips.map(chip => {
+                const count = roster.filter(x => chip.test(x.rank)).length;
+                const active = chip.key === rankFilter;
+                return (
+                  <button
+                    key={chip.key}
+                    onClick={() => setRankFilter(chip.key)}
+                    className={`shrink-0 rounded-sm border px-2.5 py-1 text-sm ${
+                      active
+                        ? 'border-sanguine-red bg-sanguine-red text-white'
+                        : 'border-gray-800 text-gray-400 hover:border-gray-600 hover:text-white'
+                    }`}
+                  >
+                    {chip.label}
+                    <span
+                      className={`ml-1.5 tabular-nums ${
+                        active ? 'text-white/70' : 'text-gray-600'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </Flex>
-        </Flex>
-        <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="4">
-          {visibleUsers.map(({ user, rank }) => (
-            <Card
-              key={user.discordId}
-              className="cursor-pointer border border-gray-800 bg-gray-900 transition-all duration-200 hover:border-sanguine-red"
-              onClick={() => navigate(`/users/${user.discordId}`)}
-            >
-              <Flex p="3" gap="3" align="center" justify="between">
-                <Box>
-                  <Flex align="center" gap="2">
-                    {getRankIcon(rank)}
+        </Box>
+
+        {/* Roster: hiscores-style zebra table */}
+        <Box mt="2">
+          <div
+            className={`${rowGridClass} border-b border-gray-700 py-2.5 text-osrs-orange`}
+          >
+            {sortColumns.map(column => (
+              <button
+                key={column.field}
+                onClick={() => onSortColumn(column.field)}
+                className={`flex items-center gap-1 text-left text-sm hover:text-osrs-gold ${
+                  sortField === column.field ? 'text-osrs-gold' : ''
+                } ${column.className}`}
+              >
+                {column.label}
+                <span
+                  className={`text-[9px] text-sanguine-bright ${
+                    sortField === column.field ? 'visible' : 'invisible'
+                  }`}
+                >
+                  {sortDirection === 'asc' ? '▲' : '▼'}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {visibleUsers.length === 0 ? (
+            <Text as="p" align="center" className="py-12 text-gray-600">
+              Nothing interesting happens.
+            </Text>
+          ) : (
+            visibleUsers.map(({ user, rank }, index) => (
+              <div
+                key={user.discordId}
+                onClick={() => navigate(`/users/${user.discordId}`)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    navigate(`/users/${user.discordId}`);
+                  }
+                }}
+                role="link"
+                tabIndex={0}
+                className={`${rowGridClass} group cursor-pointer py-2 even:bg-white/[0.025] hover:bg-white/[0.05]`}
+              >
+                <Text
+                  as="div"
+                  size="2"
+                  className="pr-1.5 text-right text-gray-600"
+                >
+                  {index + 1}
+                </Text>
+                <Flex align="center" gap="3" className="min-w-0">
+                  <img
+                    src={fetchRankImage(rank)}
+                    alt={rankLabel(rank)}
+                    width={22}
+                    height={22}
+                    className="shrink-0 [image-rendering:pixelated]"
+                  />
+                  <Box className="min-w-0">
                     <Text
                       as="div"
-                      size="4"
-                      className="font-bold tracking-wide text-sanguine-red"
+                      className="truncate leading-tight text-white group-hover:text-sanguine-bright"
                     >
                       {user.nickname}
                     </Text>
-                  </Flex>
-                  <Text as="div" size="2" className="mt-1 text-gray-400">
-                    {user.points} drop points
-                  </Text>
-                  {/* Always rendered so every card is the same height in the grid */}
-                  <Text
-                    as="div"
-                    size="2"
-                    className={
-                      user.clanPoints > 0 ? 'text-amber-400' : 'text-gray-600'
-                    }
-                  >
-                    {user.clanPoints} clan points
-                  </Text>
-                </Box>
-              </Flex>
-            </Card>
-          ))}
-        </Grid>
+                    <Text as="div" size="1" className="text-gray-500">
+                      {rankLabel(rank)}
+                    </Text>
+                  </Box>
+                </Flex>
+                <Text
+                  as="div"
+                  size="2"
+                  className="hidden tabular-nums text-gray-400 md:block"
+                >
+                  {formatJoined(user.joined)}
+                </Text>
+                <Text
+                  as="div"
+                  className={`text-right ${
+                    user.points === 0 ? 'text-gray-600' : 'text-white'
+                  }`}
+                >
+                  {user.points.toLocaleString()}
+                </Text>
+                <Text
+                  as="div"
+                  className={`text-right ${
+                    user.clanPoints === 0 ? 'text-gray-600' : 'text-osrs-gold'
+                  }`}
+                >
+                  {user.clanPoints.toLocaleString()}
+                </Text>
+              </div>
+            ))
+          )}
+
+          <Text
+            as="p"
+            size="1"
+            className="border-t border-gray-800 py-3 text-gray-600"
+          >
+            {visibleUsers.length === roster.length
+              ? `${roster.length} members`
+              : `${visibleUsers.length} of ${roster.length} members`}
+          </Text>
+        </Box>
       </Flex>
     </Container>
   );
