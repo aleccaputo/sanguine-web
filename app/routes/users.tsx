@@ -211,17 +211,38 @@ export default function Index() {
     return date.isValid() ? date.format('MMM YYYY') : '—';
   };
 
-  const sortColumns: { field: SortField; label: string; className: string }[] =
-    [
-      { field: 'rank', label: '#', className: 'justify-end text-right' },
-      { field: 'name', label: 'Member', className: '' },
-      { field: 'joined', label: 'Joined', className: 'hidden md:flex' },
-      { field: 'points', label: 'Drop pts', className: 'justify-end' },
-      { field: 'clanPoints', label: 'Clan pts', className: 'justify-end' },
-    ];
+  // Right-aligned columns put the sort arrow before the label so the label's right
+  // edge stays flush with the numbers beneath it.
+  const sortColumns: {
+    field: SortField;
+    label: string;
+    align: 'left' | 'right';
+    className: string;
+  }[] = [
+    { field: 'rank', label: '#', align: 'right', className: 'justify-end' },
+    { field: 'name', label: 'Member', align: 'left', className: '' },
+    {
+      field: 'joined',
+      label: 'Joined',
+      align: 'left',
+      className: 'hidden md:flex',
+    },
+    {
+      field: 'points',
+      label: 'Drop pts',
+      align: 'right',
+      className: 'justify-end',
+    },
+    {
+      field: 'clanPoints',
+      label: 'Clan pts',
+      align: 'right',
+      className: 'justify-end',
+    },
+  ];
 
   const rowGridClass =
-    'grid grid-cols-[28px_1fr_90px_90px] items-center gap-3 px-3 md:grid-cols-[40px_1fr_110px_120px_120px]';
+    'grid grid-cols-[24px_1fr_76px_76px] items-center gap-2 px-2 md:grid-cols-[40px_1fr_110px_120px_120px] md:gap-3 md:px-3';
 
   return (
     <Container size="3" mt="3">
@@ -354,24 +375,26 @@ export default function Index() {
           <div
             className={`${rowGridClass} border-b border-gray-700 py-2.5 text-osrs-orange`}
           >
-            {sortColumns.map(column => (
-              <button
-                key={column.field}
-                onClick={() => onSortColumn(column.field)}
-                className={`flex items-center gap-1 text-left text-sm hover:text-osrs-gold ${
-                  sortField === column.field ? 'text-osrs-gold' : ''
-                } ${column.className}`}
-              >
-                {column.label}
-                <span
-                  className={`text-[9px] text-sanguine-bright ${
-                    sortField === column.field ? 'visible' : 'invisible'
-                  }`}
-                >
+            {sortColumns.map(column => {
+              const arrow = sortField === column.field && (
+                <span className="text-[9px] text-sanguine-bright">
                   {sortDirection === 'asc' ? '▲' : '▼'}
                 </span>
-              </button>
-            ))}
+              );
+              return (
+                <button
+                  key={column.field}
+                  onClick={() => onSortColumn(column.field)}
+                  className={`flex items-center gap-1 text-left text-sm hover:text-osrs-gold ${
+                    sortField === column.field ? 'text-osrs-gold' : ''
+                  } ${column.className}`}
+                >
+                  {column.align === 'right' && arrow}
+                  {column.label}
+                  {column.align === 'left' && arrow}
+                </button>
+              );
+            })}
           </div>
 
           {visibleUsers.length === 0 ? (
@@ -392,11 +415,7 @@ export default function Index() {
                 tabIndex={0}
                 className={`${rowGridClass} group cursor-pointer py-2 even:bg-white/[0.025] hover:bg-white/[0.05]`}
               >
-                <Text
-                  as="div"
-                  size="2"
-                  className="pr-1.5 text-right text-gray-600"
-                >
+                <Text as="div" size="2" className="text-right text-gray-600">
                   {index + 1}
                 </Text>
                 <Flex align="center" gap="3" className="min-w-0">
