@@ -480,7 +480,7 @@ export default function UserById() {
               {displayName}
             </Heading>
           </Flex>
-          <Text as="p" size="2" className="mt-2 text-gray-400">
+          <Text as="p" size="3" className="mt-2 text-gray-400">
             {rankLabel(currentWomRole ?? 'Guest')} · member since{' '}
             {dayjs(user.joined).format('MMM YYYY')}
             {hasAlts && selectedAccount === ALL_ACCOUNTS && (
@@ -513,7 +513,7 @@ export default function UserById() {
               <span className="text-2xl leading-none text-white">
                 {user.points.toLocaleString()}
               </span>
-              <span className="text-sm text-gray-500">drop points</span>
+              <span className="text-base text-gray-500">drop points</span>
             </Flex>
             <Flex
               align="baseline"
@@ -523,7 +523,7 @@ export default function UserById() {
               <span className="text-2xl leading-none text-osrs-gold">
                 {user.clanPoints.toLocaleString()}
               </span>
-              <span className="text-sm text-gray-500">clan points</span>
+              <span className="text-base text-gray-500">clan points</span>
             </Flex>
           </div>
         </Box>
@@ -537,7 +537,7 @@ export default function UserById() {
                 <button
                   key={tab.value}
                   onClick={() => handleTabChange(tab.value)}
-                  className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+                  className={`-mb-px border-b-2 px-3 py-2 text-base ${
                     active
                       ? 'border-sanguine-red bg-sanguine-red/10 text-white'
                       : 'border-transparent text-gray-400 hover:text-osrs-gold'
@@ -561,7 +561,7 @@ export default function UserById() {
               isn't affected by the account switcher. */}
           {activeTab === 'personal-bests' && personalBests.length > 0 && (
             <Box mt="4" className="overflow-x-auto">
-              <Table.Root size="1">
+              <Table.Root size="2">
                 <Table.Header>
                   <Table.Row>
                     <Table.ColumnHeaderCell className="text-osrs-orange">
@@ -579,7 +579,7 @@ export default function UserById() {
                     <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
                       Team
                     </Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell className="text-osrs-orange">
+                    <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
                       Proof
                     </Table.ColumnHeaderCell>
                   </Table.Row>
@@ -646,7 +646,7 @@ export default function UserById() {
                           nameByDiscordId={pbNameByDiscordId}
                         />
                       </Table.Cell>
-                      <Table.Cell>
+                      <Table.Cell className="hidden sm:table-cell">
                         {pb.best.proofMessageUrl ? (
                           <a
                             href={pb.best.proofMessageUrl}
@@ -682,16 +682,16 @@ export default function UserById() {
                     justify="between"
                     className="border-t-2 border-t-sanguine-red pb-1 pt-2"
                   >
-                    <Text size="2" className="text-osrs-orange">
+                    <Text size="3" className="text-osrs-orange">
                       Raids
                     </Text>
-                    <Text size="1" className="text-gray-500">
+                    <Text size="2" className="text-gray-500">
                       <span className="text-osrs-gold">{raidsPointsTotal}</span>{' '}
                       clan points
                     </Text>
                   </Flex>
                   <div className="overflow-x-auto">
-                    <Table.Root size="1">
+                    <Table.Root size="2">
                       <Table.Header>
                         <Table.Row>
                           <Table.ColumnHeaderCell className="text-osrs-orange">
@@ -786,13 +786,13 @@ export default function UserById() {
                     justify="between"
                     className="border-t-2 border-t-sanguine-red pb-1 pt-2"
                   >
-                    <Text size="2" className="text-osrs-orange">
+                    <Text size="3" className="text-osrs-orange">
                       Competitions{' '}
                       <span className="text-gray-600">
                         weeklies and one-off comps
                       </span>
                     </Text>
-                    <Text size="1" className="text-gray-500">
+                    <Text size="2" className="text-gray-500">
                       <span className="text-osrs-gold">
                         {competitionsPointsTotal}
                       </span>{' '}
@@ -800,7 +800,7 @@ export default function UserById() {
                     </Text>
                   </Flex>
                   <div className="overflow-x-auto">
-                    <Table.Root size="1">
+                    <Table.Root size="2">
                       <Table.Header>
                         <Table.Row>
                           <Table.ColumnHeaderCell className="text-osrs-orange">
@@ -925,7 +925,7 @@ export default function UserById() {
                   gap="3"
                   className="border-t-2 border-t-sanguine-red pb-1 pt-2"
                 >
-                  <Text size="2" className="text-osrs-orange">
+                  <Text size="3" className="text-osrs-orange">
                     Other{' '}
                     <span className="text-gray-600">
                       manual awards across {otherAwards.count}{' '}
@@ -958,10 +958,10 @@ export default function UserById() {
                     justify="between"
                     className="border-t-2 border-t-sanguine-red pb-1 pt-2"
                   >
-                    <Text size="2" className="text-osrs-orange">
+                    <Text size="3" className="text-osrs-orange">
                       Drops
                     </Text>
-                    <Text size="1" className="text-gray-500">
+                    <Text size="2" className="text-gray-500">
                       <span className="text-white">{filteredItems.length}</span>{' '}
                       items
                       {totalGP > 0 && (
@@ -1019,10 +1019,10 @@ export default function UserById() {
                   justify="between"
                   className="border-t-2 border-t-sanguine-red pb-1 pt-2"
                 >
-                  <Text size="2" className="text-osrs-orange">
+                  <Text size="3" className="text-osrs-orange">
                     Drop points by month
                   </Text>
-                  <Text size="1" className="text-gray-500">
+                  <Text size="2" className="text-gray-500">
                     {displayName}
                   </Text>
                 </Flex>

@@ -62,7 +62,7 @@ export function DropItem({
                   to={`/users/${item.destinationDiscordId}`}
                   className="text-gray-400 transition-colors hover:text-sanguine-bright"
                 >
-                  <Text size={isLarge ? { initial: '1', md: '2' } : '1'}>
+                  <Text size={isLarge ? { initial: '1', md: '2' } : '2'}>
                     Received by {nickname}
                   </Text>
                 </Link>
@@ -75,7 +75,7 @@ export function DropItem({
               className="flex-shrink-0"
             >
               <Text
-                size={isLarge ? { initial: '1', md: '2' } : '1'}
+                size={isLarge ? { initial: '1', md: '2' } : '2'}
                 className="whitespace-nowrap text-gray-300"
               >
                 {dayjs(item.createdAt).format('MMM D, YYYY')}
@@ -88,7 +88,7 @@ export function DropItem({
                     className="h-3 w-3 object-contain"
                   />
                   <Text
-                    size={isLarge ? { initial: '1', md: '2' } : '1'}
+                    size={isLarge ? { initial: '1', md: '2' } : '2'}
                     className="text-osrs-gold"
                   >
                     {item.osrsData.price.toLocaleString()}
@@ -96,7 +96,7 @@ export function DropItem({
                 </Flex>
               )}
               <Text
-                size={isLarge ? { initial: '1', md: '2' } : '1'}
+                size={isLarge ? { initial: '1', md: '2' } : '2'}
                 weight="medium"
                 className="text-sanguine-bright"
               >
