@@ -552,6 +552,12 @@ export default function UserById() {
                 </dd>
               </div>
             )}
+            {raids.length > 0 && (
+              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
+                <dt className="text-sm text-gray-500">Raids</dt>
+                <dd className="text-sm text-gray-200">{raids.length}</dd>
+              </div>
+            )}
             {personalBests.length > 0 && (
               <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
                 <dt className="text-sm text-gray-500">Personal bests</dt>
