@@ -7,7 +7,7 @@ import {
   ISanguineUserWithNickname,
 } from '~/services/sanguine-service.server';
 
-import { Box, Flex, Text, Container, Heading } from '@radix-ui/themes';
+import { Box, Flex, Text, Container, Heading, Select } from '@radix-ui/themes';
 
 import { MagnifyingGlassIcon } from '@radix-ui/react-icons';
 import {
@@ -119,17 +119,17 @@ export default function Index() {
     },
   ];
 
-  // Rank filter chips: All and Staff first, then every non-staff rank present on the
-  // roster in hierarchy order.
+  // Rank filter options: All and Staff first, then every non-staff rank present on
+  // the roster in hierarchy order.
   const nonStaffRanks = [
     ...new Set(roster.map(x => x.rank.toLocaleLowerCase())),
   ]
     .filter(rank => !STAFF_RANKS.includes(rank))
     .sort((a, b) => getRankSortIndex(a) - getRankSortIndex(b));
-  const chips = [
+  const rankOptions = [
     {
       key: 'all',
-      label: 'All',
+      label: 'All ranks',
       test: () => true,
     },
     {
@@ -143,7 +143,8 @@ export default function Index() {
       test: (memberRank: string) => memberRank.toLocaleLowerCase() === rank,
     })),
   ];
-  const activeChip = chips.find(c => c.key === rankFilter) ?? chips[0];
+  const activeRankOption =
+    rankOptions.find(c => c.key === rankFilter) ?? rankOptions[0];
 
   // Filter on search and rank chip, then sort by the selected column. Rank ascending
   // lists the hierarchy top-first; guests fall to the bottom on points sorts.
@@ -153,7 +154,7 @@ export default function Index() {
         user.nickname?.toLowerCase().includes(searchTerm.toLowerCase()) ??
         false,
     )
-    .filter(({ rank }) => activeChip.test(rank))
+    .filter(({ rank }) => activeRankOption.test(rank))
     .sort((a, b) => {
       const direction = sortDirection === 'asc' ? 1 : -1;
       // Within equal primary keys, list the highest points first.
@@ -333,32 +334,18 @@ export default function Index() {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </Flex>
-            <div className="flex flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none]">
-              {chips.map(chip => {
-                const count = roster.filter(x => chip.test(x.rank)).length;
-                const active = chip.key === rankFilter;
-                return (
-                  <button
-                    key={chip.key}
-                    onClick={() => setRankFilter(chip.key)}
-                    className={`shrink-0 rounded-sm border px-2.5 py-1 text-sm ${
-                      active
-                        ? 'border-sanguine-red bg-sanguine-red text-white'
-                        : 'border-gray-800 text-gray-400 hover:border-gray-600 hover:text-white'
-                    }`}
-                  >
-                    {chip.label}
-                    <span
-                      className={`ml-1.5 tabular-nums ${
-                        active ? 'text-white/70' : 'text-gray-600'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <Select.Root value={rankFilter} onValueChange={setRankFilter}>
+              <Select.Trigger color="gray" />
+              <Select.Content position="popper">
+                {rankOptions.map(option => (
+                  <Select.Item key={option.key} value={option.key}>
+                    {`${option.label} (${
+                      roster.filter(x => option.test(x.rank)).length
+                    })`}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
           </Flex>
         </Box>
 
