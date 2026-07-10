@@ -15,23 +15,16 @@ import {
   type MembershipWithPlayer,
 } from '~/services/wom-api-service.server';
 import { getLegacyCompetitionPointsByDiscordId } from '~/data/points-audit';
-import { fetchRankImage, getRankSortIndex } from '~/utils/clan-ranks';
+import {
+  fetchRankImage,
+  getRankSortIndex,
+  rankLabel,
+} from '~/utils/clan-ranks';
 
 type SortField = 'rank' | 'points' | 'clanPoints' | 'name' | 'joined';
 type SortDirection = 'asc' | 'desc';
 
 const STAFF_RANKS = ['owner', 'deputy_owner', 'administrator', 'moderator'];
-
-// WOM reports the monthly winner ranks under generic role names (see clan-ranks.ts);
-// spell out what they actually mean on the roster.
-const RANK_LABEL_OVERRIDES: Record<string, string> = {
-  blood: 'RotW winner',
-  leader: 'BotW winner',
-  skiller: 'SotW winner',
-};
-
-const rankLabel = (rank: string) =>
-  RANK_LABEL_OVERRIDES[rank.toLocaleLowerCase()] ?? rank.replace(/_/g, ' ');
 
 export const meta: MetaFunction = () => {
   return [

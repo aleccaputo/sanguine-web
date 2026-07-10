@@ -59,7 +59,7 @@ export function PbTeam({
           {member.isMember ? (
             <Link
               to={`/users/${member.discordId}`}
-              className="text-gray-300 transition-colors hover:text-sanguine-red"
+              className="text-gray-300 transition-colors hover:text-sanguine-bright"
             >
               {member.displayName}
             </Link>

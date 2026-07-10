@@ -5,17 +5,7 @@ import {
   useLoaderData,
   useSearchParams,
 } from '@remix-run/react';
-import {
-  Badge,
-  Box,
-  Card,
-  Container,
-  Flex,
-  Heading,
-  Table,
-  Tabs,
-  Text,
-} from '@radix-ui/themes';
+import { Box, Container, Flex, Heading, Table, Text } from '@radix-ui/themes';
 import {
   getNicknameMapByDiscordIds,
   getUserWithNickname,
@@ -56,7 +46,7 @@ import {
   getCompetitionImageUrl,
   getFallbackImageUrl,
 } from '~/utils/competition-images';
-import { fetchRankImage } from '~/utils/clan-ranks';
+import { fetchRankImage, rankLabel } from '~/utils/clan-ranks';
 import { matchesAccountName } from '~/utils/account-matching';
 import { getRaidCompletionsForDiscordId } from '~/data/raid-completions';
 import {
@@ -363,16 +353,6 @@ export default function UserById() {
     0,
   );
 
-  const getRankIcon = (rankName: string) => (
-    <img
-      src={fetchRankImage(rankName)}
-      alt={rankName}
-      width={26}
-      height={26}
-      className="inline-block"
-    />
-  );
-
   const handleAccountChange = (value: string) => {
     setSelectedAccount(value);
     setCurrentPage(1);
@@ -381,8 +361,8 @@ export default function UserById() {
   const displayName =
     selectedAccount === ALL_ACCOUNTS ? mainName : selectedAccount;
 
-  // Clan Points tab groups every clan-point source; the summary line reconciles the header
-  // total. Raid points come from the flattened completions, the rest from audit rows.
+  // Clan Points tab groups every clan-point source; the per-section totals reconcile the
+  // header total. Raid points come from the flattened completions, the rest from audit rows.
   const raidsPointsTotal = raids.reduce((sum, r) => sum + r.pointsAwarded, 0);
   const hasCompetitionHistory =
     competitionAwards.length > 0 || historicalCompetitions !== null;
@@ -400,26 +380,34 @@ export default function UserById() {
     (historicalCompetitions?.points ?? 0);
   const hasClanPointHistory =
     raids.length > 0 || hasCompetitionHistory || otherAwards !== null;
-  const clanPointsBreakdown = [
-    ...(raids.length > 0 ? [`${raidsPointsTotal} from raids`] : []),
-    ...(hasCompetitionHistory
-      ? [`${competitionsPointsTotal} from competitions`]
-      : []),
-    ...(otherAwards !== null ? [`${otherAwards.points} other`] : []),
-  ].join(' · ');
 
   // Section tabs — only sections with data get a tab; the chart always renders (it has its own
-  // empty state). The active tab lives in the URL so sections are deep-linkable.
+  // empty state). The active tab lives in the URL so sections are deep-linkable. Counts ride
+  // in the labels as plain text, not badges.
   const [searchParams, setSearchParams] = useSearchParams();
-  const availableTabs = [
-    ...(allItemsLogged.length > 0 ? ['drops'] : []),
-    ...(personalBests.length > 0 ? ['personal-bests'] : []),
-    ...(hasClanPointHistory ? ['clan-points'] : []),
-    'chart',
+  const sectionTabs: { value: string; label: string; count?: number }[] = [
+    ...(allItemsLogged.length > 0
+      ? [{ value: 'drops', label: 'Drops', count: allItemsLogged.length }]
+      : []),
+    ...(personalBests.length > 0
+      ? [
+          {
+            value: 'personal-bests',
+            label: 'Personal bests',
+            count: personalBests.length,
+          },
+        ]
+      : []),
+    ...(hasClanPointHistory
+      ? [{ value: 'clan-points', label: 'Clan points' }]
+      : []),
+    { value: 'chart', label: 'Points chart' },
   ];
   const tabParam = searchParams.get('tab');
   const activeTab =
-    tabParam && availableTabs.includes(tabParam) ? tabParam : availableTabs[0];
+    tabParam && sectionTabs.some(tab => tab.value === tabParam)
+      ? tabParam
+      : sectionTabs[0].value;
 
   const handleTabChange = (value: string) =>
     setSearchParams(
@@ -433,685 +421,642 @@ export default function UserById() {
 
   // Shown inside the Drops and Points Chart tabs only — those are the sections it filters.
   // Personal Bests and Raids are keyed to the member and span every account.
+  const accountOptions: { key: string; label: string; role?: string }[] = [
+    { key: ALL_ACCOUNTS, label: 'All accounts' },
+    { key: mainName, label: mainName, role: womRoles[mainName] },
+    ...userAlts.map(alt => ({
+      key: alt.altName,
+      label: alt.altName,
+      role: womRoles[alt.altName],
+    })),
+  ];
   const accountSwitcher = hasAlts && (
-    <Card className="border border-gray-800 bg-gray-900">
-      <Box px="5" py="3">
-        <Flex align="center" gap="3" wrap="wrap">
-          <Text size="2" className="text-gray-400">
-            Account:
-          </Text>
-          <Tabs.Root
-            value={selectedAccount}
-            onValueChange={handleAccountChange}
+    <Flex align="center" gap="2" wrap="wrap">
+      {accountOptions.map(option => {
+        const active = selectedAccount === option.key;
+        return (
+          <button
+            key={option.key}
+            onClick={() => handleAccountChange(option.key)}
+            className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-sm ${
+              active
+                ? 'border-sanguine-red bg-sanguine-red text-white'
+                : 'border-gray-800 bg-gray-900 text-gray-300 hover:border-gray-600 hover:text-white'
+            }`}
           >
-            <Tabs.List>
-              <Tabs.Trigger value={ALL_ACCOUNTS}>
-                <Flex align="center" gap="2">
-                  All
-                  <Badge color="gray" variant="soft" radius="full" size="1">
-                    {dropCountByAccount[ALL_ACCOUNTS]}
-                  </Badge>
-                </Flex>
-              </Tabs.Trigger>
-              <Tabs.Trigger value={mainName}>
-                <Flex align="center" gap="2">
-                  {womRoles[mainName] && getRankIcon(womRoles[mainName]!)}
-                  {mainName}
-                  <Badge color="gray" variant="soft" radius="full" size="1">
-                    {dropCountByAccount[mainName] ?? 0}
-                  </Badge>
-                </Flex>
-              </Tabs.Trigger>
-              {userAlts.map(alt => (
-                <Tabs.Trigger key={alt.id} value={alt.altName}>
-                  <Flex align="center" gap="2">
-                    {womRoles[alt.altName] &&
-                      getRankIcon(womRoles[alt.altName]!)}
-                    {alt.altName}
-                    <Badge color="gray" variant="soft" radius="full" size="1">
-                      {dropCountByAccount[alt.altName] ?? 0}
-                    </Badge>
-                  </Flex>
-                </Tabs.Trigger>
-              ))}
-            </Tabs.List>
-          </Tabs.Root>
-        </Flex>
-      </Box>
-    </Card>
+            {option.role && (
+              <img
+                src={fetchRankImage(option.role)}
+                alt={rankLabel(option.role)}
+                width={16}
+                height={16}
+                className="shrink-0 [image-rendering:pixelated]"
+              />
+            )}
+            {option.label}
+            <span className={active ? 'text-white/70' : 'text-gray-600'}>
+              {dropCountByAccount[option.key] ?? 0}
+            </span>
+          </button>
+        );
+      })}
+    </Flex>
   );
 
   return (
     <Container size="4" mt="3" pb="6">
-      <Flex direction="column" gap="6">
-        {/* User Header */}
-        <Card className="border border-gray-800 bg-gray-900">
-          <Box p="5">
-            <Flex
-              direction={{ initial: 'column', md: 'row' }}
-              justify={{ md: 'between' }}
-              align={{ initial: 'center', md: 'center' }}
-              gap="4"
-            >
-              {/* Name, rank, and points */}
-              <Flex
-                direction="column"
-                gap="2"
-                align={{ initial: 'center', md: 'start' }}
-              >
-                <Flex align="center" gap="2">
-                  {getRankIcon(currentWomRole ?? 'Guest')}
-                  <Heading size="6" className="text-white">
-                    {displayName}
-                  </Heading>
-                  {hasAlts && selectedAccount === ALL_ACCOUNTS && (
-                    <AccountsTooltip
-                      accounts={[
-                        { name: mainName, role: womRoles[mainName] },
-                        ...userAlts.map(alt => ({
-                          name: alt.altName,
-                          role: womRoles[alt.altName],
-                        })),
-                      ]}
-                    >
-                      <Badge color="gray" variant="soft" radius="full">
-                        {1 + userAlts.length} accounts
-                      </Badge>
-                    </AccountsTooltip>
-                  )}
-                </Flex>
-                {/* Two separate buckets: `points` is drop-driven (the number next to a member's
-                    name), `clanPoints` covers clan activity — team raids, events, competitions. */}
-                <Flex
-                  direction="column"
-                  align={{ initial: 'center', md: 'start' }}
+      <Flex direction="column" gap="5">
+        {/* Identity header — flat, no card. Name and rank follow the account switcher. */}
+        <Box>
+          <Flex align="center" gap="3">
+            <img
+              src={fetchRankImage(currentWomRole ?? 'Guest')}
+              alt={rankLabel(currentWomRole ?? 'Guest')}
+              width={40}
+              height={40}
+              className="shrink-0 [image-rendering:pixelated]"
+            />
+            <Heading size="8" className="font-normal text-sanguine-bright">
+              {displayName}
+            </Heading>
+          </Flex>
+          <Text as="p" size="2" className="mt-2 text-gray-400">
+            {rankLabel(currentWomRole ?? 'Guest')} · member since{' '}
+            {dayjs(user.joined).format('MMM YYYY')}
+            {hasAlts && selectedAccount === ALL_ACCOUNTS && (
+              <>
+                {' · '}
+                <AccountsTooltip
+                  accounts={[
+                    { name: mainName, role: womRoles[mainName] },
+                    ...userAlts.map(alt => ({
+                      name: alt.altName,
+                      role: womRoles[alt.altName],
+                    })),
+                  ]}
                 >
-                  <Text size="4" className="text-sanguine-red">
-                    {user.points} drop points
-                  </Text>
-                  <Text size="4" className="text-amber-400">
-                    {user.clanPoints} clan points
-                  </Text>
-                </Flex>
-              </Flex>
+                  <span className="underline decoration-gray-600 decoration-dotted underline-offset-4">
+                    {1 + userAlts.length} accounts
+                  </span>
+                </AccountsTooltip>
+              </>
+            )}
+          </Text>
+        </Box>
 
-              {/* Stats */}
-              <Flex gap="6" align="center">
-                <Flex direction="column" gap="2" align="center">
-                  <Box className="text-center">
-                    <Text size="2" className="text-gray-400">
-                      {'Member Since: '}
-                    </Text>
-                    <Text size="3" className="text-white">
-                      {dayjs(user.joined).format('MMM YYYY')}
-                    </Text>
-                  </Box>
-                  {filteredItems.length > 0 && (
-                    <Box className="text-center">
-                      <Text size="2" className="text-gray-400">
-                        {'Total Items: '}
-                      </Text>
-                      <Text size="3" className="text-white">
-                        {filteredItems.length}
-                      </Text>
-                    </Box>
-                  )}
-                </Flex>
-                {totalGP > 0 && (
-                  <Box className="text-center">
-                    <Text size="2" className="text-gray-400">
-                      Total Value
-                    </Text>
-                    <Flex align="center" justify="center" gap="1">
-                      <img
-                        src="https://oldschool.runescape.wiki/images/Coins_detail.png"
-                        alt="GP"
-                        className="h-4 w-4 object-contain"
-                      />
-                      <Text size="3" className="text-amber-400">
-                        {totalGP.toLocaleString()}
-                      </Text>
-                    </Flex>
-                  </Box>
-                )}
-              </Flex>
+        {/* Points band: the two buckets — `points` is drop-driven (the number next to a
+            member's name), `clanPoints` covers clan activity: team raids, events,
+            competitions. */}
+        <Box className="border-b border-t-2 border-gray-800 border-t-sanguine-red">
+          <div className="grid grid-cols-2">
+            <Flex align="baseline" gap="2" className="py-3 pr-5">
+              <span className="text-2xl leading-none text-white">
+                {user.points.toLocaleString()}
+              </span>
+              <span className="text-sm text-gray-500">drop points</span>
             </Flex>
-          </Box>
-        </Card>
+            <Flex
+              align="baseline"
+              gap="2"
+              className="border-l border-gray-800 py-3 pl-5"
+            >
+              <span className="text-2xl leading-none text-osrs-gold">
+                {user.clanPoints.toLocaleString()}
+              </span>
+              <span className="text-sm text-gray-500">clan points</span>
+            </Flex>
+          </div>
+        </Box>
 
-        {/* Section tabs — the tab labels carry the counts so members can see what exists
-            without scrolling. Active tab is synced to ?tab= for shareable links. */}
-        <Tabs.Root value={activeTab} onValueChange={handleTabChange}>
-          <Tabs.List>
-            {allItemsLogged.length > 0 && (
-              <Tabs.Trigger value="drops">
-                <Flex align="center" gap="2">
-                  Drops
-                  <Badge color="gray" variant="soft" radius="full" size="1">
-                    {allItemsLogged.length}
-                  </Badge>
-                </Flex>
-              </Tabs.Trigger>
-            )}
-            {personalBests.length > 0 && (
-              <Tabs.Trigger value="personal-bests">
-                <Flex align="center" gap="2">
-                  Personal Bests
-                  <Badge color="gray" variant="soft" radius="full" size="1">
-                    {personalBests.length}
-                  </Badge>
-                </Flex>
-              </Tabs.Trigger>
-            )}
-            {hasClanPointHistory && (
-              <Tabs.Trigger value="clan-points">
-                <Flex align="center" gap="2">
-                  Clan Points
-                  <Badge color="amber" variant="soft" radius="full" size="1">
-                    {user.clanPoints}
-                  </Badge>
-                </Flex>
-              </Tabs.Trigger>
-            )}
-            <Tabs.Trigger value="chart">Points Chart</Tabs.Trigger>
-          </Tabs.List>
+        <Box>
+          {/* Section tabs — flat and square; the active tab carries the red rule */}
+          <div className="flex flex-wrap border-b border-gray-800">
+            {sectionTabs.map(tab => {
+              const active = activeTab === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => handleTabChange(tab.value)}
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+                    active
+                      ? 'border-sanguine-red text-white'
+                      : 'border-transparent text-gray-400 hover:text-osrs-gold'
+                  }`}
+                >
+                  {tab.label}
+                  {tab.count !== undefined && (
+                    <span
+                      className={active ? 'text-gray-400' : 'text-gray-600'}
+                    >
+                      {' '}
+                      ({tab.count})
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
           {/* Personal Bests — keyed to the member (discordId), so it spans every account and
               isn't affected by the account switcher. */}
-          {personalBests.length > 0 && (
-            <Tabs.Content value="personal-bests">
-              <Box mt="4">
-                <Card className="border border-gray-800 bg-gray-900">
-                  <Box p="5">
-                    <div className="overflow-x-auto">
-                      <Table.Root size="1">
-                        <Table.Header>
-                          <Table.Row>
-                            <Table.ColumnHeaderCell className="text-gray-400">
-                              Boss / Raid
-                            </Table.ColumnHeaderCell>
-                            <Table.ColumnHeaderCell className="text-gray-400">
-                              Time
-                            </Table.ColumnHeaderCell>
-                            <Table.ColumnHeaderCell
-                              className="text-gray-400"
-                              align="center"
-                            >
-                              Clan Rank
-                            </Table.ColumnHeaderCell>
-                            <Table.ColumnHeaderCell className="hidden text-gray-400 sm:table-cell">
-                              Team
-                            </Table.ColumnHeaderCell>
-                            <Table.ColumnHeaderCell className="text-gray-400">
-                              Proof
-                            </Table.ColumnHeaderCell>
-                          </Table.Row>
-                        </Table.Header>
-                        <Table.Body>
-                          {personalBests.map(pb => (
-                            <Table.Row key={pb.categoryKey}>
-                              <Table.Cell className="text-white">
-                                <Flex align="center" gap="2">
-                                  <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
-                                    <img
-                                      src={pbBossImageByName[pb.bossName]}
-                                      alt={pb.bossName}
-                                      className="max-h-7 max-w-7 object-contain"
-                                    />
-                                  </Box>
-                                  <Flex direction="column">
-                                    <Text size="2" weight="medium">
-                                      {pb.bossName}
-                                    </Text>
-                                    {(pb.scale > 1 ||
-                                      pb.raidLevel != null ||
-                                      (pbBossCounts.get(pb.bossName) ?? 0) >
-                                        1) && (
-                                      <Text size="1" className="text-gray-400">
-                                        {formatScaleLabel(
-                                          pb.scale,
-                                          pb.raidLevel,
-                                        )}
-                                      </Text>
-                                    )}
-                                    {pb.userAltName && (
-                                      <Text size="1" className="text-gray-500">
-                                        on {pb.userAltName}
-                                      </Text>
-                                    )}
-                                  </Flex>
-                                </Flex>
-                              </Table.Cell>
-                              <Table.Cell className="whitespace-nowrap font-medium text-amber-400">
-                                <PbTime
-                                  timeDisplay={pb.best.timeDisplay}
-                                  isPreciseTime={pb.best.isPreciseTime}
-                                />
-                              </Table.Cell>
-                              <Table.Cell align="center">
-                                {/* Fixed-width slots so the rank marker and "of N" line up vertically
-                              across rows regardless of each part's width. */}
-                                <Flex align="center" justify="center" gap="1">
-                                  <Text
-                                    size="2"
-                                    className="w-8 text-right text-white"
-                                  >
-                                    {pb.rank <= 3
-                                      ? rankBadge(pb.rank)
-                                      : `#${pb.rank}`}
-                                  </Text>
-                                  <Text
-                                    size="1"
-                                    className="w-8 text-left text-gray-500"
-                                  >
-                                    {pb.totalEntries > 1 &&
-                                      `of ${pb.totalEntries}`}
-                                  </Text>
-                                </Flex>
-                              </Table.Cell>
-                              <Table.Cell className="hidden sm:table-cell">
-                                <PbTeam
-                                  participantDiscordIds={
-                                    pb.best.participantDiscordIds
-                                  }
-                                  participantAltNames={
-                                    pb.best.participantAltNames
-                                  }
-                                  nameByDiscordId={pbNameByDiscordId}
-                                />
-                              </Table.Cell>
-                              <Table.Cell>
-                                {pb.best.proofMessageUrl ? (
-                                  <a
-                                    href={pb.best.proofMessageUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-gray-400 transition-colors hover:text-sanguine-red"
-                                  >
-                                    View
-                                  </a>
-                                ) : (
-                                  <Text size="2" className="text-gray-600">
-                                    —
-                                  </Text>
-                                )}
-                              </Table.Cell>
-                            </Table.Row>
-                          ))}
-                        </Table.Body>
-                      </Table.Root>
-                    </div>
-                  </Box>
-                </Card>
-              </Box>
-            </Tabs.Content>
+          {activeTab === 'personal-bests' && personalBests.length > 0 && (
+            <Box mt="4" className="overflow-x-auto">
+              <Table.Root size="1">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.ColumnHeaderCell className="text-osrs-orange">
+                      Boss / Raid
+                    </Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell className="text-osrs-orange">
+                      Time
+                    </Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell
+                      className="text-osrs-orange"
+                      align="center"
+                    >
+                      Clan Rank
+                    </Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
+                      Team
+                    </Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell className="text-osrs-orange">
+                      Proof
+                    </Table.ColumnHeaderCell>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {personalBests.map(pb => (
+                    <Table.Row
+                      key={pb.categoryKey}
+                      className="even:bg-white/[0.025] hover:bg-white/[0.05]"
+                    >
+                      <Table.Cell className="text-white">
+                        <Flex align="center" gap="2">
+                          <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
+                            <img
+                              src={pbBossImageByName[pb.bossName]}
+                              alt={pb.bossName}
+                              className="max-h-7 max-w-7 object-contain"
+                            />
+                          </Box>
+                          <Flex direction="column">
+                            <Text size="2" weight="medium">
+                              {pb.bossName}
+                            </Text>
+                            {(pb.scale > 1 ||
+                              pb.raidLevel != null ||
+                              (pbBossCounts.get(pb.bossName) ?? 0) > 1) && (
+                              <Text size="1" className="text-gray-400">
+                                {formatScaleLabel(pb.scale, pb.raidLevel)}
+                              </Text>
+                            )}
+                            {pb.userAltName && (
+                              <Text size="1" className="text-gray-500">
+                                on {pb.userAltName}
+                              </Text>
+                            )}
+                          </Flex>
+                        </Flex>
+                      </Table.Cell>
+                      <Table.Cell className="whitespace-nowrap font-medium text-osrs-gold">
+                        <PbTime
+                          timeDisplay={pb.best.timeDisplay}
+                          isPreciseTime={pb.best.isPreciseTime}
+                        />
+                      </Table.Cell>
+                      <Table.Cell align="center">
+                        {/* Fixed-width slots so the rank marker and "of N" line up vertically
+                            across rows regardless of each part's width. */}
+                        <Flex align="center" justify="center" gap="1">
+                          <Text size="2" className="w-8 text-right text-white">
+                            {pb.rank <= 3 ? rankBadge(pb.rank) : `#${pb.rank}`}
+                          </Text>
+                          <Text
+                            size="1"
+                            className="w-8 text-left text-gray-500"
+                          >
+                            {pb.totalEntries > 1 && `of ${pb.totalEntries}`}
+                          </Text>
+                        </Flex>
+                      </Table.Cell>
+                      <Table.Cell className="hidden sm:table-cell">
+                        <PbTeam
+                          participantDiscordIds={pb.best.participantDiscordIds}
+                          participantAltNames={pb.best.participantAltNames}
+                          nameByDiscordId={pbNameByDiscordId}
+                        />
+                      </Table.Cell>
+                      <Table.Cell>
+                        {pb.best.proofMessageUrl ? (
+                          <a
+                            href={pb.best.proofMessageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-gray-400 transition-colors hover:text-sanguine-bright"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          <Text size="2" className="text-gray-600">
+                            —
+                          </Text>
+                        )}
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Root>
+            </Box>
           )}
 
           {/* Clan Points — everything paying into the clan bucket: raid completions,
               competition rewards (BOTW/SOTW/RoTW), and manual adjustments. Like PBs, keyed to
               the member (discordId) so it spans every account and ignores the account
-              switcher. */}
-          {hasClanPointHistory && (
-            <Tabs.Content value="clan-points">
-              <Flex direction="column" gap="4" mt="4">
-                <Text size="2" className="text-gray-400">
-                  {clanPointsBreakdown}
-                </Text>
-                {raids.length > 0 && (
-                  <Card className="border border-gray-800 bg-gray-900">
-                    <Box p="5">
-                      <Heading size="4" className="mb-4 text-white">
-                        Raids
-                      </Heading>
-                      <div className="overflow-x-auto">
-                        <Table.Root size="1">
-                          <Table.Header>
-                            <Table.Row>
-                              <Table.ColumnHeaderCell className="text-gray-400">
-                                Raid
-                              </Table.ColumnHeaderCell>
-                              <Table.ColumnHeaderCell className="text-gray-400">
-                                Clan Points
-                              </Table.ColumnHeaderCell>
-                              <Table.ColumnHeaderCell className="hidden text-gray-400 sm:table-cell">
-                                Team
-                              </Table.ColumnHeaderCell>
-                              <Table.ColumnHeaderCell className="text-gray-400">
-                                Date
-                              </Table.ColumnHeaderCell>
-                            </Table.Row>
-                          </Table.Header>
-                          <Table.Body>
-                            {currentRaids.map(raid => (
-                              <Table.Row key={raid.id}>
-                                <Table.Cell className="text-white">
-                                  <Flex align="center" gap="2">
-                                    <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
-                                      <img
-                                        src={
-                                          pbBossImageByName[
-                                            raid.raidDisplayName
-                                          ]
-                                        }
-                                        alt={raid.raidDisplayName}
-                                        className="max-h-7 max-w-7 object-contain"
-                                      />
-                                    </Box>
-                                    <Flex align="center" gap="2">
-                                      <Text size="2" weight="medium">
-                                        {raid.raidDisplayName}
-                                      </Text>
-                                      {raid.rotwApplied && (
-                                        <Badge
-                                          color="amber"
-                                          variant="soft"
-                                          size="1"
-                                        >
-                                          RoTW ×2
-                                        </Badge>
-                                      )}
-                                    </Flex>
-                                  </Flex>
-                                </Table.Cell>
-                                <Table.Cell className="whitespace-nowrap font-medium text-amber-400">
-                                  {raid.capped && raid.pointsAwarded === 0 ? (
-                                    <Text size="2" className="text-gray-500">
-                                      capped
-                                    </Text>
-                                  ) : (
-                                    `+${raid.pointsAwarded}`
-                                  )}
-                                </Table.Cell>
-                                <Table.Cell className="hidden sm:table-cell">
-                                  <PbTeam
-                                    participantDiscordIds={
-                                      raid.participantDiscordIds
-                                    }
-                                    nameByDiscordId={pbNameByDiscordId}
-                                  />
-                                </Table.Cell>
-                                <Table.Cell className="whitespace-nowrap text-gray-300">
-                                  {dayjs(raid.approvedAt).format('MMM D, YYYY')}
-                                </Table.Cell>
-                              </Table.Row>
-                            ))}
-                          </Table.Body>
-                        </Table.Root>
-                      </div>
-                      <Pagination
-                        page={raidsPage}
-                        totalPages={raidsTotalPages}
-                        onPrev={() => setRaidsPage(p => Math.max(1, p - 1))}
-                        onNext={() =>
-                          setRaidsPage(p => Math.min(raidsTotalPages, p + 1))
-                        }
-                      />
-                    </Box>
-                  </Card>
-                )}
-
-                {hasCompetitionHistory && (
-                  <Card className="border border-gray-800 bg-gray-900">
-                    <Box p="5">
-                      <Heading size="4" className="mb-4 text-white">
-                        Competitions
-                        <Text
-                          size="2"
-                          className="ml-2 font-normal text-gray-400"
-                          as="span"
-                        >
-                          WOM competition rewards. Weeklies and one-off comps
-                        </Text>
-                      </Heading>
-                      <div className="overflow-x-auto">
-                        <Table.Root size="1">
-                          <Table.Header>
-                            <Table.Row>
-                              <Table.ColumnHeaderCell className="text-gray-400">
-                                Competition
-                              </Table.ColumnHeaderCell>
-                              <Table.ColumnHeaderCell className="text-gray-400">
-                                Place
-                              </Table.ColumnHeaderCell>
-                              <Table.ColumnHeaderCell className="text-gray-400">
-                                Date
-                              </Table.ColumnHeaderCell>
-                              <Table.ColumnHeaderCell className="text-gray-400">
-                                Clan Points
-                              </Table.ColumnHeaderCell>
-                            </Table.Row>
-                          </Table.Header>
-                          <Table.Body>
-                            {competitionAwards.map(award => (
-                              <Table.Row key={award.id}>
-                                <Table.Cell className="text-white">
-                                  <Flex align="center" gap="2">
-                                    <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
-                                      <img
-                                        src={award.imageUrl}
-                                        alt=""
-                                        className="max-h-7 max-w-7 object-contain"
-                                      />
-                                    </Box>
-                                    {award.competitionId !== null ? (
-                                      <Link
-                                        to={`/events/${award.competitionId}`}
-                                        className="transition-colors hover:text-sanguine-red"
-                                      >
-                                        <Text size="2" weight="medium">
-                                          {award.competitionTitle}
-                                        </Text>
-                                      </Link>
-                                    ) : (
-                                      <Text size="2" weight="medium">
-                                        {award.competitionTitle}
-                                      </Text>
-                                    )}
-                                  </Flex>
-                                </Table.Cell>
-                                <Table.Cell className="whitespace-nowrap">
-                                  {award.placement == null ? (
-                                    <Text size="2" className="text-gray-600">
-                                      —
-                                    </Text>
-                                  ) : award.placement <= 3 ? (
-                                    <Text size="2" className="text-white">
-                                      {rankBadge(award.placement)}
-                                    </Text>
-                                  ) : (
-                                    <Text size="2" className="text-gray-400">
-                                      Participant
-                                    </Text>
-                                  )}
-                                </Table.Cell>
-                                <Table.Cell className="whitespace-nowrap text-gray-300">
-                                  {dayjs(award.createdAt).format('MMM D, YYYY')}
-                                </Table.Cell>
-                                <Table.Cell className="whitespace-nowrap font-medium text-amber-400">
-                                  +{award.pointsGiven}
-                                </Table.Cell>
-                              </Table.Row>
-                            ))}
-                            {/* Awards that predate reliable competition records, rolled up */}
-                            {historicalCompetitions && (
-                              <Table.Row>
-                                <Table.Cell>
-                                  <Flex align="center" gap="2">
-                                    <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
-                                      <img
-                                        src={getFallbackImageUrl()}
-                                        alt=""
-                                        className="max-h-7 max-w-7 object-contain opacity-50"
-                                      />
-                                    </Box>
-                                    <Text size="2" className="text-gray-400">
-                                      Historical events ×
-                                      {historicalCompetitions.count}
-                                    </Text>
-                                  </Flex>
-                                </Table.Cell>
-                                <Table.Cell className="whitespace-nowrap">
-                                  <Text size="2" className="text-gray-600">
-                                    —
-                                  </Text>
-                                </Table.Cell>
-                                <Table.Cell className="whitespace-nowrap text-gray-400">
-                                  {historicalRangeLabel}
-                                </Table.Cell>
-                                <Table.Cell className="whitespace-nowrap font-medium text-amber-400">
-                                  +{historicalCompetitions.points}
-                                </Table.Cell>
-                              </Table.Row>
-                            )}
-                          </Table.Body>
-                        </Table.Root>
-                      </div>
-                    </Box>
-                  </Card>
-                )}
-
-                {/* Manual awards (event prizes, corrections) — one net figure, not a ledger */}
-                {otherAwards && (
-                  <Card className="border border-gray-800 bg-gray-900">
-                    <Box p="5">
-                      <Flex align="center" justify="between" gap="3">
-                        <Heading size="4" className="text-white">
-                          Other
-                          <Text
-                            size="2"
-                            className="ml-2 font-normal text-gray-400"
-                            as="span"
+              switcher. Each section carries its own total so the header figure reconciles. */}
+          {activeTab === 'clan-points' && hasClanPointHistory && (
+            <Flex direction="column" gap="5" mt="4">
+              {raids.length > 0 && (
+                <Box>
+                  <Flex
+                    align="baseline"
+                    justify="between"
+                    className="border-t-2 border-t-sanguine-red pb-1 pt-2"
+                  >
+                    <Text size="2" className="text-osrs-orange">
+                      Raids
+                    </Text>
+                    <Text size="1" className="text-gray-500">
+                      <span className="text-osrs-gold">{raidsPointsTotal}</span>{' '}
+                      clan points
+                    </Text>
+                  </Flex>
+                  <div className="overflow-x-auto">
+                    <Table.Root size="1">
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.ColumnHeaderCell className="text-osrs-orange">
+                            Raid
+                          </Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
+                            Team
+                          </Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell className="text-osrs-orange">
+                            Date
+                          </Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell
+                            className="whitespace-nowrap text-osrs-orange"
+                            align="right"
                           >
-                            manual awards across {otherAwards.count}{' '}
-                            {otherAwards.count === 1 ? 'entry' : 'entries'}
-                          </Text>
-                        </Heading>
-                        <Text
-                          size="4"
-                          className={`font-medium ${
-                            otherAwards.points < 0
-                              ? 'text-red-400'
-                              : 'text-amber-400'
-                          }`}
-                        >
-                          {otherAwards.points < 0
-                            ? otherAwards.points
-                            : `+${otherAwards.points}`}
-                        </Text>
-                      </Flex>
-                    </Box>
-                  </Card>
-                )}
-              </Flex>
-            </Tabs.Content>
+                            Clan pts
+                          </Table.ColumnHeaderCell>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {currentRaids.map(raid => (
+                          <Table.Row
+                            key={raid.id}
+                            className="even:bg-white/[0.025] hover:bg-white/[0.05]"
+                          >
+                            <Table.Cell className="text-white">
+                              <Flex align="center" gap="2">
+                                <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
+                                  <img
+                                    src={
+                                      pbBossImageByName[raid.raidDisplayName]
+                                    }
+                                    alt={raid.raidDisplayName}
+                                    className="max-h-7 max-w-7 object-contain"
+                                  />
+                                </Box>
+                                <Flex align="center" gap="2">
+                                  <Text size="2" weight="medium">
+                                    {raid.raidDisplayName}
+                                  </Text>
+                                  {raid.rotwApplied && (
+                                    <span className="whitespace-nowrap text-xs text-osrs-gold">
+                                      ×2 RotW
+                                    </span>
+                                  )}
+                                </Flex>
+                              </Flex>
+                            </Table.Cell>
+                            <Table.Cell className="hidden sm:table-cell">
+                              <PbTeam
+                                participantDiscordIds={
+                                  raid.participantDiscordIds
+                                }
+                                nameByDiscordId={pbNameByDiscordId}
+                              />
+                            </Table.Cell>
+                            <Table.Cell className="whitespace-nowrap text-gray-400">
+                              {dayjs(raid.approvedAt).format('MMM D, YYYY')}
+                            </Table.Cell>
+                            <Table.Cell
+                              align="right"
+                              className="whitespace-nowrap font-medium text-osrs-gold"
+                            >
+                              {raid.capped && raid.pointsAwarded === 0 ? (
+                                <Text size="2" className="text-gray-500">
+                                  capped
+                                </Text>
+                              ) : (
+                                `+${raid.pointsAwarded}`
+                              )}
+                            </Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table.Root>
+                  </div>
+                  <Pagination
+                    page={raidsPage}
+                    totalPages={raidsTotalPages}
+                    onPrev={() => setRaidsPage(p => Math.max(1, p - 1))}
+                    onNext={() =>
+                      setRaidsPage(p => Math.min(raidsTotalPages, p + 1))
+                    }
+                  />
+                </Box>
+              )}
+
+              {hasCompetitionHistory && (
+                <Box>
+                  <Flex
+                    align="baseline"
+                    justify="between"
+                    className="border-t-2 border-t-sanguine-red pb-1 pt-2"
+                  >
+                    <Text size="2" className="text-osrs-orange">
+                      Competitions{' '}
+                      <span className="text-gray-600">
+                        weeklies and one-off comps
+                      </span>
+                    </Text>
+                    <Text size="1" className="text-gray-500">
+                      <span className="text-osrs-gold">
+                        {competitionsPointsTotal}
+                      </span>{' '}
+                      clan points
+                    </Text>
+                  </Flex>
+                  <div className="overflow-x-auto">
+                    <Table.Root size="1">
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.ColumnHeaderCell className="text-osrs-orange">
+                            Competition
+                          </Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
+                            Place
+                          </Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell className="text-osrs-orange">
+                            Date
+                          </Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell
+                            className="whitespace-nowrap text-osrs-orange"
+                            align="right"
+                          >
+                            Clan pts
+                          </Table.ColumnHeaderCell>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {competitionAwards.map(award => (
+                          <Table.Row
+                            key={award.id}
+                            className="even:bg-white/[0.025] hover:bg-white/[0.05]"
+                          >
+                            <Table.Cell className="text-white">
+                              <Flex align="center" gap="2">
+                                <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
+                                  <img
+                                    src={award.imageUrl}
+                                    alt=""
+                                    className="max-h-7 max-w-7 object-contain"
+                                  />
+                                </Box>
+                                {award.competitionId !== null ? (
+                                  <Link
+                                    to={`/events/${award.competitionId}`}
+                                    className="transition-colors hover:text-sanguine-bright"
+                                  >
+                                    <Text size="2" weight="medium">
+                                      {award.competitionTitle}
+                                    </Text>
+                                  </Link>
+                                ) : (
+                                  <Text size="2" weight="medium">
+                                    {award.competitionTitle}
+                                  </Text>
+                                )}
+                              </Flex>
+                            </Table.Cell>
+                            <Table.Cell className="hidden whitespace-nowrap sm:table-cell">
+                              {award.placement == null ? (
+                                <Text size="2" className="text-gray-600">
+                                  —
+                                </Text>
+                              ) : award.placement <= 3 ? (
+                                <Text size="2" className="text-white">
+                                  {rankBadge(award.placement)}
+                                </Text>
+                              ) : (
+                                <Text size="2" className="text-gray-400">
+                                  Participant
+                                </Text>
+                              )}
+                            </Table.Cell>
+                            <Table.Cell className="text-gray-400 sm:whitespace-nowrap">
+                              {dayjs(award.createdAt).format('MMM D, YYYY')}
+                            </Table.Cell>
+                            <Table.Cell
+                              align="right"
+                              className="whitespace-nowrap font-medium text-osrs-gold"
+                            >
+                              +{award.pointsGiven}
+                            </Table.Cell>
+                          </Table.Row>
+                        ))}
+                        {/* Awards that predate reliable competition records, rolled up */}
+                        {historicalCompetitions && (
+                          <Table.Row className="even:bg-white/[0.025]">
+                            <Table.Cell>
+                              <Flex align="center" gap="2">
+                                <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
+                                  <img
+                                    src={getFallbackImageUrl()}
+                                    alt=""
+                                    className="max-h-7 max-w-7 object-contain opacity-50"
+                                  />
+                                </Box>
+                                <Text size="2" className="text-gray-400">
+                                  Historical events ×
+                                  {historicalCompetitions.count}
+                                </Text>
+                              </Flex>
+                            </Table.Cell>
+                            <Table.Cell className="hidden whitespace-nowrap sm:table-cell">
+                              <Text size="2" className="text-gray-600">
+                                —
+                              </Text>
+                            </Table.Cell>
+                            <Table.Cell className="text-gray-400 sm:whitespace-nowrap">
+                              {historicalRangeLabel}
+                            </Table.Cell>
+                            <Table.Cell
+                              align="right"
+                              className="whitespace-nowrap font-medium text-osrs-gold"
+                            >
+                              +{historicalCompetitions.points}
+                            </Table.Cell>
+                          </Table.Row>
+                        )}
+                      </Table.Body>
+                    </Table.Root>
+                  </div>
+                </Box>
+              )}
+
+              {/* Manual awards (event prizes, corrections) — one net figure, not a ledger */}
+              {otherAwards && (
+                <Flex
+                  align="baseline"
+                  justify="between"
+                  gap="3"
+                  className="border-t-2 border-t-sanguine-red pb-1 pt-2"
+                >
+                  <Text size="2" className="text-osrs-orange">
+                    Other{' '}
+                    <span className="text-gray-600">
+                      manual awards across {otherAwards.count}{' '}
+                      {otherAwards.count === 1 ? 'entry' : 'entries'}
+                    </span>
+                  </Text>
+                  <Text
+                    size="2"
+                    className={`font-medium ${
+                      otherAwards.points < 0 ? 'text-red-400' : 'text-osrs-gold'
+                    }`}
+                  >
+                    {otherAwards.points < 0
+                      ? otherAwards.points
+                      : `+${otherAwards.points}`}
+                  </Text>
+                </Flex>
+              )}
+            </Flex>
           )}
 
           {/* Drops — filtered by the account switcher */}
-          {allItemsLogged.length > 0 && (
-            <Tabs.Content value="drops">
-              <Flex direction="column" gap="4" mt="4">
-                {accountSwitcher}
-                {filteredItems.length > 0 && (
-                  <Card className="border border-gray-800 bg-gray-900">
-                    <Box p="5">
-                      <Flex direction="column">
-                        {currentItems.map(item => (
-                          <DropItem
-                            key={item.id}
-                            item={item}
-                            showRecipient={false}
-                            size="small"
-                          />
-                        ))}
-                      </Flex>
-
-                      <Pagination
-                        page={currentPage}
-                        totalPages={totalPages}
-                        onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        onNext={() =>
-                          setCurrentPage(p => Math.min(totalPages, p + 1))
-                        }
-                      />
-                    </Box>
-                  </Card>
-                )}
-                {filteredItems.length === 0 &&
-                  selectedAccount !== ALL_ACCOUNTS && (
-                    <Card className="border border-gray-800 bg-gray-900">
-                      <Box p="5" className="py-12 text-center">
-                        <Text size="3" className="text-gray-400">
-                          No drops recorded for {selectedAccount}
-                        </Text>
-                      </Box>
-                    </Card>
-                  )}
-              </Flex>
-            </Tabs.Content>
+          {activeTab === 'drops' && allItemsLogged.length > 0 && (
+            <Flex direction="column" gap="4" mt="4">
+              {accountSwitcher}
+              {filteredItems.length > 0 ? (
+                <Box>
+                  <Flex
+                    align="baseline"
+                    justify="between"
+                    className="border-t-2 border-t-sanguine-red pb-1 pt-2"
+                  >
+                    <Text size="2" className="text-osrs-orange">
+                      Drops
+                    </Text>
+                    <Text size="1" className="text-gray-500">
+                      <span className="text-white">{filteredItems.length}</span>{' '}
+                      items
+                      {totalGP > 0 && (
+                        <>
+                          {' worth '}
+                          <span className="text-osrs-gold">
+                            {totalGP.toLocaleString()}
+                          </span>{' '}
+                          gp
+                        </>
+                      )}
+                    </Text>
+                  </Flex>
+                  {currentItems.map(item => (
+                    <DropItem
+                      key={item.id}
+                      item={item}
+                      showRecipient={false}
+                      size="small"
+                    />
+                  ))}
+                  <Pagination
+                    page={currentPage}
+                    totalPages={totalPages}
+                    onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    onNext={() =>
+                      setCurrentPage(p => Math.min(totalPages, p + 1))
+                    }
+                  />
+                </Box>
+              ) : (
+                <Text as="p" align="center" className="py-12 text-gray-600">
+                  Nothing interesting happens.
+                </Text>
+              )}
+            </Flex>
           )}
 
           {/* Points chart — also filtered by the account switcher */}
-          <Tabs.Content value="chart">
+          {activeTab === 'chart' && (
             <Flex direction="column" gap="4" mt="4">
               {accountSwitcher}
-              <Card className="border border-gray-800 bg-gray-900">
-                <Box p="5">
-                  <Heading size="5" className="mb-4 text-white">
-                    {selectedAccount === ALL_ACCOUNTS
-                      ? mainName
-                      : selectedAccount}{' '}
-                    Drop Points Earned by Month
-                  </Heading>
-
-                  {filteredAuditData.length > 0 ? (
-                    <Box className="h-96">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={summedPointsByYearMonth}>
-                          <CartesianGrid
-                            strokeDasharray="3 3"
-                            stroke="#374151"
-                          />
-                          <XAxis
-                            dataKey="date"
-                            stroke="#9CA3AF"
-                            fontSize={12}
-                            angle={-45}
-                            textAnchor="end"
-                            height={80}
-                          />
-                          <YAxis stroke="#9CA3AF" fontSize={12} />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#1F2937',
-                              border: '1px solid #374151',
-                              borderRadius: '8px',
-                              color: '#F9FAFB',
-                            }}
-                            formatter={value => [
-                              `${value} drop points`,
-                              'Drop Points',
-                            ]}
-                          />
-                          <Bar
-                            dataKey="points"
-                            fill="#BB2C23"
-                            radius={[4, 4, 0, 0]}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  ) : (
-                    <Box className="py-12 text-center">
-                      <Text size="3" className="text-gray-400">
-                        No drop points on record
-                      </Text>
-                    </Box>
-                  )}
-                </Box>
-              </Card>
+              <Box>
+                <Flex
+                  align="baseline"
+                  justify="between"
+                  className="border-t-2 border-t-sanguine-red pb-1 pt-2"
+                >
+                  <Text size="2" className="text-osrs-orange">
+                    Drop points by month
+                  </Text>
+                  <Text size="1" className="text-gray-500">
+                    {displayName}
+                  </Text>
+                </Flex>
+                {filteredAuditData.length > 0 ? (
+                  <Box className="mt-3 h-96">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={summedPointsByYearMonth}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1F2937" />
+                        <XAxis
+                          dataKey="date"
+                          stroke="#9CA3AF"
+                          fontSize={12}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis stroke="#9CA3AF" fontSize={12} />
+                        <Tooltip
+                          cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                          contentStyle={{
+                            backgroundColor: '#111113',
+                            border: '1px solid #374151',
+                            borderRadius: '2px',
+                            color: '#F9FAFB',
+                          }}
+                          formatter={value => [
+                            `${value} drop points`,
+                            'Drop Points',
+                          ]}
+                        />
+                        <Bar dataKey="points" fill="#BB2C23" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                ) : (
+                  <Text as="p" align="center" className="py-12 text-gray-600">
+                    Nothing interesting happens.
+                  </Text>
+                )}
+              </Box>
             </Flex>
-          </Tabs.Content>
-        </Tabs.Root>
+          )}
+        </Box>
       </Flex>
     </Container>
   );

@@ -60,7 +60,7 @@ export function DropItem({
               {showRecipient && nickname && (
                 <Link
                   to={`/users/${item.destinationDiscordId}`}
-                  className="text-gray-400 transition-colors hover:text-sanguine-red"
+                  className="text-gray-400 transition-colors hover:text-sanguine-bright"
                 >
                   <Text size={isLarge ? { initial: '1', md: '2' } : '1'}>
                     Received by {nickname}
@@ -89,7 +89,7 @@ export function DropItem({
                   />
                   <Text
                     size={isLarge ? { initial: '1', md: '2' } : '1'}
-                    className="text-amber-400"
+                    className="text-osrs-gold"
                   >
                     {item.osrsData.price.toLocaleString()}
                   </Text>
@@ -98,7 +98,7 @@ export function DropItem({
               <Text
                 size={isLarge ? { initial: '1', md: '2' } : '1'}
                 weight="medium"
-                className="text-sanguine-red"
+                className="text-sanguine-bright"
               >
                 +{item.pointsGiven} pts
               </Text>

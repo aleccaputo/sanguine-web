@@ -1,4 +1,4 @@
-import { Button, Flex, Text } from '@radix-ui/themes';
+import { Flex, Text } from '@radix-ui/themes';
 
 type PaginationProps = {
   page: number;
@@ -6,6 +6,9 @@ type PaginationProps = {
   onPrev: () => void;
   onNext: () => void;
 };
+
+const pageButtonClass =
+  'rounded-sm border border-gray-800 bg-gray-900 px-3 py-1 text-sm text-gray-300 enabled:hover:border-gray-600 enabled:hover:text-white disabled:opacity-40';
 
 export function Pagination({
   page,
@@ -17,15 +20,23 @@ export function Pagination({
 
   return (
     <Flex justify="between" align="center" mt="4">
-      <Button onClick={onPrev} disabled={page === 1} variant="soft">
+      <button
+        onClick={onPrev}
+        disabled={page === 1}
+        className={pageButtonClass}
+      >
         Previous
-      </Button>
-      <Text size="2" className="text-gray-400">
+      </button>
+      <Text size="2" className="text-gray-500">
         Page {page} of {totalPages}
       </Text>
-      <Button onClick={onNext} disabled={page === totalPages} variant="soft">
+      <button
+        onClick={onNext}
+        disabled={page === totalPages}
+        className={pageButtonClass}
+      >
         Next
-      </Button>
+      </button>
     </Flex>
   );
 }
