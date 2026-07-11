@@ -1,6 +1,6 @@
 import { defer, MetaFunction, SerializeFrom } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   getUsersWithNicknames,
@@ -15,23 +15,16 @@ import {
   type MembershipWithPlayer,
 } from '~/services/wom-api-service.server';
 import { getLegacyCompetitionPointsByDiscordId } from '~/data/points-audit';
-import { fetchRankImage, getRankSortIndex } from '~/utils/clan-ranks';
+import {
+  fetchRankImage,
+  getRankSortIndex,
+  rankLabel,
+} from '~/utils/clan-ranks';
 
 type SortField = 'rank' | 'points' | 'clanPoints' | 'name' | 'joined';
 type SortDirection = 'asc' | 'desc';
 
 const STAFF_RANKS = ['owner', 'deputy_owner', 'administrator', 'moderator'];
-
-// WOM reports the monthly winner ranks under generic role names (see clan-ranks.ts);
-// spell out what they actually mean on the roster.
-const RANK_LABEL_OVERRIDES: Record<string, string> = {
-  blood: 'RotW winner',
-  leader: 'BotW winner',
-  skiller: 'SotW winner',
-};
-
-const rankLabel = (rank: string) =>
-  RANK_LABEL_OVERRIDES[rank.toLocaleLowerCase()] ?? rank.replace(/_/g, ' ');
 
 export const meta: MetaFunction = () => {
   return [
@@ -78,6 +71,16 @@ export default function Index() {
   const [sortField, setSortField] = useState<SortField>('rank');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [rankFilter, setRankFilter] = useState('all');
+
+  // On touch devices Radix Select leaks a ghost click to whatever sits behind the closing
+  // dropdown (radix-ui/primitives#1658) — the browser dispatches the tap's click after the
+  // content unmounts, landing on a roster row. Ignore navigation clicks that arrive right
+  // after the dropdown closes.
+  const rankFilterClosedAt = useRef(0);
+  const navigateToUser = (discordId: string) => {
+    if (Date.now() - rankFilterClosedAt.current < 400) return;
+    navigate(`/users/${discordId}`);
+  };
 
   // Get rank text based on points
   const getRankText = (
@@ -255,7 +258,7 @@ export default function Index() {
               Members
             </Heading>
           </Flex>
-          <Text as="p" size="2" className="mt-2 text-gray-400">
+          <Text as="p" size="3" className="mt-2 text-gray-400">
             <span className="font-semibold text-sanguine-bright">
               {roster.length}
             </span>{' '}
@@ -286,13 +289,13 @@ export default function Index() {
                     : 'pb-2 sm:pr-5'
                 }
               >
-                <Text as="p" size="1" className="pt-2 text-gray-500">
+                <Text as="p" size="2" className="pt-2 text-gray-500">
                   {board.title}
                 </Text>
                 {board.entries.map(({ user, rank }, index) => (
                   <button
                     key={user.discordId}
-                    onClick={() => navigate(`/users/${user.discordId}`)}
+                    onClick={() => navigateToUser(user.discordId)}
                     className="group flex w-full min-w-0 items-center gap-3 py-1.5 text-left"
                   >
                     <span
@@ -355,7 +358,13 @@ export default function Index() {
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </Flex>
-            <Select.Root value={rankFilter} onValueChange={setRankFilter}>
+            <Select.Root
+              value={rankFilter}
+              onValueChange={setRankFilter}
+              onOpenChange={open => {
+                if (!open) rankFilterClosedAt.current = Date.now();
+              }}
+            >
               <Select.Trigger color="gray" />
               <Select.Content position="popper">
                 {rankOptions.map(option => (
@@ -405,7 +414,7 @@ export default function Index() {
             visibleUsers.map(({ user, rank }, index) => (
               <div
                 key={user.discordId}
-                onClick={() => navigate(`/users/${user.discordId}`)}
+                onClick={() => navigateToUser(user.discordId)}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     navigate(`/users/${user.discordId}`);
@@ -413,7 +422,7 @@ export default function Index() {
                 }}
                 role="link"
                 tabIndex={0}
-                className={`${rowGridClass} group cursor-pointer py-2 even:bg-white/[0.025] hover:bg-white/[0.05]`}
+                className={`${rowGridClass} group cursor-pointer py-2 even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]`}
               >
                 <Text as="div" size="2" className="text-right text-gray-600">
                   {index + 1}

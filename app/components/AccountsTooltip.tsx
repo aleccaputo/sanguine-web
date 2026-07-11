@@ -19,9 +19,9 @@ export function AccountsTooltip({ accounts, children }: IAccountsTooltipProps) {
       </HoverCard.Trigger>
       <HoverCard.Content
         style={{
-          backgroundColor: '#1F2937',
+          backgroundColor: '#111113',
           border: '1px solid #374151',
-          borderRadius: '8px',
+          borderRadius: '2px',
           padding: '8px 12px',
           fontSize: '12px',
           color: '#F9FAFB',
@@ -44,7 +44,7 @@ export function AccountsTooltip({ accounts, children }: IAccountsTooltipProps) {
                 alt={account.role}
                 width={18}
                 height={18}
-                style={{ flexShrink: 0 }}
+                style={{ flexShrink: 0, imageRendering: 'pixelated' }}
               />
             )}
             <span>{account.name}</span>

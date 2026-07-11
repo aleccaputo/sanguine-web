@@ -61,6 +61,7 @@ export async function loader() {
   const rngBingoPromise = getCompetitionById(46594);
   const starBingoPromise = getCompetitionById(79514);
   const coalitionBingoPromise = getCompetitionById(101103);
+  const gottaBossEmAll2026Promise = getCompetitionById(144882);
 
   const [
     sangFeb26,
@@ -69,6 +70,7 @@ export async function loader() {
     rngBingo,
     starBingo,
     coalitionBingo,
+    gottaBossEmAll2026,
   ] = await Promise.all([
     sangFeb26Promise,
     starCollectorsV2Promise,
@@ -76,11 +78,13 @@ export async function loader() {
     rngBingoPromise,
     starBingoPromise,
     coalitionBingoPromise,
+    gottaBossEmAll2026Promise,
   ]);
 
   const competitionsPromise = womCompsPromise.then(womComps => [
-    sangFeb26,
+    gottaBossEmAll2026,
     ...(womComps ?? []),
+    sangFeb26,
     starCollectorsV2,
     fall2025Bingo,
     coalitionBingo,

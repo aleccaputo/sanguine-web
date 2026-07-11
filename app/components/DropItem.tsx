@@ -60,9 +60,9 @@ export function DropItem({
               {showRecipient && nickname && (
                 <Link
                   to={`/users/${item.destinationDiscordId}`}
-                  className="text-gray-400 transition-colors hover:text-sanguine-red"
+                  className="text-gray-400 transition-colors hover:text-sanguine-bright"
                 >
-                  <Text size={isLarge ? { initial: '1', md: '2' } : '1'}>
+                  <Text size={isLarge ? { initial: '1', md: '2' } : '2'}>
                     Received by {nickname}
                   </Text>
                 </Link>
@@ -75,8 +75,8 @@ export function DropItem({
               className="flex-shrink-0"
             >
               <Text
-                size={isLarge ? { initial: '1', md: '2' } : '1'}
-                className="whitespace-nowrap text-gray-300"
+                size={isLarge ? { initial: '1', md: '2' } : '2'}
+                className="whitespace-nowrap text-gray-400"
               >
                 {dayjs(item.createdAt).format('MMM D, YYYY')}
               </Text>
@@ -88,17 +88,18 @@ export function DropItem({
                     className="h-3 w-3 object-contain"
                   />
                   <Text
-                    size={isLarge ? { initial: '1', md: '2' } : '1'}
-                    className="text-amber-400"
+                    size={isLarge ? { initial: '1', md: '2' } : '2'}
+                    className="text-osrs-gold"
                   >
                     {item.osrsData.price.toLocaleString()}
                   </Text>
                 </Flex>
               )}
+              {/* Drop points read white everywhere (red is reserved for members/links) */}
               <Text
-                size={isLarge ? { initial: '1', md: '2' } : '1'}
+                size={isLarge ? { initial: '1', md: '2' } : '2'}
                 weight="medium"
-                className="text-sanguine-red"
+                className="text-white"
               >
                 +{item.pointsGiven} pts
               </Text>

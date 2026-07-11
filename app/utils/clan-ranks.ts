@@ -11,6 +11,19 @@ export const fetchRankImage = (rankName: string) => {
   return `/rank-icons/${RANK_IMAGE_OVERRIDES[rank] ?? rank}.png`;
 };
 
+// WOM reports the monthly winner ranks under generic role names (see
+// RANK_IMAGE_OVERRIDES); spell out what they actually mean wherever a rank is
+// shown as text. The wrath rank is Sanguine's grandmaster tier.
+const RANK_LABEL_OVERRIDES: Record<string, string> = {
+  blood: 'RotW winner',
+  leader: 'BotW winner',
+  skiller: 'SotW winner',
+  wrath: 'grandmaster',
+};
+
+export const rankLabel = (rank: string) =>
+  RANK_LABEL_OVERRIDES[rank.toLocaleLowerCase()] ?? rank.replace(/_/g, ' ');
+
 // Sanguine clan rank hierarchy, highest to lowest. WOM reports the winner ranks
 // under generic role names (see RANK_IMAGE_OVERRIDES): blood = rotw, leader =
 // botw, skiller = sotw.

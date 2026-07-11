@@ -157,81 +157,161 @@ function EventsListSkeleton() {
   );
 }
 
-// Users List Page Skeleton
+// Users List Page Skeleton — mirrors the roster: left-aligned header with the clan
+// scythe, the two-column leader band, the search toolbar, then dense flat rows.
 function UsersListSkeleton() {
   return (
-    <Container size="4" className="min-h-full py-8">
-      <Flex direction="column" gap="5">
-        {/* Page Header */}
-        <Box className="text-center">
-          <div className="mx-auto h-8 w-64 animate-pulse rounded bg-gray-800/50"></div>
-          <div className="mx-auto mt-2 h-1 w-32 animate-pulse bg-sanguine-red/30"></div>
+    <Container size="3" className="min-h-full py-6">
+      <Flex direction="column">
+        {/* Page header */}
+        <Box mb="6">
+          <Flex align="center" gap="3">
+            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-9 w-48 animate-pulse rounded-sm bg-gray-800/50"></div>
+          </Flex>
+          <div className="mt-3 h-4 w-80 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
         </Box>
 
-        {/* Search Bar */}
-        <div className="mx-auto h-10 w-full max-w-md animate-pulse rounded border border-gray-800 bg-gray-900"></div>
+        {/* Leader band */}
+        <Box
+          mb="6"
+          className="border-b border-t-2 border-gray-800 border-t-sanguine-red"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2">
+            {[0, 1].map(col => (
+              <div
+                key={col}
+                className={
+                  col > 0
+                    ? 'border-t border-gray-800 pb-2 sm:border-l sm:border-t-0 sm:pl-5'
+                    : 'pb-2 sm:pr-5'
+                }
+              >
+                <div className="mb-2 mt-2 h-3 w-24 animate-pulse rounded-sm bg-gray-800/50"></div>
+                {[...Array(5)].map((_, idx) => (
+                  <Flex key={idx} align="center" gap="3" className="py-1.5">
+                    <div className="h-4 w-5 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                    <div className="h-[22px] w-[22px] shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                    <div
+                      className={`h-4 flex-1 animate-pulse rounded-sm bg-gray-800/50 ${idx === 0 ? 'h-5' : ''}`}
+                    ></div>
+                    <div className="h-4 w-10 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  </Flex>
+                ))}
+              </div>
+            ))}
+          </div>
+        </Box>
 
-        {/* Grid of Member Cards */}
-        <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="4">
-          {[...Array(9)].map((_, idx) => (
-            <Card
+        {/* Toolbar */}
+        <Flex gap="2" align="center" className="mb-4">
+          <div className="h-9 w-60 animate-pulse rounded-sm border border-gray-800 bg-gray-900"></div>
+          <div className="h-9 w-28 animate-pulse rounded-sm border border-gray-800 bg-gray-900"></div>
+        </Flex>
+
+        {/* Roster rows */}
+        <Box>
+          {[...Array(12)].map((_, idx) => (
+            <Flex
               key={idx}
-              className="animate-pulse border border-gray-800 bg-gray-900"
+              align="center"
+              gap="3"
+              className={`border-b border-gray-800 py-2.5 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
             >
-              <Box p="4">
-                <div className="mb-3 h-5 w-2/3 rounded bg-gray-700/50"></div>
-                <div className="h-4 w-1/2 rounded bg-gray-700/50"></div>
-              </Box>
-            </Card>
+              <div className="h-4 w-6 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="h-[22px] w-[22px] shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="h-4 w-36 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+                <div className="h-3 w-20 animate-pulse rounded-sm bg-gray-800/40"></div>
+              </div>
+              <div className="hidden h-4 w-16 animate-pulse rounded-sm bg-gray-800/50 md:block"></div>
+              <div className="h-4 w-10 animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="h-4 w-8 animate-pulse rounded-sm bg-gray-800/50"></div>
+            </Flex>
           ))}
-        </Grid>
+        </Box>
       </Flex>
     </Container>
   );
 }
 
-// User Detail Page Skeleton
+// User Detail Page Skeleton — mirrors the wiki article: title over a hairline,
+// right-hand infobox with its red bands, prose lede, contents box, then a section.
 function UserDetailSkeleton() {
   return (
-    <Container size="4" className="min-h-full py-8">
-      <Flex direction="column" gap="6">
-        {/* User Header Card */}
-        <Card className="border border-gray-800 bg-gray-900">
-          <Box p="5">
-            <Flex gap="4" align="center" className="mb-4">
-              <div className="h-20 w-20 animate-pulse rounded-full bg-gray-700/50"></div>
-              <div className="flex-1 space-y-2">
-                <div className="h-8 w-48 animate-pulse rounded bg-gray-700/50"></div>
-                <div className="h-4 w-32 animate-pulse rounded bg-gray-700/50"></div>
-              </div>
-            </Flex>
-            <Flex gap="4">
-              <div className="h-12 w-24 animate-pulse rounded bg-gray-700/50"></div>
-              <div className="h-12 w-24 animate-pulse rounded bg-gray-700/50"></div>
-              <div className="h-12 w-24 animate-pulse rounded bg-gray-700/50"></div>
-            </Flex>
-          </Box>
-        </Card>
+    <Container size="4" className="min-h-full py-6">
+      {/* Article title + tagline over a hairline */}
+      <Box className="border-b border-gray-700 pb-2">
+        <div className="h-10 w-64 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+        <div className="mt-2 h-4 w-52 animate-pulse rounded-sm bg-gray-800/40"></div>
+      </Box>
 
-        {/* Stats Cards */}
-        <Grid columns={{ initial: '1', md: '2' }} gap="4">
-          {[1, 2].map(i => (
-            <Card key={i} className="border border-gray-800 bg-gray-900">
-              <Box p="5">
-                <div className="mb-4 h-5 w-32 animate-pulse rounded bg-gray-700/50"></div>
-                <div className="space-y-2">
-                  {[1, 2, 3].map(j => (
-                    <div
-                      key={j}
-                      className="h-8 animate-pulse rounded bg-gray-700/30"
-                    ></div>
-                  ))}
-                </div>
-              </Box>
-            </Card>
+      <div className="flex flex-col gap-6 lg:flex-row-reverse lg:gap-8">
+        {/* Infobox */}
+        <aside className="mt-6 w-full shrink-0 self-start border border-gray-700 lg:w-80">
+          <div className="h-9 animate-pulse bg-sanguine-red/40"></div>
+          <Flex align="center" justify="center" className="py-5">
+            <div className="h-14 w-14 animate-pulse rounded-sm bg-gray-800/50"></div>
+          </Flex>
+          {[...Array(7)].map((_, idx) => (
+            <div
+              key={idx}
+              className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2.5"
+            >
+              <div className="h-4 w-20 animate-pulse rounded-sm bg-gray-800/40"></div>
+              <div className="h-4 w-24 animate-pulse rounded-sm bg-gray-800/50"></div>
+            </div>
           ))}
-        </Grid>
-      </Flex>
+        </aside>
+
+        <Box className="min-w-0 flex-1">
+          {/* Lede paragraph */}
+          <div className="mt-6 space-y-2.5">
+            <div className="h-4 w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-11/12 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-2/3 animate-pulse rounded-sm bg-gray-800/50"></div>
+          </div>
+
+          {/* Contents box */}
+          <div className="mt-6 w-56 border border-gray-800 bg-gray-900">
+            <div className="border-b border-gray-800 px-5 py-2">
+              <div className="h-4 w-20 animate-pulse rounded-sm bg-gray-800/50"></div>
+            </div>
+            <div className="space-y-2 px-5 py-3">
+              {[...Array(4)].map((_, idx) => (
+                <div
+                  key={idx}
+                  className="h-4 w-32 animate-pulse rounded-sm bg-gray-800/50"
+                ></div>
+              ))}
+            </div>
+          </div>
+
+          {/* First section: underlined heading, then flat rows */}
+          <div className="mt-10 flex items-baseline justify-between border-b border-gray-700 pb-1">
+            <div className="h-6 w-28 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-40 animate-pulse rounded-sm bg-gray-800/40"></div>
+          </div>
+          <Box mt="2">
+            {[...Array(5)].map((_, idx) => (
+              <Flex
+                key={idx}
+                align="center"
+                gap="3"
+                className={`px-2 py-3 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+              >
+                <div className="h-6 w-6 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                <div className="h-4 w-44 max-w-full flex-1 animate-pulse rounded-sm bg-gray-800/50"></div>
+                <div className="space-y-1.5">
+                  <div className="ml-auto h-4 w-20 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="ml-auto h-3 w-12 animate-pulse rounded-sm bg-gray-800/40"></div>
+                </div>
+              </Flex>
+            ))}
+          </Box>
+        </Box>
+      </div>
     </Container>
   );
 }

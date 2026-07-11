@@ -41,6 +41,8 @@ interface IPbTeamProps {
 // Renders a PB's roster as comma-separated member links, alphabetised so the same team always
 // reads identically regardless of submission order. An alt account is shown as "Alt (Main)" — the
 // same convention used for drops (see resolvePbParticipants / formatAccountWithMain).
+// Members read in clan red like the roster page; non-members stay gray, so color doubles as
+// the member/guest distinction.
 export function PbTeam({
   participantDiscordIds,
   nameByDiscordId,
@@ -59,7 +61,7 @@ export function PbTeam({
           {member.isMember ? (
             <Link
               to={`/users/${member.discordId}`}
-              className="text-gray-300 transition-colors hover:text-sanguine-red"
+              className="text-sanguine-bright transition-colors hover:text-white"
             >
               {member.displayName}
             </Link>
