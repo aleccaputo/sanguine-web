@@ -1,6 +1,6 @@
 import { useNavigation } from '@remix-run/react';
 import { useSpinDelay } from 'spin-delay';
-import { Container, Flex, Box, Card, Grid } from '@radix-ui/themes';
+import { Container, Flex, Box, Card } from '@radix-ui/themes';
 import { useEffect } from 'react';
 
 function RouteSkeletonLoader() {
@@ -134,34 +134,38 @@ function EventDetailSkeleton() {
   );
 }
 
-// Events List Page Skeleton
+// Events List Page Skeleton — mirrors the competitions table: left-aligned
+// header, column chrome over the red rule, then dense zebra rows.
 function EventsListSkeleton() {
   return (
-    <Container size="4" className="min-h-full py-8">
-      <Flex direction="column" gap="5">
-        {/* Page Header */}
-        <Box className="text-center">
-          <div className="mx-auto h-8 w-64 animate-pulse rounded bg-gray-800/50"></div>
-          <div className="mx-auto mt-2 h-1 w-32 animate-pulse bg-sanguine-red/30"></div>
+    <Container size="3" className="min-h-full py-6">
+      <Flex direction="column">
+        {/* Page header */}
+        <Box mb="6">
+          <Flex align="center" gap="3">
+            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-9 w-40 animate-pulse rounded-sm bg-gray-800/50"></div>
+          </Flex>
+          <div className="mt-3 h-4 w-72 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
         </Box>
 
-        {/* Grid of Event Cards */}
-        <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="4">
-          {[...Array(6)].map((_, idx) => (
-            <Card
-              key={idx}
-              className="animate-pulse border border-gray-800 bg-gray-900"
-            >
-              <Flex p="4" gap="3" align="center">
-                <div className="h-12 w-12 rounded-full bg-gray-700/50"></div>
-                <Box className="flex-1">
-                  <div className="mb-2 h-4 w-3/4 rounded bg-gray-700/50"></div>
-                  <div className="h-3 w-1/2 rounded bg-gray-700/50"></div>
-                </Box>
-              </Flex>
-            </Card>
-          ))}
-        </Grid>
+        {/* Column header + rows */}
+        <div className="border-b border-t-2 border-gray-700 border-t-sanguine-red py-2.5">
+          <div className="h-4 w-48 animate-pulse rounded-sm bg-gray-800/50"></div>
+        </div>
+        {[...Array(10)].map((_, idx) => (
+          <Flex
+            key={idx}
+            align="center"
+            gap="3"
+            className={`border-b border-gray-800 px-2 py-2.5 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+          >
+            <div className="h-7 w-7 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-56 max-w-full flex-1 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-16 animate-pulse rounded-sm bg-gray-800/40"></div>
+            <div className="hidden h-4 w-36 animate-pulse rounded-sm bg-gray-800/40 sm:block"></div>
+          </Flex>
+        ))}
       </Flex>
     </Container>
   );
