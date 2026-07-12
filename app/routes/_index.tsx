@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import dayjs from 'dayjs';
 import type { OSRSItem } from '~/services/osrs-wiki-prices-service';
+import { CoinsIcon } from '~/components/CoinsIcon';
 import { DiscordWidget } from '~/components/DiscordWidget';
 import { DropItem } from '~/components/DropItem';
 import { EmptyState } from '~/components/EmptyState';
@@ -16,10 +17,8 @@ import {
 } from '~/services/wom-api-service.server';
 import { SPECIAL_COMPETITION_IDS } from '~/utils/events-config';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
-import {
-  getClanDropsPaginated,
-  getLegacyCompetitionPointsByDiscordId,
-} from '~/data/points-audit';
+import { getAllClanDrops, getClanDropsPaginated } from '~/data/points-audit';
+import { computeClanTotals } from '~/data/points-audit/stats';
 import { getAllUserAlts } from '~/data/user';
 import {
   getMonthlyWinners,
@@ -76,31 +75,42 @@ export async function loader() {
   const usersPromise = getUsersWithNicknames();
   const altsPromise = getAllUserAlts();
 
-  // The lede narrates real numbers instead of hard-coded ones; deferred so the
-  // hero paints immediately even when the services are cold.
+  // The lede narrates real numbers instead of hard-coded ones, in terms any
+  // OSRS player understands (members, drops, gp) rather than the clan's
+  // internal point currencies; deferred so the hero paints immediately.
   const statsPromise = Promise.all([
     usersPromise,
-    getLegacyCompetitionPointsByDiscordId(),
     altsPromise,
-  ]).then(([users, legacyCompetitionPoints, allAlts]) => {
+    getAllClanDrops(),
+  ]).then(async ([users, allAlts, allDrops]) => {
     const members = users.filter(user => user.nickname);
     // Members play across multiple accounts — the clan counts alts too
     const memberDiscordIds = new Set(members.map(user => user.discordId));
     const altCount = allAlts.filter(alt =>
       memberDiscordIds.has(alt.discordId),
     ).length;
+
+    const uniqueItemIds = [
+      ...new Set(
+        allDrops.map(d => d.itemId).filter((id): id is number => id != null),
+      ),
+    ];
+    const items = await Promise.all(
+      uniqueItemIds.map(id => fetchOSRSItem(id)),
+    );
+    const itemMap = new Map<number, OSRSItem>(
+      uniqueItemIds
+        .map((id, i) => [id, items[i]] as const)
+        .filter((entry): entry is readonly [number, OSRSItem] =>
+          entry[1] != null,
+        ),
+    );
+    const totals = computeClanTotals(allDrops, itemMap);
+
     return {
       memberCount: members.length + altCount,
-      totalDropPoints: members.reduce((sum, user) => sum + user.points, 0),
-      // Pre-cutover COMPETITION awards count as clan points retroactively —
-      // same adjustment the roster applies.
-      totalClanPoints: members.reduce(
-        (sum, user) =>
-          sum +
-          user.clanPoints +
-          (legacyCompetitionPoints[user.discordId] ?? 0),
-        0,
-      ),
+      totalDrops: totals.totalDrops,
+      totalGP: totals.totalGP,
     };
   });
 
@@ -337,25 +347,27 @@ export default function Index() {
           Old School RuneScape PvM and social clan
           <Suspense fallback={<>.</>}>
             <Await resolve={stats}>
-              {({ memberCount, totalDropPoints, totalClanPoints }) => (
+              {({ memberCount, totalDrops, totalGP }) => (
                 <>
                   {' '}
                   of{' '}
                   <Link to="/users" className={proseLinkClass}>
                     <span className="font-semibold">{memberCount} members</span>
-                  </Link>
-                  , together holding{' '}
-                  <span className="font-semibold text-white">
-                    {totalDropPoints.toLocaleString()}
-                  </span>{' '}
-                  <Link to="/drops" className={proseLinkClass}>
-                    drop points
                   </Link>{' '}
-                  and{' '}
-                  <span className="font-semibold text-osrs-gold">
-                    {totalClanPoints.toLocaleString()}
+                  who raid, boss, and skill together. Between them they&apos;ve
+                  filled the{' '}
+                  <Link to="/drops" className={proseLinkClass}>
+                    drop log
+                  </Link>{' '}
+                  with{' '}
+                  <span className="font-semibold text-white">
+                    {totalDrops.toLocaleString()}
                   </span>{' '}
-                  clan points.
+                  drops worth <CoinsIcon />{' '}
+                  <span className="font-semibold text-osrs-gold">
+                    {totalGP.toLocaleString()}
+                  </span>{' '}
+                  gp.
                 </>
               )}
             </Await>
