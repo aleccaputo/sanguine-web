@@ -111,18 +111,18 @@ export default function Index() {
               )}
             </Await>
           </Suspense>{' '}
-          Find us in-game at clan chat{' '}
+          Find us in-game in the clan chat{' '}
           <span className="text-white">Sanguine PvM</span> on home world{' '}
-          <span className="text-white">479</span>, keeping EST/PST hours, or
-          around the{' '}
+          <span className="text-white">479</span>, most active during EST/PST
+          hours. The{' '}
           <Link to="/events" className={proseLinkClass}>
             competitions
           </Link>{' '}
           and{' '}
           <Link to="/personal-bests" className={proseLinkClass}>
             personal-best boards
-          </Link>
-          .
+          </Link>{' '}
+          show what we&apos;ve been up to lately.
         </Text>
 
         <img
