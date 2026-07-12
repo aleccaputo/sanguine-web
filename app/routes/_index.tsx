@@ -354,8 +354,9 @@ export default function Index() {
                   <Link to="/users" className={proseLinkClass}>
                     <span className="font-semibold">{memberCount} members</span>
                   </Link>{' '}
-                  who raid ToB, CoX, and ToA together, Hard Modes included.
-                  Between them they&apos;ve logged{' '}
+                  who raid ToB, CoX, and ToA together, Hard Modes included,
+                  and boss everything else from Yama to Nex. Between them
+                  they&apos;ve logged{' '}
                   <span className="font-semibold text-white">
                     {totalDrops.toLocaleString()}
                   </span>{' '}
