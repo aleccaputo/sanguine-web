@@ -5,6 +5,7 @@ import { DiscordWidget } from '~/components/DiscordWidget';
 import { Infobox, InfoboxBand, InfoboxRow } from '~/components/Infobox';
 import { SectionHeading, SubsectionHeading } from '~/components/SectionHeading';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
+import { getAllUserAlts } from '~/data/user';
 import { proseLinkClass, zebraStripeClass } from '~/utils/styles';
 
 export const meta: MetaFunction = () => {
@@ -18,9 +19,18 @@ export const meta: MetaFunction = () => {
 };
 
 export async function loader() {
-  const users = await getUsersWithNicknames();
+  const [users, allAlts] = await Promise.all([
+    getUsersWithNicknames(),
+    getAllUserAlts(),
+  ]);
+  const members = users.filter(user => user.nickname);
+  // Members play across multiple accounts — the clan counts alts too
+  const memberDiscordIds = new Set(members.map(user => user.discordId));
+  const altCount = allAlts.filter(alt =>
+    memberDiscordIds.has(alt.discordId),
+  ).length;
   return json(
-    { memberCount: users.filter(user => user.nickname).length },
+    { memberCount: members.length + altCount },
     { headers: { 'Cache-Control': 'max-age=300' } },
   );
 }
