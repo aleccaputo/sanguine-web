@@ -564,11 +564,13 @@ export default function Index() {
             like the noticeboard above it */}
         <div className="mt-3 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
           <Text as="p" size="3" className="max-w-xl leading-7 text-gray-300">
-            Applications go through Discord: introduce yourself and a staff
-            member will get you ranked in the clan chat. We ask for{' '}
+            Applications run through Discord: join the server, read the
+            rules, and click the green checkmark in{' '}
+            <span className="text-white">#welcome</span> to open your
+            application channel. We ask for{' '}
             <span className="text-white">110+ combat</span> and{' '}
             <span className="text-white">10 kc</span> in either ToB, CoX, or
-            ToA Expert; everything else you can read on the{' '}
+            ToA Expert; everything else is on the{' '}
             <Link to="/about" className={proseLinkClass}>
               about page
             </Link>
