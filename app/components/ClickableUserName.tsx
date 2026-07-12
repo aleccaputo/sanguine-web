@@ -22,7 +22,7 @@ export function ClickableUserName({
   return (
     <Text
       size={size}
-      className={`${className} cursor-pointer transition-colors hover:text-sanguine-red`}
+      className={`${className} cursor-pointer transition-colors hover:text-sanguine-bright`}
       onClick={() => navigate(`/users/${user.discordId}`)}
     >
       {user.nickname}
