@@ -1,14 +1,11 @@
 import { json, MetaFunction } from '@remix-run/node';
-import { Container, Text, Box, Flex } from '@radix-ui/themes';
+import { Container, Heading, Text, Box, Flex } from '@radix-ui/themes';
 import { Link, useLoaderData } from '@remix-run/react';
 import { DiscordWidget } from '~/components/DiscordWidget';
-import { ArticleTitle } from '~/components/ArticleTitle';
-import { CategoriesFooter } from '~/components/CategoriesFooter';
-import { ContentsBox } from '~/components/ContentsBox';
 import { Infobox, InfoboxBand, InfoboxRow } from '~/components/Infobox';
 import { SectionHeading, SubsectionHeading } from '~/components/SectionHeading';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
-import { proseLinkClass } from '~/utils/styles';
+import { proseLinkClass, zebraStripeClass } from '~/utils/styles';
 
 export const meta: MetaFunction = () => {
   return [
@@ -37,35 +34,23 @@ const COMMUNITY_EVENTS = [
   ['Active Discord', 'community chat and coordination'],
 ] as const;
 
-const REQUIREMENTS = [
-  'Combat level 110+',
-  '10 kc in either ToB, CoX, or ToA Expert',
-  'Active Discord participation',
-  'Respectful and mature attitude',
-  'Interest in learning and improving',
-];
-
-const BENEFITS = [
-  'Point-based reward system',
-  'Progress tracking and leaderboards',
-  'Expert mentorship and guidance',
-  'Social events and community activities',
-];
-
-const SECTIONS = [
-  { id: 'what-we-offer', title: 'What we offer' },
-  { id: 'requirements', title: 'Requirements' },
-  { id: 'benefits', title: 'Benefits' },
-  { id: 'join', title: 'How to join' },
-];
+const listItemClass = `px-2 py-1 ${zebraStripeClass}`;
 
 export default function AboutRoute() {
   const { memberCount } = useLoaderData<typeof loader>();
 
   return (
     <Container size="4" mt="3" pb="6">
-      {/* The clan's own wiki article: title, infobox of vitals, lede, sections */}
-      <ArticleTitle title="Sanguine" />
+      {/* Page title over a plain subtitle — the infobox carries the vitals,
+          but this is the site's about page, not a wiki article */}
+      <Box mt="2">
+        <Heading size="8" className="font-normal text-sanguine-bright">
+          About Sanguine
+        </Heading>
+        <Text as="p" size="3" className="mt-2 text-gray-400">
+          A PvM and social Old School RuneScape clan
+        </Text>
+      </Box>
 
       <div className="flex flex-col gap-6 lg:flex-row-reverse lg:gap-8">
         <Infobox>
@@ -139,17 +124,15 @@ export default function AboutRoute() {
             and bingo events.
           </Text>
 
-          <ContentsBox sections={SECTIONS} />
-
           {/* What we offer */}
-          <section id="what-we-offer" className="mt-10 scroll-mt-20">
+          <section className="mt-10">
             <SectionHeading title="What we offer" />
             <div className="mt-1 grid grid-cols-1 gap-x-8 md:grid-cols-2">
               <Box className="min-w-0">
                 <SubsectionHeading title="Elite PvM content" />
-                <ul className="space-y-2">
+                <ul>
                   {PVM_CONTENT.map(content => (
-                    <li key={content}>
+                    <li key={content} className={listItemClass}>
                       <Text size="3" className="text-gray-300">
                         {content}
                       </Text>
@@ -159,9 +142,9 @@ export default function AboutRoute() {
               </Box>
               <Box className="min-w-0">
                 <SubsectionHeading title="Community events" />
-                <ul className="space-y-2">
+                <ul>
                   {COMMUNITY_EVENTS.map(([name, detail]) => (
-                    <li key={name}>
+                    <li key={name} className={listItemClass}>
                       <Text size="3" className="text-gray-300">
                         <span className="text-white">{name}</span>
                         <span className="text-gray-400"> · {detail}</span>
@@ -174,7 +157,7 @@ export default function AboutRoute() {
           </section>
 
           {/* Requirements */}
-          <section id="requirements" className="mt-10 scroll-mt-20">
+          <section className="mt-10">
             <SectionHeading
               title="Requirements"
               summary={
@@ -183,19 +166,38 @@ export default function AboutRoute() {
                 </Text>
               }
             />
-            <ul className="mt-3 space-y-2">
-              {REQUIREMENTS.map(requirement => (
-                <li key={requirement}>
-                  <Text size="3" className="text-gray-300">
-                    {requirement}
-                  </Text>
-                </li>
-              ))}
+            <ul className="mt-3 max-w-2xl">
+              <li className={listItemClass}>
+                <Text size="3" className="text-gray-300">
+                  Combat level <span className="text-white">110+</span>
+                </Text>
+              </li>
+              <li className={listItemClass}>
+                <Text size="3" className="text-gray-300">
+                  <span className="text-white">10 kc</span> in either ToB,
+                  CoX, or ToA Expert
+                </Text>
+              </li>
+              <li className={listItemClass}>
+                <Text size="3" className="text-gray-300">
+                  Active Discord participation
+                </Text>
+              </li>
+              <li className={listItemClass}>
+                <Text size="3" className="text-gray-300">
+                  A respectful, mature attitude
+                </Text>
+              </li>
+              <li className={listItemClass}>
+                <Text size="3" className="text-gray-300">
+                  An appetite for learning and improving
+                </Text>
+              </li>
             </ul>
           </section>
 
           {/* Benefits */}
-          <section id="benefits" className="mt-10 scroll-mt-20">
+          <section className="mt-10">
             <SectionHeading
               title="Benefits"
               summary={
@@ -204,19 +206,41 @@ export default function AboutRoute() {
                 </Text>
               }
             />
-            <ul className="mt-3 space-y-2">
-              {BENEFITS.map(benefit => (
-                <li key={benefit}>
-                  <Text size="3" className="text-gray-300">
-                    {benefit}
-                  </Text>
-                </li>
-              ))}
+            <ul className="mt-3 max-w-2xl">
+              <li className={listItemClass}>
+                <Text size="3" className="text-gray-300">
+                  The point-based reward system:{' '}
+                  <span className="text-white">drop points</span> and{' '}
+                  <span className="text-osrs-gold">clan points</span>
+                </Text>
+              </li>
+              <li className={listItemClass}>
+                <Text size="3" className="text-gray-300">
+                  Progress tracking across the{' '}
+                  <Link to="/drops" className={proseLinkClass}>
+                    drop log
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/personal-bests" className={proseLinkClass}>
+                    personal-best boards
+                  </Link>
+                </Text>
+              </li>
+              <li className={listItemClass}>
+                <Text size="3" className="text-gray-300">
+                  Expert mentorship and guidance
+                </Text>
+              </li>
+              <li className={listItemClass}>
+                <Text size="3" className="text-gray-300">
+                  Social events and community activities
+                </Text>
+              </li>
             </ul>
           </section>
 
           {/* Join */}
-          <section id="join" className="mt-10 scroll-mt-20">
+          <section className="mt-10">
             <SectionHeading title="How to join" />
             <Text as="p" size="3" className="mt-3 leading-7 text-gray-300">
               Introduce yourself on Discord and a staff member will get you
@@ -233,12 +257,6 @@ export default function AboutRoute() {
           </section>
         </Box>
       </div>
-
-      <CategoriesFooter
-        to="/users"
-        primaryLabel="Sanguine members"
-        categories={['PvM clans', 'Social clans']}
-      />
     </Container>
   );
 }
