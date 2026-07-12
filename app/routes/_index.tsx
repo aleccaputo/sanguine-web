@@ -6,6 +6,7 @@ import { DiscordWidget } from '~/components/DiscordWidget';
 import { SectionHeading } from '~/components/SectionHeading';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import { getLegacyCompetitionPointsByDiscordId } from '~/data/points-audit';
+import { getAllUserAlts } from '~/data/user';
 import { proseLinkClass } from '~/utils/styles';
 
 export const meta: MetaFunction = () => {
@@ -25,10 +26,16 @@ export async function loader() {
   const statsPromise = Promise.all([
     getUsersWithNicknames(),
     getLegacyCompetitionPointsByDiscordId(),
-  ]).then(([users, legacyCompetitionPoints]) => {
+    getAllUserAlts(),
+  ]).then(([users, legacyCompetitionPoints, allAlts]) => {
     const members = users.filter(user => user.nickname);
+    // Members play across multiple accounts — the clan counts alts too
+    const memberDiscordIds = new Set(members.map(user => user.discordId));
+    const altCount = allAlts.filter(alt =>
+      memberDiscordIds.has(alt.discordId),
+    ).length;
     return {
-      memberCount: members.length,
+      memberCount: members.length + altCount,
       totalDropPoints: members.reduce((sum, user) => sum + user.points, 0),
       // Pre-cutover COMPETITION awards count as clan points retroactively —
       // same adjustment the roster applies.
