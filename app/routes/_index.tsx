@@ -1,16 +1,12 @@
-import { MetaFunction } from '@remix-run/node';
-import {
-  Container,
-  Heading,
-  Text,
-  Box,
-  Flex,
-  Card,
-  Grid,
-  Button,
-} from '@radix-ui/themes';
-import { Link } from '@remix-run/react';
+import { defer, MetaFunction } from '@remix-run/node';
+import { Container, Heading, Text, Box, Flex } from '@radix-ui/themes';
+import { Await, Link, useLoaderData } from '@remix-run/react';
+import { Suspense } from 'react';
 import { DiscordWidget } from '~/components/DiscordWidget';
+import { SectionHeading } from '~/components/SectionHeading';
+import { getUsersWithNicknames } from '~/services/sanguine-service.server';
+import { getLegacyCompetitionPointsByDiscordId } from '~/data/points-audit';
+import { proseLinkClass } from '~/utils/styles';
 
 export const meta: MetaFunction = () => {
   return [
@@ -23,180 +19,153 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export default function Index() {
-  return (
-    <Container size="4">
-      {/* Hero Section */}
-      <Box className="py-16 text-center">
-        <Heading size="9" className="mb-4 text-sanguine-red">
-          Welcome to Sanguine
-        </Heading>
-        <Box className="mx-auto mb-6 h-1 w-48 bg-sanguine-red"></Box>
-        <Text size="5" className="mx-auto mb-8 max-w-2xl text-gray-300">
-          PvM, bossing, raiding and skilling events with an active community
-        </Text>
+export async function loader() {
+  // The lede narrates real numbers instead of hard-coded ones; deferred so the
+  // hero paints immediately even when the services are cold.
+  const statsPromise = Promise.all([
+    getUsersWithNicknames(),
+    getLegacyCompetitionPointsByDiscordId(),
+  ]).then(([users, legacyCompetitionPoints]) => {
+    const members = users.filter(user => user.nickname);
+    return {
+      memberCount: members.length,
+      totalDropPoints: members.reduce((sum, user) => sum + user.points, 0),
+      // Pre-cutover COMPETITION awards count as clan points retroactively —
+      // same adjustment the roster applies.
+      totalClanPoints: members.reduce(
+        (sum, user) =>
+          sum +
+          user.clanPoints +
+          (legacyCompetitionPoints[user.discordId] ?? 0),
+        0,
+      ),
+    };
+  });
 
-        <Grid
-          columns={{ initial: '2', sm: '4' }}
-          gap="4"
-          className="mx-auto mb-8 max-w-2xl"
-        >
-          <Box className="text-center">
-            <Text size="2" className="block text-gray-400">
-              In-Game CC
-            </Text>
-            <Text size="3" className="font-medium text-sanguine-red">
-              Sanguine PvM
-            </Text>
-          </Box>
-          <Box className="text-center">
-            <Text size="2" className="block text-gray-400">
-              Home World
-            </Text>
-            <Text size="3" className="font-medium text-sanguine-red">
-              479
-            </Text>
-          </Box>
-          <Box className="text-center">
-            <Text size="2" className="block text-gray-400">
-              Time Zone
-            </Text>
-            <Text size="3" className="font-medium text-sanguine-red">
-              EST/PST
-            </Text>
-          </Box>
-          <Box className="text-center">
-            <Text size="2" className="block text-gray-400">
-              Members
-            </Text>
-            <Text size="3" className="font-medium text-sanguine-red">
-              220+
-            </Text>
-          </Box>
-        </Grid>
+  return defer(
+    { stats: statsPromise },
+    { headers: { 'Cache-Control': 'max-age=300' } },
+  );
+}
+
+const PILLARS = [
+  {
+    title: 'Elite PvM',
+    body: 'ToB/ToB HM, CoX/CoX CM, ToA, Yama, Nex and more',
+  },
+  {
+    title: 'Active community',
+    body: 'Dedicated OSRS players working together',
+  },
+  {
+    title: 'Competitions',
+    body: 'Weekly challenges, bingo events, and skill competitions',
+  },
+] as const;
+
+export default function Index() {
+  const { stats } = useLoaderData<typeof loader>();
+
+  return (
+    <Container size="3" mt="3" pb="6">
+      {/* Hero — the clan introduced the way its wiki article would open */}
+      <Box mt="4">
+        <Flex align="center" gap="3">
+          <img src="/sanguine_icon_small.png" alt="" width={44} height={44} />
+          <Heading size="8" className="font-normal text-sanguine-bright">
+            Sanguine
+          </Heading>
+        </Flex>
+        <Text as="p" size="3" className="mt-3 max-w-3xl leading-7 text-gray-300">
+          <strong className="font-medium text-white">Sanguine</strong> is an
+          Old School RuneScape PvM and social clan
+          <Suspense fallback={<>.</>}>
+            <Await resolve={stats}>
+              {({ memberCount, totalDropPoints, totalClanPoints }) => (
+                <>
+                  {' '}
+                  of{' '}
+                  <Link to="/users" className={proseLinkClass}>
+                    <span className="font-semibold">{memberCount} members</span>
+                  </Link>
+                  , together holding{' '}
+                  <span className="font-semibold text-white">
+                    {totalDropPoints.toLocaleString()}
+                  </span>{' '}
+                  <Link to="/drops" className={proseLinkClass}>
+                    drop points
+                  </Link>{' '}
+                  and{' '}
+                  <span className="font-semibold text-osrs-gold">
+                    {totalClanPoints.toLocaleString()}
+                  </span>{' '}
+                  clan points.
+                </>
+              )}
+            </Await>
+          </Suspense>{' '}
+          Find us in-game at clan chat{' '}
+          <span className="text-white">Sanguine PvM</span> on home world{' '}
+          <span className="text-white">479</span>, keeping EST/PST hours, or
+          around the{' '}
+          <Link to="/events" className={proseLinkClass}>
+            competitions
+          </Link>{' '}
+          and{' '}
+          <Link to="/personal-bests" className={proseLinkClass}>
+            personal-best boards
+          </Link>
+          .
+        </Text>
 
         <img
           src="/SanguinePersonalBanner.png"
           alt="Sanguine Banner"
-          className="mx-auto h-auto max-w-full rounded-lg shadow-lg"
+          className="mt-6 h-auto max-w-full rounded-sm"
         />
       </Box>
 
-      {/* Features Grid */}
-      <Grid
-        columns={{ initial: '1', sm: '2', md: '3' }}
-        gap="6"
-        className="mb-16"
-      >
-        <Card className="border border-gray-800 bg-gray-900 p-6 text-center">
-          <Heading size="4" className="mb-3 text-sanguine-red">
-            Elite PvM
-          </Heading>
-          <Text size="3" className="text-gray-400">
-            ToB/ToB HM, CoX/CoX CM, ToA, Yama, Nex and more
-          </Text>
-        </Card>
-
-        <Card className="border border-gray-800 bg-gray-900 p-6 text-center">
-          <Heading size="4" className="mb-3 text-sanguine-red">
-            Active Community
-          </Heading>
-          <Text size="3" className="text-gray-400">
-            Dedicated OSRS players working together
-          </Text>
-        </Card>
-
-        <Card className="border border-gray-800 bg-gray-900 p-6 text-center">
-          <Heading size="4" className="mb-3 text-sanguine-red">
-            Competitions
-          </Heading>
-          <Text size="3" className="text-gray-400">
-            Weekly challenges, bingo events, and skill competitions
-          </Text>
-        </Card>
-      </Grid>
-
-      {/* Join Community Section */}
-      <Card className="mb-16 border border-gray-800 bg-gray-900">
-        <Box p="8" className="text-center">
-          <Heading size="6" className="mb-6 text-white">
-            Join Our Community
-          </Heading>
-
-          <Grid columns={{ initial: '1', sm: '3' }} gap="6" className="mb-8">
-            <Box>
-              <Text size="7" className="block font-bold text-sanguine-red">
-                220+
+      {/* What we do — typographic columns, no cards */}
+      <section className="mt-10">
+        <SectionHeading title="What we do" />
+        <div className="mt-3 grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-5">
+          {PILLARS.map(pillar => (
+            <Box key={pillar.title}>
+              <Text as="p" size="3" className="text-osrs-orange">
+                {pillar.title}
               </Text>
-              <Text size="3" className="text-gray-400">
-                Active Members
+              <Text as="p" size="3" className="mt-1 text-gray-400">
+                {pillar.body}
               </Text>
             </Box>
-            <Box>
-              <Text size="7" className="block font-bold text-sanguine-red">
-                110+
-              </Text>
-              <Text size="3" className="text-gray-400">
-                Combat Level Required
-              </Text>
-            </Box>
-            <Box>
-              <Text size="7" className="block font-bold text-sanguine-red">
-                24/7
-              </Text>
-              <Text size="3" className="text-gray-400">
-                Discord Activity
-              </Text>
-            </Box>
-          </Grid>
+          ))}
+        </div>
+      </section>
 
-          <DiscordWidget
-            title="Ready to Join?"
-            description="Connect with our community on Discord and start your journey"
-            showButtons={false}
-          />
-        </Box>
-      </Card>
-
-      {/* Call to Action */}
-      <Box className="pb-16 text-center">
-        <Text size="4" className="mb-6 text-gray-400">
-          Explore our members, check out recent events, or learn more about the
-          clan
+      {/* Join us */}
+      <section className="mt-10">
+        <SectionHeading
+          title="Join us"
+          summary={
+            <Text size="2" className="text-gray-500">
+              110+ combat
+            </Text>
+          }
+        />
+        <Text as="p" size="3" className="mt-3 max-w-3xl leading-7 text-gray-300">
+          Applications go through Discord: introduce yourself and a staff
+          member will get you ranked in the clan chat. We ask for{' '}
+          <span className="text-white">110+ combat</span>; everything else you
+          can read on the{' '}
+          <Link to="/about" className={proseLinkClass}>
+            about page
+          </Link>
+          .
         </Text>
-        <Flex gap="4" justify="center" wrap="wrap">
-          <Link to="/users">
-            <Button
-              size="3"
-              variant="outline"
-              color="gray"
-              className="transition-colors hover:cursor-pointer hover:border-sanguine-red hover:bg-sanguine-red hover:text-white"
-            >
-              View Members
-            </Button>
-          </Link>
-          <Link to="/events">
-            <Button
-              size="3"
-              variant="outline"
-              color="gray"
-              className="transition-colors hover:cursor-pointer hover:border-sanguine-red hover:bg-sanguine-red hover:text-white"
-            >
-              Recent Events
-            </Button>
-          </Link>
-          <Link to="/about">
-            <Button
-              size="3"
-              variant="outline"
-              color="gray"
-              className="transition-colors hover:cursor-pointer hover:border-sanguine-red hover:bg-sanguine-red hover:text-white"
-            >
-              Learn More
-            </Button>
-          </Link>
-        </Flex>
-      </Box>
+        <Box mt="4">
+          <DiscordWidget />
+        </Box>
+      </section>
     </Container>
   );
 }
