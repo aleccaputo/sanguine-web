@@ -35,7 +35,7 @@ export async function loader() {
   );
 }
 
-const PVM_CONTENT = ['ToB / ToB HM', 'CoX / CoX CM', 'ToA', 'Yama & Nex'];
+const PVM_CONTENT = ['ToB / ToB HM', 'CoX / CoX CM', 'ToA', 'Nex'];
 
 const COMMUNITY_EVENTS = [
   ['Weekly competitions', 'boss and skill challenges'],

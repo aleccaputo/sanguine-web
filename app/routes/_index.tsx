@@ -210,7 +210,7 @@ export async function loader() {
 const PILLARS = [
   {
     title: 'Elite PvM',
-    body: 'ToB/ToB HM, CoX/CoX CM, ToA, Yama, Nex and more',
+    body: 'ToB/ToB HM, CoX/CoX CM, ToA, Nex and more',
   },
   {
     title: 'Active community',
@@ -355,7 +355,7 @@ export default function Index() {
                     <span className="font-semibold">{memberCount} members</span>
                   </Link>{' '}
                   who raid ToB, CoX, and ToA together, Hard Modes included,
-                  and boss everything else from Yama to Nex. Between them
+                  and boss everything else, Nex included. Between them
                   they&apos;ve logged{' '}
                   <span className="font-semibold text-white">
                     {totalDrops.toLocaleString()}
