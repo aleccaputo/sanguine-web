@@ -234,15 +234,26 @@ const FeedRow = ({
   children: ReactNode;
 }) => {
   const [entered, setEntered] = useState(!animate);
+  // The height clamp exists only while the row slides open — left on, it
+  // clips tall rows (the stacked date/gp/points column) under the row below.
+  const [settled, setSettled] = useState(!animate);
   useEffect(() => {
     if (!animate) return;
     const raf = requestAnimationFrame(() => setEntered(true));
-    return () => cancelAnimationFrame(raf);
+    const timeout = setTimeout(() => setSettled(true), 700);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timeout);
+    };
   }, [animate]);
   return (
     <div
-      className={`overflow-hidden px-2 transition-all duration-500 ease-out motion-reduce:transition-none ${zebraRowClass} ${
-        entered ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'
+      className={`px-2 ${zebraRowClass} ${
+        settled
+          ? ''
+          : `overflow-hidden transition-all duration-500 ease-out motion-reduce:transition-none ${
+              entered ? 'max-h-28 opacity-100' : 'max-h-0 opacity-0'
+            }`
       }`}
     >
       {children}
