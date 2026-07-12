@@ -61,6 +61,11 @@ function RouteSkeletonLoader() {
       return <MonthlyWinnersSkeleton />;
     }
 
+    // Personal bests page
+    if (targetPath === '/personal-bests') {
+      return <PersonalBestsSkeleton />;
+    }
+
     // Generic fallback for other pages
     return <GenericSkeleton />;
   };
@@ -434,6 +439,59 @@ function MonthlyWinnersSkeleton() {
             </Box>
           ))}
         </div>
+      </Flex>
+    </Container>
+  );
+}
+
+// Personal Bests Skeleton — mirrors the boards: left-aligned header, search
+// toolbar, then boss sections of h2 rules over zebra table rows.
+function PersonalBestsSkeleton() {
+  return (
+    <Container size="3" className="min-h-full py-6">
+      <Flex direction="column">
+        {/* Page header */}
+        <Box mb="6">
+          <Flex align="center" gap="3">
+            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-9 w-56 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+          </Flex>
+          <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+        </Box>
+
+        {/* Toolbar */}
+        <Flex gap="2" align="center" className="mb-2">
+          <div className="h-9 w-72 animate-pulse rounded-sm border border-gray-800 bg-gray-900"></div>
+        </Flex>
+
+        {/* Boss sections */}
+        {[0, 1].map(section => (
+          <Box key={section} className="mt-8">
+            <Flex
+              align="center"
+              gap="2"
+              className="border-b border-gray-700 pb-1"
+            >
+              <div className="h-8 w-8 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="h-5 w-44 animate-pulse rounded-sm bg-gray-800/50"></div>
+            </Flex>
+            <Box mt="3">
+              {[...Array(4)].map((_, idx) => (
+                <Flex
+                  key={idx}
+                  align="center"
+                  gap="3"
+                  className={`px-2 py-2.5 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+                >
+                  <div className="h-4 w-8 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="h-4 w-16 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="h-4 w-52 max-w-full flex-1 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="hidden h-4 w-10 animate-pulse rounded-sm bg-gray-800/40 sm:block"></div>
+                </Flex>
+              ))}
+            </Box>
+          </Box>
+        ))}
       </Flex>
     </Container>
   );
