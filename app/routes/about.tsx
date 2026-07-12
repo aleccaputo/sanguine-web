@@ -253,9 +253,12 @@ export default function AboutRoute() {
           <section className="mt-10">
             <SectionHeading title="How to join" />
             <Text as="p" size="3" className="mt-3 leading-7 text-gray-300">
-              Introduce yourself on Discord and a staff member will get you
-              ranked in the clan chat. Come see who you&apos;ll be raiding with
-              on the{' '}
+              Join the Discord and give the rules a read. When you&apos;re
+              done, click the green checkmark in{' '}
+              <span className="text-white">#welcome</span> and your
+              application channel opens up; fill it out there and a staff
+              member will take it from that point. In the meantime, come see
+              who you&apos;ll be raiding with on the{' '}
               <Link to="/users" className={proseLinkClass}>
                 members roster
               </Link>
