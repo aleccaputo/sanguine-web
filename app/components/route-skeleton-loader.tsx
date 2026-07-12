@@ -56,6 +56,11 @@ function RouteSkeletonLoader() {
       return <DropsPageSkeleton />;
     }
 
+    // Monthly winners page
+    if (targetPath === '/monthly-winners') {
+      return <MonthlyWinnersSkeleton />;
+    }
+
     // Generic fallback for other pages
     return <GenericSkeleton />;
   };
@@ -353,6 +358,82 @@ function DropsPageSkeleton() {
             </Flex>
           ))}
         </Box>
+      </Flex>
+    </Container>
+  );
+}
+
+// Monthly Winners Skeleton — mirrors the champions page: left-aligned header,
+// the three-column reigning band under the red rule, then three past-winner
+// columns of zebra rows.
+function MonthlyWinnersSkeleton() {
+  return (
+    <Container size="3" className="min-h-full py-6">
+      <Flex direction="column">
+        {/* Page header */}
+        <Box mb="6">
+          <Flex align="center" gap="3">
+            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-9 w-64 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+          </Flex>
+          <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+        </Box>
+
+        {/* Reigning champions band */}
+        <Box
+          mb="6"
+          className="border-b border-t-2 border-gray-800 border-t-sanguine-red"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3">
+            {[0, 1, 2].map(col => (
+              <div
+                key={col}
+                className={
+                  col > 0
+                    ? 'border-t border-gray-800 pb-2 sm:border-l sm:border-t-0 sm:pl-5'
+                    : 'pb-2 sm:pr-5'
+                }
+              >
+                <div className="mb-3 mt-2 h-3 w-28 animate-pulse rounded-sm bg-gray-800/50"></div>
+                <Flex align="center" gap="3">
+                  <div className="h-[22px] w-[22px] shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="h-5 w-32 animate-pulse rounded-sm bg-gray-800/50"></div>
+                </Flex>
+                <div className="ml-9 mt-2 h-4 w-24 animate-pulse rounded-sm bg-gray-800/40"></div>
+                <div className="ml-9 mt-2 h-3 w-36 max-w-full animate-pulse rounded-sm bg-gray-800/40"></div>
+              </div>
+            ))}
+          </div>
+        </Box>
+
+        {/* Past winners columns */}
+        <div className="mb-2 border-b border-gray-700 pb-1">
+          <div className="h-5 w-32 animate-pulse rounded-sm bg-gray-800/50"></div>
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-5">
+          {[0, 1, 2].map(col => (
+            <Box key={col}>
+              <div className="border-b border-gray-700 pb-1">
+                <div className="h-4 w-28 animate-pulse rounded-sm bg-gray-800/50"></div>
+              </div>
+              {[...Array(4)].map((_, idx) => (
+                <Flex
+                  key={idx}
+                  align="center"
+                  gap="3"
+                  className={`px-2 py-2 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+                >
+                  <div className="h-6 w-6 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="h-3.5 w-24 animate-pulse rounded-sm bg-gray-800/50"></div>
+                    <div className="h-3 w-20 animate-pulse rounded-sm bg-gray-800/40"></div>
+                  </div>
+                  <div className="h-3 w-14 animate-pulse rounded-sm bg-gray-800/40"></div>
+                </Flex>
+              ))}
+            </Box>
+          ))}
+        </div>
       </Flex>
     </Container>
   );
