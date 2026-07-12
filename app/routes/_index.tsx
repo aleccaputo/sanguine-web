@@ -1,8 +1,10 @@
 import { defer, MetaFunction } from '@remix-run/node';
 import { Container, Heading, Text, Box, Flex } from '@radix-ui/themes';
 import { Await, Link, useLoaderData } from '@remix-run/react';
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import dayjs from 'dayjs';
+import type { OSRSItem } from '~/services/osrs-wiki-prices-service';
 import { DiscordWidget } from '~/components/DiscordWidget';
 import { DropItem } from '~/components/DropItem';
 import { EmptyState } from '~/components/EmptyState';
@@ -103,8 +105,10 @@ export async function loader() {
   });
 
   // The noticeboard: what's actually happening around the clan right now.
+  // A deeper drop slice feeds the simulated-live ticker: the feed opens a few
+  // entries back and the real newer drops "arrive" until it catches up.
   const activityPromise = Promise.all([
-    getClanDropsPaginated(1, 5),
+    getClanDropsPaginated(1, 12),
     usersPromise,
     altsPromise,
     getMonthlyWinners(),
@@ -208,6 +212,83 @@ const PILLARS = [
   },
 ] as const;
 
+interface IFeedDrop {
+  id: string;
+  createdAt: string;
+  pointsGiven: number;
+  destinationDiscordId?: string;
+  itemId?: number | null;
+  osrsData?: OSRSItem | null;
+  nickname?: string;
+}
+
+/**
+ * One feed row: mounts collapsed and slides open when it "arrives". Rows that
+ * were already on the board render settled, so only the newcomer moves.
+ */
+const FeedRow = ({
+  animate,
+  children,
+}: {
+  animate: boolean;
+  children: ReactNode;
+}) => {
+  const [entered, setEntered] = useState(!animate);
+  useEffect(() => {
+    if (!animate) return;
+    const raf = requestAnimationFrame(() => setEntered(true));
+    return () => cancelAnimationFrame(raf);
+  }, [animate]);
+  return (
+    <div
+      className={`overflow-hidden px-2 transition-all duration-500 ease-out motion-reduce:transition-none ${zebraRowClass} ${
+        entered ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'
+      }`}
+    >
+      {children}
+    </div>
+  );
+};
+
+/**
+ * Simulated-live drop ticker. The window opens a few entries behind the real
+ * latest drop and the newer ones land one by one on organic timing until the
+ * feed has caught up — every item, date, and value is a real record; only the
+ * arrival timing is theater.
+ */
+const LiveDropFeed = ({ drops }: { drops: IFeedDrop[] }) => {
+  const WINDOW = 5;
+  const initialPending = Math.max(0, drops.length - WINDOW);
+  const [pending, setPending] = useState(initialPending);
+
+  useEffect(() => {
+    if (pending <= 0) return;
+    const timeout = setTimeout(
+      () => setPending(p => p - 1),
+      4500 + Math.random() * 4000,
+    );
+    return () => clearTimeout(timeout);
+  }, [pending]);
+
+  return (
+    <Box mt="2">
+      {drops.slice(pending, pending + WINDOW).map((item, index) => (
+        <FeedRow
+          key={item.id}
+          animate={index === 0 && pending < initialPending}
+        >
+          <DropItem
+            item={item}
+            nickname={item.nickname}
+            showRecipient={true}
+            size="small"
+          />
+        </FeedRow>
+      ))}
+    </Box>
+  );
+};
+
 /** Pulse rows shaped like the noticeboard lists while a section streams in. */
 const RowsSkeleton = ({ rows }: { rows: number }) => (
   <Box mt="2">
@@ -285,7 +366,15 @@ export default function Index() {
       <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-x-8">
         <section>
           <SectionHeading
-            title="Latest drops"
+            title={
+              <Flex align="center" gap="2">
+                Latest drops
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-sanguine-bright opacity-75 motion-safe:animate-ping"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-sanguine-red"></span>
+                </span>
+              </Flex>
+            }
             summary={
               <Link to="/drops" className={sectionLink}>
                 Full drop log
@@ -296,18 +385,7 @@ export default function Index() {
             <Await resolve={activity}>
               {({ latestDrops }) =>
                 latestDrops.length > 0 ? (
-                  <Box mt="2">
-                    {latestDrops.map(item => (
-                      <div key={item.id} className={`px-2 ${zebraRowClass}`}>
-                        <DropItem
-                          item={item}
-                          nickname={item.nickname}
-                          showRecipient={true}
-                          size="small"
-                        />
-                      </div>
-                    ))}
-                  </Box>
+                  <LiveDropFeed drops={latestDrops} />
                 ) : (
                   <EmptyState />
                 )
