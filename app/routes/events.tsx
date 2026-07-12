@@ -7,6 +7,7 @@ import {
 import { Await, Outlet, useLoaderData, useNavigate } from '@remix-run/react';
 import { Suspense, useState } from 'react';
 import { getCompetitionImageUrl } from '~/utils/competition-images';
+import { SPECIAL_COMPETITION_IDS } from '~/utils/events-config';
 import { PageHeader } from '~/components/PageHeader';
 import { Pagination } from '~/components/Pagination';
 import { EmptyState } from '~/components/EmptyState';
@@ -46,41 +47,14 @@ const SkeletonLoader = () => (
 
 export async function loader() {
   const womCompsPromise = getCompetitions();
-  const sangFeb26Promise = getCompetitionById(128016);
-  const starCollectorsV2Promise = getCompetitionById(121056);
-  const fall2025BingoPromise = getCompetitionById(107621);
-  const rngBingoPromise = getCompetitionById(46594);
-  const starBingoPromise = getCompetitionById(79514);
-  const coalitionBingoPromise = getCompetitionById(101103);
-  const gottaBossEmAll2026Promise = getCompetitionById(144882);
-
-  const [
-    sangFeb26,
-    starCollectorsV2,
-    fall2025Bingo,
-    rngBingo,
-    starBingo,
-    coalitionBingo,
-    gottaBossEmAll2026,
-  ] = await Promise.all([
-    sangFeb26Promise,
-    starCollectorsV2Promise,
-    fall2025BingoPromise,
-    rngBingoPromise,
-    starBingoPromise,
-    coalitionBingoPromise,
-    gottaBossEmAll2026Promise,
-  ]);
+  const [lead, ...rest] = await Promise.all(
+    SPECIAL_COMPETITION_IDS.map(id => getCompetitionById(id)),
+  );
 
   const competitionsPromise = womCompsPromise.then(womComps => [
-    gottaBossEmAll2026,
+    lead,
     ...(womComps ?? []),
-    sangFeb26,
-    starCollectorsV2,
-    fall2025Bingo,
-    coalitionBingo,
-    starBingo,
-    rngBingo,
+    ...rest,
   ]);
 
   return defer(
