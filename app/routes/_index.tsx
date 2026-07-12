@@ -369,7 +369,7 @@ export default function Index() {
         <img
           src="/SanguinePersonalBanner.png"
           alt="Sanguine Banner"
-          className="mt-6 h-auto max-w-full rounded-sm"
+          className="mt-6 h-auto w-full rounded-sm"
         />
       </Box>
 
@@ -545,19 +545,23 @@ export default function Index() {
             </Text>
           }
         />
-        <Text as="p" size="3" className="mt-3 max-w-3xl leading-7 text-gray-300">
-          Applications go through Discord: introduce yourself and a staff
-          member will get you ranked in the clan chat. We ask for{' '}
-          <span className="text-white">110+ combat</span>; everything else you
-          can read on the{' '}
-          <Link to="/about" className={proseLinkClass}>
-            about page
-          </Link>
-          .
-        </Text>
-        <Box mt="4">
-          <DiscordWidget />
-        </Box>
+        {/* Prose and card share the row so the section fills the container
+            like the noticeboard above it */}
+        <div className="mt-3 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+          <Text as="p" size="3" className="max-w-xl leading-7 text-gray-300">
+            Applications go through Discord: introduce yourself and a staff
+            member will get you ranked in the clan chat. We ask for{' '}
+            <span className="text-white">110+ combat</span>; everything else
+            you can read on the{' '}
+            <Link to="/about" className={proseLinkClass}>
+              about page
+            </Link>
+            .
+          </Text>
+          <Box className="shrink-0">
+            <DiscordWidget />
+          </Box>
+        </div>
       </section>
     </Container>
   );
