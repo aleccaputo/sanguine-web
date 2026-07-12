@@ -66,6 +66,11 @@ function RouteSkeletonLoader() {
       return <PersonalBestsSkeleton />;
     }
 
+    // Drop stats page
+    if (targetPath === '/drop-stats') {
+      return <DropStatsSkeleton />;
+    }
+
     // Generic fallback for other pages
     return <GenericSkeleton />;
   };
@@ -488,6 +493,41 @@ function PersonalBestsSkeleton() {
             </Box>
           </Box>
         ))}
+      </Flex>
+    </Container>
+  );
+}
+
+// Drop Stats Skeleton — mirrors the stats page: left-aligned header, the
+// chip toolbar, then a section rule over the chart block.
+function DropStatsSkeleton() {
+  return (
+    <Container size="3" className="min-h-full py-6">
+      <Flex direction="column">
+        {/* Page header */}
+        <Box mb="6">
+          <Flex align="center" gap="3">
+            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-9 w-60 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+          </Flex>
+          <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+        </Box>
+
+        {/* Chip toolbar */}
+        <Flex gap="2" align="center" wrap="wrap" className="mb-6">
+          {[...Array(7)].map((_, idx) => (
+            <div
+              key={idx}
+              className="h-8 w-16 animate-pulse rounded-sm border border-gray-800 bg-gray-900"
+            ></div>
+          ))}
+        </Flex>
+
+        {/* Section + chart */}
+        <div className="border-b border-gray-700 pb-1">
+          <div className="h-5 w-44 animate-pulse rounded-sm bg-gray-800/50"></div>
+        </div>
+        <div className="mt-3 h-96 animate-pulse rounded-sm bg-gray-800/30"></div>
       </Flex>
     </Container>
   );
