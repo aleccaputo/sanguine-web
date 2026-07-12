@@ -123,9 +123,9 @@ export default function AboutRoute() {
             <Link to="/personal-bests" className={proseLinkClass}>
               clan records
             </Link>
-            , and fill the{' '}
+            , and log their{' '}
             <Link to="/drops" className={proseLinkClass}>
-              drop log
+              drops
             </Link>{' '}
             between{' '}
             <Link to="/events" className={proseLinkClass}>
