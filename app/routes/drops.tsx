@@ -1,19 +1,16 @@
 import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
-import { Link, useLoaderData } from '@remix-run/react';
-import {
-  Box,
-  Button,
-  Card,
-  Container,
-  Flex,
-  Heading,
-  Text,
-} from '@radix-ui/themes';
+import { useLoaderData, useSearchParams } from '@remix-run/react';
+import { Box, Container, Flex } from '@radix-ui/themes';
 import { getClanDropsPaginated } from '~/data/points-audit';
 import { getAllUserAlts } from '~/data/user';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import { DropItem } from '~/components/DropItem';
+import { PageHeader } from '~/components/PageHeader';
+import { Pagination } from '~/components/Pagination';
+import { EmptyState } from '~/components/EmptyState';
+import { CoinsIcon } from '~/components/CoinsIcon';
+import { zebraRowClass } from '~/utils/styles';
 import {
   buildAltsByDiscordId,
   resolveDisplayName,
@@ -21,10 +18,10 @@ import {
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Recent Drops | Sanguine' },
+    { title: 'Sanguine Drop Log' },
     {
       name: 'description',
-      content: 'View the most recent drops from clan members',
+      content: 'The most recent drops received by Sanguine members',
     },
   ];
 };
@@ -79,73 +76,66 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function Drops() {
   const { recentDrops, currentPage, totalPages, totalCount } =
     useLoaderData<typeof loader>();
+  const [, setSearchParams] = useSearchParams();
+
+  const goToPage = (page: number) => {
+    setSearchParams({ page: String(page) });
+  };
+
+  // Narrate the page's numbers: the full record count, and what the drops on
+  // this page are worth together (clauses drop out when there's nothing to say).
+  const pageGP = recentDrops.reduce(
+    (sum, item) => sum + (item.osrsData?.price ?? 0),
+    0,
+  );
 
   return (
-    <Container size="4" mt="3">
-      <Flex direction="column" gap="4">
-        {/* Header */}
-        <Box className="text-center">
-          <Heading size="6" className="text-white">
-            Recent Clan Drops
-          </Heading>
-          <Text size="2" className="text-gray-400">
-            {totalCount} total drops
-          </Text>
+    <Container size="3" mt="3">
+      <Flex direction="column">
+        <PageHeader
+          title="Drop log"
+          iconSrc="https://oldschool.runescape.wiki/images/Coins_detail.png"
+        >
+          <span className="font-semibold text-white">
+            {totalCount.toLocaleString()}
+          </span>{' '}
+          drops on the record
+          {pageGP > 0 && (
+            <>
+              , the {recentDrops.length} shown worth <CoinsIcon />{' '}
+              <span className="font-semibold text-osrs-gold">
+                {pageGP.toLocaleString()}
+              </span>{' '}
+              gp
+            </>
+          )}
+        </PageHeader>
+
+        {/* The log itself: flat zebra rows under one committed red rule */}
+        <Box className="border-t-2 border-t-sanguine-red">
+          {recentDrops.length > 0 ? (
+            recentDrops.map(item => (
+              <div key={item.id} className={`px-2 ${zebraRowClass}`}>
+                <DropItem
+                  item={item}
+                  nickname={item.nickname}
+                  showRecipient={true}
+                />
+              </div>
+            ))
+          ) : (
+            <EmptyState />
+          )}
         </Box>
 
-        {/* Drops List */}
-        {recentDrops.length > 0 ? (
-          <Card className="border border-gray-800 bg-gray-900">
-            <Box p="4">
-              <Flex direction="column">
-                {recentDrops.map(item => (
-                  <DropItem
-                    key={item.id}
-                    item={item}
-                    nickname={item.nickname}
-                    showRecipient={true}
-                  />
-                ))}
-              </Flex>
-            </Box>
-          </Card>
-        ) : (
-          <Card className="border border-gray-800 bg-gray-900">
-            <Box p="5">
-              <Box className="py-12 text-center">
-                <Text size="3" className="text-gray-400">
-                  No drops on record
-                </Text>
-              </Box>
-            </Box>
-          </Card>
-        )}
-
-        {totalPages > 1 && (
-          <Flex justify="between" align="center" mt="2" mb="6">
-            {currentPage === 1 ? (
-              <Button variant="soft" disabled>
-                Previous
-              </Button>
-            ) : (
-              <Button asChild variant="soft">
-                <Link to={`?page=${currentPage - 1}`}>Previous</Link>
-              </Button>
-            )}
-            <Text size="2" className="text-gray-400">
-              Page {currentPage} of {totalPages}
-            </Text>
-            {currentPage === totalPages ? (
-              <Button variant="soft" disabled>
-                Next
-              </Button>
-            ) : (
-              <Button asChild variant="soft">
-                <Link to={`?page=${currentPage + 1}`}>Next</Link>
-              </Button>
-            )}
-          </Flex>
-        )}
+        <Box mb="6">
+          <Pagination
+            page={currentPage}
+            totalPages={totalPages}
+            onPrev={() => goToPage(Math.max(1, currentPage - 1))}
+            onNext={() => goToPage(Math.min(totalPages, currentPage + 1))}
+          />
+        </Box>
       </Flex>
     </Container>
   );

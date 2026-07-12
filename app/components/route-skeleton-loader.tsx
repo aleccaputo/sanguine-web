@@ -316,30 +316,43 @@ function UserDetailSkeleton() {
   );
 }
 
-// Drops Page Skeleton
+// Drops Page Skeleton — mirrors the drop log: left-aligned header with the coins
+// icon, a prose summary line, then flat zebra rows under the red rule.
 function DropsPageSkeleton() {
   return (
-    <Container size="4" className="min-h-full py-8">
-      <Flex direction="column" gap="5">
-        {/* Page Header */}
-        <Box className="text-center">
-          <div className="mx-auto h-8 w-64 animate-pulse rounded bg-gray-800/50"></div>
-          <div className="mx-auto mt-2 h-1 w-32 animate-pulse bg-sanguine-red/30"></div>
+    <Container size="3" className="min-h-full py-6">
+      <Flex direction="column">
+        {/* Page header */}
+        <Box mb="6">
+          <Flex align="center" gap="3">
+            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-9 w-44 animate-pulse rounded-sm bg-gray-800/50"></div>
+          </Flex>
+          <div className="mt-3 h-4 w-80 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
         </Box>
 
-        {/* Drops List */}
-        <Card className="border border-gray-800 bg-gray-900">
-          <Box p="5">
-            <Flex direction="column" gap="3">
-              {[...Array(8)].map((_, idx) => (
-                <div
-                  key={idx}
-                  className="h-16 animate-pulse rounded-lg border border-gray-700"
-                ></div>
-              ))}
+        {/* Drop log rows */}
+        <Box className="border-t-2 border-t-sanguine-red">
+          {[...Array(7)].map((_, idx) => (
+            <Flex
+              key={idx}
+              align="center"
+              gap="4"
+              className={`border-b border-gray-800 px-2 py-3 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+            >
+              <div className="h-10 w-10 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="h-4 w-44 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+                <div className="h-3 w-28 animate-pulse rounded-sm bg-gray-800/40"></div>
+              </div>
+              <div className="space-y-1.5">
+                <div className="ml-auto h-3 w-20 animate-pulse rounded-sm bg-gray-800/50"></div>
+                <div className="ml-auto h-3 w-14 animate-pulse rounded-sm bg-gray-800/40"></div>
+                <div className="ml-auto h-3 w-12 animate-pulse rounded-sm bg-gray-800/40"></div>
+              </div>
             </Flex>
-          </Box>
-        </Card>
+          ))}
+        </Box>
       </Flex>
     </Container>
   );
