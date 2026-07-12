@@ -15,14 +15,14 @@ interface ClickableUserNameProps {
 export function ClickableUserName({
   user,
   size = '3',
-  className = 'font-medium text-white',
+  className = 'text-sanguine-bright',
 }: ClickableUserNameProps) {
   const navigate = useNavigate();
 
   return (
     <Text
       size={size}
-      className={`${className} cursor-pointer transition-colors hover:text-sanguine-bright`}
+      className={`${className} cursor-pointer transition-colors hover:text-white`}
       onClick={() => navigate(`/users/${user.discordId}`)}
     >
       {user.nickname}

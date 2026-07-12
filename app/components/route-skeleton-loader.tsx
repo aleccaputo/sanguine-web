@@ -77,59 +77,51 @@ function RouteSkeletonLoader() {
   );
 }
 
-// Events Detail Page Skeleton (current page layout)
+// Events Detail Page Skeleton — mirrors the event wiki article: title over a
+// hairline, right-hand infobox with its red band, prose lede, then the chart.
 function EventDetailSkeleton() {
   return (
-    <Container size="4" className="min-h-full py-8">
-      <Flex direction="column" gap="6">
-        {/* Chart Card */}
-        <Card className="border border-gray-800 bg-gray-900">
-          <Box p="5">
-            <div className="mb-4 h-6 w-48 animate-pulse rounded bg-gray-800/50"></div>
-            <div className="h-80 animate-pulse rounded bg-gray-800/30"></div>
-          </Box>
-        </Card>
+    <Container size="4" className="min-h-full py-6">
+      {/* Article title + tagline over a hairline */}
+      <Box className="border-b border-gray-700 pb-2">
+        <div className="h-10 w-80 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+        <div className="mt-2 h-4 w-52 animate-pulse rounded-sm bg-gray-800/40"></div>
+      </Box>
 
-        {/* Spoons Card */}
-        <Card className="border border-gray-800 bg-gray-900">
-          <Box p="4">
-            <div className="mb-3 h-5 w-40 animate-pulse rounded bg-gray-800/50"></div>
-            <Flex gap="3" className="grid grid-cols-1 md:grid-cols-2">
-              <div className="space-y-2">
-                {[1, 2, 3].map(i => (
-                  <div
-                    key={i}
-                    className="h-10 animate-pulse rounded-lg border border-gray-700"
-                  ></div>
-                ))}
-              </div>
-              <div className="space-y-2">
-                {[1, 2, 3].map(i => (
-                  <div
-                    key={i}
-                    className="h-10 animate-pulse rounded-lg border border-gray-700"
-                  ></div>
-                ))}
-              </div>
-            </Flex>
-          </Box>
-        </Card>
+      <div className="flex flex-col gap-6 lg:flex-row-reverse lg:gap-8">
+        {/* Infobox */}
+        <aside className="mt-6 w-full shrink-0 self-start border border-gray-700 lg:w-80">
+          <div className="h-9 animate-pulse bg-sanguine-red/40"></div>
+          <Flex align="center" justify="center" className="py-5">
+            <div className="h-14 w-14 animate-pulse rounded-sm bg-gray-800/50"></div>
+          </Flex>
+          {[...Array(5)].map((_, idx) => (
+            <div
+              key={idx}
+              className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2.5"
+            >
+              <div className="h-4 w-16 animate-pulse rounded-sm bg-gray-800/40"></div>
+              <div className="h-4 w-24 animate-pulse rounded-sm bg-gray-800/50"></div>
+            </div>
+          ))}
+        </aside>
 
-        {/* Leaderboard Card */}
-        <Card className="border border-gray-800 bg-gray-900">
-          <Box p="5">
-            <div className="mb-4 h-5 w-56 animate-pulse rounded bg-gray-800/50"></div>
-            <Flex direction="column" gap="3">
-              {[1, 2, 3].map(i => (
-                <div
-                  key={i}
-                  className="h-16 animate-pulse rounded-lg border border-gray-700"
-                ></div>
-              ))}
-            </Flex>
+        {/* Lede + contents + chart */}
+        <Box className="min-w-0 flex-1">
+          <Box className="mt-6 space-y-2.5">
+            <div className="h-4 w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-11/12 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-3/4 animate-pulse rounded-sm bg-gray-800/50"></div>
           </Box>
-        </Card>
-      </Flex>
+          <div className="mt-6 h-32 w-56 animate-pulse rounded-sm border border-gray-800 bg-gray-900"></div>
+          <Box className="mt-10">
+            <div className="border-b border-gray-700 pb-1">
+              <div className="h-5 w-40 animate-pulse rounded-sm bg-gray-800/50"></div>
+            </div>
+            <div className="mt-3 h-96 animate-pulse rounded-sm bg-gray-800/30"></div>
+          </Box>
+        </Box>
+      </div>
     </Container>
   );
 }
