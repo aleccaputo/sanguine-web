@@ -57,6 +57,15 @@ const RANK_ICON: Record<MonthlyWinnerEventType, string> = {
   SKILL: '/rank-icons/sotw_winner_rank.png',
 };
 
+// Prose speaks like a player: "95.5b gp", not eleven digits. Tables keep
+// full numbers.
+const formatGp = (gp: number) => {
+  if (gp >= 1_000_000_000) return `${(gp / 1_000_000_000).toFixed(1)}b`;
+  if (gp >= 1_000_000) return `${(gp / 1_000_000).toFixed(1)}m`;
+  if (gp >= 1_000) return `${(gp / 1_000).toFixed(0)}k`;
+  return gp.toLocaleString();
+};
+
 const TITLE_CASE_LOWERCASE_WORDS = new Set(['of', 'the', 'a', 'an']);
 
 const humanizeMetric = (metric: string | null) => {
@@ -349,13 +358,13 @@ export default function Index() {
             <Await resolve={stats}>
               {({ memberCount, totalDrops, totalGP }) => (
                 <>
-                  {' '}
-                  of{' '}
+                  ,{' '}
                   <Link to="/users" className={proseLinkClass}>
                     <span className="font-semibold">{memberCount} members</span>
-                  </Link>
-                  . Together they raid ToB, CoX, and ToA up through the Hard
-                  Modes, boss everything else, and have logged{' '}
+                  </Link>{' '}
+                  strong. We send ToB, CoX, and ToA (HMs, CMs, and experts
+                  included), boss everything else worth killing, and have
+                  racked up{' '}
                   <span className="font-semibold text-white">
                     {totalDrops.toLocaleString()}
                   </span>{' '}
@@ -364,21 +373,21 @@ export default function Index() {
                   </Link>{' '}
                   worth <CoinsIcon />{' '}
                   <span className="font-semibold text-osrs-gold">
-                    {totalGP.toLocaleString()}
+                    {formatGp(totalGP)}
                   </span>{' '}
-                  gp so far.
+                  gp between us.
                 </>
               )}
             </Await>
           </Suspense>{' '}
-          Find us in-game in the clan chat{' '}
-          <span className="text-white">Sanguine PvM</span> on home world{' '}
-          <span className="text-white">479</span>, most active during EST/PST
-          hours. The{' '}
+          Catch us in-game in the cc{' '}
+          <span className="text-white">Sanguine PvM</span> on world{' '}
+          <span className="text-white">479</span>, mostly EST/PST hours. More
+          on the{' '}
           <Link to="/about" className={proseLinkClass}>
             about page
-          </Link>{' '}
-          has the full story.
+          </Link>
+          .
         </Text>
 
         <img
