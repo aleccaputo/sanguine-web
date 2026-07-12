@@ -353,10 +353,9 @@ export default function Index() {
                   of{' '}
                   <Link to="/users" className={proseLinkClass}>
                     <span className="font-semibold">{memberCount} members</span>
-                  </Link>{' '}
-                  who raid ToB, CoX, and ToA together, Hard Modes included,
-                  and boss everything else, Nex included. Between them
-                  they&apos;ve logged{' '}
+                  </Link>
+                  . Together they raid ToB, CoX, and ToA up through the Hard
+                  Modes, boss everything else, and have logged{' '}
                   <span className="font-semibold text-white">
                     {totalDrops.toLocaleString()}
                   </span>{' '}
@@ -367,7 +366,7 @@ export default function Index() {
                   <span className="font-semibold text-osrs-gold">
                     {totalGP.toLocaleString()}
                   </span>{' '}
-                  gp.
+                  gp so far.
                 </>
               )}
             </Await>
