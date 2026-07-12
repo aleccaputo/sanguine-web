@@ -355,15 +355,14 @@ export default function Index() {
                     <span className="font-semibold">{memberCount} members</span>
                   </Link>{' '}
                   who raid, boss, and skill together. Between them they&apos;ve
-                  filled the{' '}
-                  <Link to="/drops" className={proseLinkClass}>
-                    drop log
-                  </Link>{' '}
-                  with{' '}
+                  logged{' '}
                   <span className="font-semibold text-white">
                     {totalDrops.toLocaleString()}
                   </span>{' '}
-                  drops worth <CoinsIcon />{' '}
+                  <Link to="/drops" className={proseLinkClass}>
+                    drops
+                  </Link>{' '}
+                  worth <CoinsIcon />{' '}
                   <span className="font-semibold text-osrs-gold">
                     {totalGP.toLocaleString()}
                   </span>{' '}
