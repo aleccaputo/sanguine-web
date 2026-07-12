@@ -363,7 +363,11 @@ export default function Index() {
           Find us in-game in the clan chat{' '}
           <span className="text-white">Sanguine PvM</span> on home world{' '}
           <span className="text-white">479</span>, most active during EST/PST
-          hours.
+          hours. The{' '}
+          <Link to="/about" className={proseLinkClass}>
+            about page
+          </Link>{' '}
+          has the full story.
         </Text>
 
         <img
@@ -541,7 +545,7 @@ export default function Index() {
           title="Join us"
           summary={
             <Text size="2" className="text-gray-500">
-              110+ combat
+              110+ combat · 10 raid kc
             </Text>
           }
         />
@@ -551,8 +555,9 @@ export default function Index() {
           <Text as="p" size="3" className="max-w-xl leading-7 text-gray-300">
             Applications go through Discord: introduce yourself and a staff
             member will get you ranked in the clan chat. We ask for{' '}
-            <span className="text-white">110+ combat</span>; everything else
-            you can read on the{' '}
+            <span className="text-white">110+ combat</span> and{' '}
+            <span className="text-white">10 kc</span> in either ToB, CoX, or
+            ToA Expert; everything else you can read on the{' '}
             <Link to="/about" className={proseLinkClass}>
               about page
             </Link>
