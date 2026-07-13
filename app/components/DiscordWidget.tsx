@@ -1,78 +1,39 @@
-import { Box, Button, Flex, Heading, Text } from '@radix-ui/themes';
-import { useState } from 'react';
+import { Flex, Text } from '@radix-ui/themes';
 
-interface DiscordWidgetProps {
-  title?: string;
-  description?: string;
-  showButtons?: boolean;
-}
-
-export function DiscordWidget({
-  title = 'Join Our Discord Community',
-  description = 'Connect with fellow clan members, participate in events, and stay updated on all clan activities',
-}: DiscordWidgetProps) {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-
+/**
+ * The clan's Discord invite as a flat, square, house-themed card — no
+ * third-party embed to wait on. The whole card is the link.
+ */
+export function DiscordWidget() {
   return (
-    <Box className="text-center">
-      <Heading size="6" className="mb-4 text-white">
-        {title}
-      </Heading>
-      <Text size="4" className="mb-6 text-gray-400">
-        {description}
-      </Text>
-
-      <Flex direction="column" align="center" gap="4">
-        <a
-          href="https://discord.gg/sanguine"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="transition-opacity hover:opacity-80"
-        >
-          {!imageError && (
-            <img
-              src="https://invidget.switchblade.xyz/sanguine"
-              alt="Discord Invite"
-              className={`rounded-lg transition-opacity duration-300 ${
-                imageLoaded ? 'opacity-100' : 'opacity-0'
-              }`}
-              onLoad={() => setImageLoaded(true)}
-              onError={() => setImageError(true)}
-              loading="lazy"
-            />
-          )}
-
-          {!imageLoaded && !imageError && (
-            <Box className="flex h-24 w-80 items-center justify-center rounded-lg border border-gray-700 bg-gray-800">
-              <Text size="2" className="text-gray-400">
-                Loading Discord preview...
-              </Text>
-            </Box>
-          )}
-
-          {imageError && (
-            <Box className="flex h-24 w-80 items-center justify-center rounded-lg border border-gray-700 bg-gray-800">
-              <Text size="2" className="text-gray-400">
-                Discord Server Preview
-              </Text>
-            </Box>
-          )}
-        </a>
-
-        <a
-          href="https://discord.gg/sanguine"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Button
-            size="3"
-            className="bg-sanguine-red hover:cursor-pointer hover:bg-red-700"
-          >
-            Join Discord
-          </Button>
-        </a>
+    <a
+      href="https://discord.gg/sanguine"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group inline-flex max-w-full items-center gap-4 rounded-sm border border-gray-700 bg-gray-900 py-3 pl-4 pr-3 transition-colors hover:border-sanguine-red"
+    >
+      <img
+        src="/sanguine_icon_small.png"
+        alt=""
+        width={40}
+        height={40}
+        className="shrink-0 [image-rendering:pixelated]"
+      />
+      <Flex direction="column" className="min-w-0">
+        <Text size="3" className="text-white">
+          Sanguine Discord
+        </Text>
+        <Text size="2" className="truncate text-gray-400">
+          discord.gg/sanguine
+          <span className="hidden sm:inline">
+            {' '}
+            · applications and clan chat
+          </span>
+        </Text>
       </Flex>
-    </Box>
+      <span className="ml-2 shrink-0 rounded-sm bg-sanguine-red px-4 py-2 text-white transition-colors group-hover:bg-[#9a231c]">
+        Join
+      </span>
+    </a>
   );
 }

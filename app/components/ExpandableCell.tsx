@@ -17,7 +17,10 @@ const ExpandableCell = ({ content }: { content: string }) => {
           ? content
           : `${itemsList.slice(0, maxDisplayItems).join(', ')}... (${itemsList.length - maxDisplayItems} more)`}
       </Text>
-      <Text size="1" className="ml-1 text-sanguine-red group-hover:text-white">
+      <Text
+        size="1"
+        className="ml-1 text-sanguine-bright group-hover:text-white"
+      >
         {isExpanded ? '(collapse)' : '(expand)'}
       </Text>
     </Box>

@@ -25,15 +25,25 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Text, Container, Heading, Box, Flex, Card } from '@radix-ui/themes';
-import { getMetricType } from '~/utils/competition-images';
+import { Text, Container, Box, Flex } from '@radix-ui/themes';
+import {
+  getCompetitionImageUrl,
+  getMetricType,
+  humanizeMetric,
+} from '~/utils/competition-images';
 import { isClanPointAudit } from '~/utils/point-types';
-import { CompetitionHeader } from '~/components/CompetitionHeader';
-import { ParticipantListItem } from '~/components/ParticipantListItem';
 import { ParticipantBreakdownDialog } from '~/components/ParticipantBreakdownDialog';
 import { ClickableUserName } from '~/components/ClickableUserName';
+import { ArticleTitle } from '~/components/ArticleTitle';
+import { ChipGroup } from '~/components/ChipGroup';
+import { ContentsBox } from '~/components/ContentsBox';
+import { EmptyState } from '~/components/EmptyState';
+import { Infobox, InfoboxBand, InfoboxRow } from '~/components/Infobox';
+import { SectionHeading, SubsectionHeading } from '~/components/SectionHeading';
+import { rankBadge } from '~/components/PbTeam';
 import { buildAltsByDiscordId } from '~/utils/account-matching';
 import { EVENTS_EXCLUDED_DISCORD_IDS } from '~/utils/events-config';
+import { proseLinkClass, zebraRowClass } from '~/utils/styles';
 
 interface ParticipantInfo {
   participantKey: string;
@@ -61,7 +71,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
     { title: `${data?.compDetails.title ?? 'Sanguine Event'}` },
     {
       name: 'description',
-      content: `More information about ${data?.compDetails?.title ?? 'the event.'}`,
+      content: `${data?.compDetails?.title ?? 'A Sanguine event'}: standings, spoons, and drop points from the Sanguine side.`,
     },
   ];
 };
@@ -203,15 +213,20 @@ const matchesMetric = (
     ? true
     : audit.bossName?.toLowerCase().replaceAll(' ', '_') === compMetric;
 
+// Status stays inside the palette: active reads friends-list green, upcoming
+// plain white, completed muted.
 const getEventStatus = (startsAt: string, endsAt: string): EventStatus => {
   const now = new Date();
   const start = new Date(startsAt);
   const end = new Date(endsAt);
 
-  if (now < start) return { status: 'Upcoming', color: 'text-blue-400' };
-  if (now > end) return { status: 'Completed', color: 'text-gray-400' };
+  if (now < start) return { status: 'Upcoming', color: 'text-gray-200' };
+  if (now > end) return { status: 'Completed', color: 'text-gray-500' };
   return { status: 'Active', color: 'text-green-400' };
 };
+
+const leaderboardGridClass =
+  'grid grid-cols-[32px_1fr_88px_72px] items-center gap-2 px-2 md:grid-cols-[40px_1fr_110px_90px] md:gap-3 md:px-3';
 
 const EventById = () => {
   const data = useLoaderData<typeof loader>();
@@ -471,112 +486,234 @@ const EventById = () => {
     data.compDetails.endsAt,
   );
 
+  // Spoon boards, shared by the lede and the Spoons section
+  const spoonBoards = useMemo(() => {
+    const withRatios = [...participantMap.values()].map(userInfo => {
+      const totalPoints = participantPoints.get(userInfo.participantKey) ?? 0;
+      return { ...userInfo, totalPoints };
+    });
+    return {
+      lucky: withRatios
+        .map(p => ({
+          ...p,
+          ratio: p.gained > 0 ? p.totalPoints / p.gained : 0,
+        }))
+        .sort((a, b) => b.ratio - a.ratio)
+        .slice(0, 3),
+      unlucky: withRatios
+        .map(p => ({
+          ...p,
+          ratio: p.totalPoints > 0 ? p.gained / p.totalPoints : 0,
+        }))
+        .sort((a, b) => b.ratio - a.ratio)
+        .slice(0, 3),
+    };
+  }, [participantMap, participantPoints]);
+
+  const leaderboardRows = useMemo(
+    () =>
+      [...participantMap.values()]
+        .map(userInfo => ({
+          ...userInfo,
+          totalPoints: participantPoints.get(userInfo.participantKey) ?? 0,
+        }))
+        .sort((a, b) =>
+          sortBy === 'points'
+            ? b.totalPoints - a.totalPoints
+            : b.gained - a.gained,
+        ),
+    [participantMap, participantPoints, sortBy],
+  );
+
+  const totalEventPoints = [...participantPoints.values()].reduce(
+    (sum, points) => sum + points,
+    0,
+  );
+  // Lede leader is always by points, regardless of the leaderboard's toggle
+  const pointsLeader = [...participantMap.values()]
+    .map(userInfo => ({
+      ...userInfo,
+      totalPoints: participantPoints.get(userInfo.participantKey) ?? 0,
+    }))
+    .sort((a, b) => b.totalPoints - a.totalPoints)[0];
+
+  const hasParticipants = participantMap.size > 0;
+  const sections = [
+    { id: 'chart', title: 'Progress' },
+    ...(hasParticipants
+      ? [
+          { id: 'spoons', title: 'Spoon statistics' },
+          { id: 'leaderboard', title: 'Leaderboard' },
+        ]
+      : []),
+  ];
+
+  const competingVerb =
+    eventStatus.status === 'Active'
+      ? 'are competing'
+      : eventStatus.status === 'Upcoming'
+        ? 'are signed up'
+        : 'took part';
+
+  const womUrl = `https://wiseoldman.net/competitions/${data.compDetails.id}`;
+  const dateLabels =
+    eventStatus.status === 'Upcoming'
+      ? { start: 'Starts', end: 'Ends' }
+      : eventStatus.status === 'Active'
+        ? { start: 'Started', end: 'Ends' }
+        : { start: 'Started', end: 'Ended' };
+
   return (
-    <Container size="4" mt="3">
-      <Flex direction="column" gap="6">
-        <CompetitionHeader
-          competition={data.compDetails}
-          eventStatus={eventStatus}
-          participantCount={participantMap.size}
-          formatDate={formatDate}
-          navigationSlot={
-            <Flex
-              gap="2"
-              wrap="wrap"
-              align="center"
-              className="justify-start sm:justify-end"
-            >
-              <button
-                onClick={() =>
-                  document
-                    .getElementById('chart')
-                    ?.scrollIntoView({ behavior: 'smooth' })
-                }
-                className="rounded bg-sanguine-red px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#9a231c] sm:px-4 sm:py-2 sm:text-base"
-              >
-                Chart
-              </button>
-              <button
-                onClick={() =>
-                  document
-                    .getElementById('spoons')
-                    ?.scrollIntoView({ behavior: 'smooth' })
-                }
-                className="rounded bg-sanguine-red px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#9a231c] sm:px-4 sm:py-2 sm:text-base"
-              >
-                Spoons
-              </button>
-              <button
-                onClick={() =>
-                  document
-                    .getElementById('leaderboard')
-                    ?.scrollIntoView({ behavior: 'smooth' })
-                }
-                className="rounded bg-sanguine-red px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#9a231c] sm:px-4 sm:py-2 sm:text-base"
-              >
-                Leaderboard
-              </button>
+    <Container size="4" mt="3" pb="6">
+      {/* The event's page is its wiki article: title over a hairline, an infobox
+          with the vitals, a prose lede, a contents box, then sections. */}
+      <ArticleTitle title={data.compDetails.title} />
+
+      <div className="flex flex-col gap-6 lg:flex-row-reverse lg:gap-8">
+        <Infobox>
+          <InfoboxBand primary>{data.compDetails.title}</InfoboxBand>
+          <Flex
+            direction="column"
+            align="center"
+            gap="1"
+            className="bg-sanguine-red/[0.04] px-3 py-5"
+          >
+            <img
+              src={getCompetitionImageUrl(compMetric)}
+              alt=""
+              className="h-14 w-14 object-contain"
+            />
+            <Text size="2" className="text-gray-400">
+              {humanizeMetric(compMetric)}
+            </Text>
+          </Flex>
+          <dl>
+            <InfoboxRow label="Status" valueClassName={eventStatus.color}>
+              {eventStatus.status}
+            </InfoboxRow>
+            <InfoboxRow label={dateLabels.start}>
+              {formatDate(data.compDetails.startsAt)}
+            </InfoboxRow>
+            <InfoboxRow label={dateLabels.end}>
+              {formatDate(data.compDetails.endsAt)}
+            </InfoboxRow>
+            {hasParticipants && (
+              <InfoboxRow label="Participants" valueClassName="text-white">
+                {participantMap.size}
+              </InfoboxRow>
+            )}
+            {totalEventPoints > 0 && (
+              <InfoboxRow label="Drop points" valueClassName="text-white">
+                {totalEventPoints.toLocaleString()}
+              </InfoboxRow>
+            )}
+            <InfoboxRow label="Tracked on">
               <a
-                href={`https://wiseoldman.net/competitions/${data.compDetails.id}`}
+                href={womUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="no-underline"
+                className={proseLinkClass}
               >
-                <button className="rounded bg-sanguine-red px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#9a231c] sm:px-4 sm:py-2 sm:text-base">
-                  View on WoM
-                </button>
+                Wise Old Man
               </a>
-            </Flex>
-          }
-        />
+            </InfoboxRow>
+          </dl>
+        </Infobox>
 
-        {/* Chart Section */}
-        <Card
-          id="chart"
-          className="scroll-mt-6 border border-gray-800 bg-gray-900"
-        >
-          <Box p="5">
-            <Flex justify="between" align="center" className="mb-4">
-              <Flex direction="column" gap="1">
-                <Heading size="5" className="text-white">
-                  {useHourly
-                    ? 'Hourly Points Progress'
-                    : 'Daily Points Progress'}
-                </Heading>
-                {participantMap.size > 0 && (
-                  <Text size="1" className="text-gray-400">
-                    Showing top {Math.min(chartTopN, participantMap.size)} of{' '}
-                    {participantMap.size} participants
-                  </Text>
+        <Box className="min-w-0 flex-1">
+          {/* Lede — the event narrated from what actually happened */}
+          <Text as="p" size="3" className="mt-6 leading-7 text-gray-300">
+            <strong className="font-medium text-white">
+              {data.compDetails.title}
+            </strong>{' '}
+            is a Sanguine competition tracked on{' '}
+            <a
+              href={womUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={proseLinkClass}
+            >
+              Wise Old Man
+            </a>
+            , running {formatDate(data.compDetails.startsAt)} –{' '}
+            {formatDate(data.compDetails.endsAt)}.
+            {hasParticipants && (
+              <>
+                {' '}
+                <span className="text-white">{participantMap.size}</span> member
+                accounts {competingVerb}
+                {totalEventPoints > 0 && (
+                  <>
+                    , producing{' '}
+                    <span className="text-white">
+                      {totalEventPoints.toLocaleString()} drop points
+                    </span>{' '}
+                    so far
+                  </>
                 )}
-              </Flex>
-              {participantMap.size > 5 && (
-                <Flex gap="2">
-                  {([5, 10, 25] as const).map(n => (
-                    <button
-                      key={n}
-                      onClick={() => setChartTopN(n)}
-                      className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                        chartTopN === n
-                          ? 'bg-sanguine-red text-white'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
-                    >
-                      Top {n}
-                    </button>
-                  ))}
-                </Flex>
+                .
+              </>
+            )}
+            {hasParticipants &&
+              pointsLeader &&
+              pointsLeader.totalPoints > 0 && (
+                <>
+                  {' '}
+                  <ClickableUserName
+                    user={{
+                      discordId: pointsLeader.discordId,
+                      nickname: pointsLeader.nickname,
+                    }}
+                  />{' '}
+                  leads the board with{' '}
+                  <span className="text-white">
+                    {pointsLeader.totalPoints.toLocaleString()} points
+                  </span>
+                  .
+                </>
               )}
-            </Flex>
+            {!hasParticipants && <> So far, nothing interesting happens.</>}
+          </Text>
 
-            {participantMap.size > 0 ? (
-              <Box className="h-96">
+          {sections.length > 1 && <ContentsBox sections={sections} />}
+
+          {/* Progress chart */}
+          <section id="chart" className="mt-10 scroll-mt-20">
+            <SectionHeading
+              title={useHourly ? 'Hourly progress' : 'Daily progress'}
+              summary={
+                hasParticipants ? (
+                  <Text size="2" className="text-gray-500">
+                    top{' '}
+                    <span className="text-white">
+                      {Math.min(chartTopN, participantMap.size)}
+                    </span>{' '}
+                    of {participantMap.size} participants
+                  </Text>
+                ) : undefined
+              }
+            />
+            {participantMap.size > 5 && (
+              <Box mt="3">
+                <ChipGroup
+                  options={([5, 10, 25] as const).map(n => ({
+                    key: String(n),
+                    label: `Top ${n}`,
+                  }))}
+                  value={String(chartTopN)}
+                  onChange={key => setChartTopN(Number(key))}
+                />
+              </Box>
+            )}
+
+            {hasParticipants ? (
+              <Box className="mt-3 h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={cumulativeData}
                     onMouseLeave={() => setHoveredLine(null)}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1F2937" />
                     <XAxis
                       dataKey="name"
                       stroke="#9CA3AF"
@@ -601,9 +738,9 @@ const EventById = () => {
                         return (
                           <div
                             style={{
-                              backgroundColor: '#1F2937',
+                              backgroundColor: '#111113',
                               border: '1px solid #374151',
-                              borderRadius: '8px',
+                              borderRadius: '2px',
                               padding: '8px 12px',
                               fontSize: '12px',
                               color: '#F9FAFB',
@@ -650,7 +787,6 @@ const EventById = () => {
                                     backgroundColor: isHovered
                                       ? `${entry.stroke}22`
                                       : 'transparent',
-                                    borderRadius: '4px',
                                     padding: '2px 4px',
                                     margin: '0 -4px 3px',
                                   }}
@@ -726,200 +862,165 @@ const EventById = () => {
                 </ResponsiveContainer>
               </Box>
             ) : (
-              <Box className="py-12 text-center">
-                <Text size="3" className="text-gray-400">
-                  No Sanguine participants found in this competition
-                </Text>
-              </Box>
+              <EmptyState>
+                No Sanguine participants found in this competition
+              </EmptyState>
             )}
-          </Box>
-        </Card>
+          </section>
 
-        {/* Spoons Statistics */}
-        {participantMap.size > 0 && (
-          <Card
-            id="spoons"
-            className="scroll-mt-6 border border-gray-800 bg-gray-900"
-          >
-            <Box p="4">
-              <Heading size="4" className="mb-3 text-white">
-                Spoon Statistics
-              </Heading>
-
-              <Flex gap="3" className="grid grid-cols-1 md:grid-cols-2">
-                {/* Biggest Spoons - High Points/Metric */}
-                <Box className="p-3">
-                  <Heading size="3" className="mb-2 text-green-400">
-                    Biggest Spoons
-                  </Heading>
-                  <Text size="1" className="mb-2 text-gray-400">
-                    Most points per {metric} gained
-                  </Text>
-                  <Flex direction="column" gap="1.5">
-                    {Array.from(participantMap.values())
-                      .map(userInfo => {
-                        const totalPoints =
-                          participantPoints.get(userInfo.participantKey) ?? 0;
-                        return {
-                          ...userInfo,
-                          totalPoints,
-                          ratio:
-                            userInfo.gained > 0
-                              ? totalPoints / userInfo.gained
-                              : 0,
-                        };
-                      })
-                      .sort((a, b) => b.ratio - a.ratio)
-                      .slice(0, 3)
-                      .map((participant, index) => (
+          {/* Spoon statistics */}
+          {hasParticipants && (
+            <section id="spoons" className="mt-10 scroll-mt-20">
+              <SectionHeading title="Spoon statistics" />
+              <div className="mt-1 grid grid-cols-1 gap-x-8 md:grid-cols-2">
+                {(
+                  [
+                    {
+                      key: 'lucky',
+                      title: 'Biggest spoons',
+                      hint: `most points per ${metric}`,
+                      valueClass: 'text-green-400',
+                      rows: spoonBoards.lucky,
+                    },
+                    {
+                      key: 'unlucky',
+                      title: 'Most unlucky',
+                      hint: `most ${metric} per point`,
+                      valueClass: 'text-red-400',
+                      rows: spoonBoards.unlucky,
+                    },
+                  ] as const
+                ).map(board => (
+                  <Box key={board.key} className="min-w-0">
+                    <SubsectionHeading title={board.title} hint={board.hint} />
+                    <Box>
+                      {board.rows.map((participant, index) => (
                         <Flex
                           key={participant.participantKey}
                           justify="between"
                           align="center"
+                          gap="3"
                           onClick={() =>
                             selectParticipant(participant.participantKey)
                           }
-                          className="cursor-pointer rounded-lg border border-gray-700 px-2 py-1.5 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"
+                          className={`cursor-pointer px-2 py-1.5 ${zebraRowClass}`}
                         >
-                          <Flex align="center" gap="2">
-                            <Text size="1" className="font-bold text-gray-300">
-                              #{index + 1}
+                          <Flex align="center" gap="2" className="min-w-0">
+                            <Text
+                              size="2"
+                              className="w-5 shrink-0 text-right text-gray-600"
+                            >
+                              {index + 1}
                             </Text>
                             <ClickableUserName
                               user={{
                                 discordId: participant.discordId,
                                 nickname: participant.nickname,
                               }}
+                              size="2"
+                              className="truncate text-sanguine-bright"
                             />
                           </Flex>
-                          <Text size="1" className="font-mono text-green-400">
+                          <Text
+                            size="2"
+                            className={`shrink-0 tabular-nums ${board.valueClass}`}
+                          >
                             {participant.ratio.toFixed(2)}
                           </Text>
                         </Flex>
                       ))}
-                  </Flex>
-                </Box>
+                    </Box>
+                  </Box>
+                ))}
+              </div>
+            </section>
+          )}
 
-                {/* Most Unlucky - High Metric/Points */}
-                <Box className="p-3">
-                  <Heading size="3" className="mb-2 text-red-400">
-                    Most Unlucky
-                  </Heading>
-                  <Text size="1" className="mb-2 text-gray-400">
-                    Most {metric} per point earned
+          {/* Leaderboard */}
+          {hasParticipants && (
+            <section id="leaderboard" className="mt-10 scroll-mt-20">
+              <SectionHeading
+                title="Leaderboard"
+                summary={
+                  <Text size="2" className="text-gray-500">
+                    <span className="text-white">{leaderboardRows.length}</span>{' '}
+                    entrants
                   </Text>
-                  <Flex direction="column" gap="1.5">
-                    {Array.from(participantMap.values())
-                      .map(userInfo => {
-                        const totalPoints =
-                          participantPoints.get(userInfo.participantKey) ?? 0;
-                        return {
-                          ...userInfo,
-                          totalPoints,
-                          ratio:
-                            totalPoints > 0 ? userInfo.gained / totalPoints : 0,
-                        };
-                      })
-                      .sort((a, b) => b.ratio - a.ratio)
-                      .slice(0, 3)
-                      .map((participant, index) => (
-                        <Flex
-                          key={participant.participantKey}
-                          justify="between"
-                          align="center"
-                          onClick={() =>
-                            selectParticipant(participant.participantKey)
-                          }
-                          className="cursor-pointer rounded-lg border border-gray-700 px-2 py-1.5 transition-colors hover:border-sanguine-red hover:bg-gray-800/30"
-                        >
-                          <Flex align="center" gap="2">
-                            <Text size="1" className="font-bold text-gray-300">
-                              #{index + 1}
-                            </Text>
-                            <ClickableUserName
-                              user={{
-                                discordId: participant.discordId,
-                                nickname: participant.nickname,
-                              }}
-                            />
-                          </Flex>
-                          <Text size="1" className="font-mono text-red-400">
-                            {participant.ratio.toFixed(2)}
-                          </Text>
-                        </Flex>
-                      ))}
-                  </Flex>
-                </Box>
-              </Flex>
-            </Box>
-          </Card>
-        )}
+                }
+              />
+              <Box mt="3">
+                <ChipGroup
+                  options={[
+                    { key: 'points', label: 'Points' },
+                    { key: 'metric', label: metric },
+                  ]}
+                  value={sortBy}
+                  onChange={key => setSortBy(key as 'points' | 'metric')}
+                />
+              </Box>
 
-        {/* Participants Summary */}
-        {participantMap.size > 0 && (
-          <Card
-            id="leaderboard"
-            className="scroll-mt-6 border border-gray-800 bg-gray-900"
-          >
-            <Box p="5">
-              <Flex justify="between" align="center" className="mb-4">
-                <Heading size="5" className="text-white">
-                  Event Points Leaderboard
-                </Heading>
-                <Flex gap="2">
-                  <button
-                    onClick={() => setSortBy('points')}
-                    className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-                      sortBy === 'points'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    Points
-                  </button>
-                  <button
-                    onClick={() => setSortBy('metric')}
-                    className={`rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-                      sortBy === 'metric'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {metric}
-                  </button>
-                </Flex>
-              </Flex>
-
-              <Flex direction="column" gap="3">
-                {Array.from(participantMap.values())
-                  .map(userInfo => ({
-                    ...userInfo,
-                    totalPoints:
-                      participantPoints.get(userInfo.participantKey) ?? 0,
-                  }))
-                  .sort((a, b) => {
-                    if (sortBy === 'points') {
-                      return b.totalPoints - a.totalPoints;
-                    } else {
-                      return b.gained - a.gained;
+              <Box mt="2">
+                <div
+                  className={`${leaderboardGridClass} border-b border-gray-700 py-2.5 text-sm text-osrs-orange`}
+                >
+                  <span className="text-right">#</span>
+                  <span>Member</span>
+                  <span className="text-right">{metric}</span>
+                  <span className="text-right">Points</span>
+                </div>
+                {leaderboardRows.map((participant, index) => (
+                  <div
+                    key={participant.participantKey}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() =>
+                      selectParticipant(participant.participantKey)
                     }
-                  })
-                  .map((participant, index) => (
-                    <ParticipantListItem
-                      key={participant.participantKey}
-                      participant={participant}
-                      rank={index + 1}
-                      metric={metric}
-                      onSelect={() =>
-                        selectParticipant(participant.participantKey)
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectParticipant(participant.participantKey);
                       }
-                    />
-                  ))}
-              </Flex>
-            </Box>
-          </Card>
-        )}
-      </Flex>
+                    }}
+                    className={`${leaderboardGridClass} group cursor-pointer py-2 ${zebraRowClass}`}
+                  >
+                    <Text
+                      as="div"
+                      size="2"
+                      className="whitespace-nowrap text-right text-white"
+                    >
+                      {index < 3 ? rankBadge(index + 1) : `${index + 1}`}
+                    </Text>
+                    <Text
+                      as="div"
+                      className="min-w-0 truncate leading-tight text-sanguine-bright group-hover:text-white"
+                    >
+                      {participant.nickname}
+                    </Text>
+                    <Text
+                      as="div"
+                      size="2"
+                      className="text-right tabular-nums text-gray-200"
+                    >
+                      {participant.gained.toLocaleString()}
+                    </Text>
+                    <Text
+                      as="div"
+                      className={`text-right ${
+                        participant.totalPoints === 0
+                          ? 'text-gray-600'
+                          : 'text-white'
+                      }`}
+                    >
+                      {participant.totalPoints.toLocaleString()}
+                    </Text>
+                  </div>
+                ))}
+              </Box>
+            </section>
+          )}
+        </Box>
+      </div>
 
       {selectedParticipantInfo && selectedParticipantKey && (
         <ParticipantBreakdownDialog

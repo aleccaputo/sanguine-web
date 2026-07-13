@@ -4,7 +4,7 @@ import {
   ShouldRevalidateFunction,
   useLoaderData,
 } from '@remix-run/react';
-import { Box, Container, Flex, Heading, Table, Text } from '@radix-ui/themes';
+import { Box, Container, Flex, Table, Text } from '@radix-ui/themes';
 import {
   getNicknameMapByDiscordIds,
   getUserWithNickname,
@@ -36,6 +36,19 @@ import { useMemo, useState } from 'react';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
 import { DropItem } from '~/components/DropItem';
 import { Pagination } from '~/components/Pagination';
+import { ArticleTitle } from '~/components/ArticleTitle';
+import { CategoriesFooter } from '~/components/CategoriesFooter';
+import { ChipGroup } from '~/components/ChipGroup';
+import { CoinsIcon } from '~/components/CoinsIcon';
+import { ContentsBox } from '~/components/ContentsBox';
+import { EmptyState } from '~/components/EmptyState';
+import { Infobox, InfoboxBand, InfoboxRow } from '~/components/Infobox';
+import { SectionHeading, SubsectionHeading } from '~/components/SectionHeading';
+import {
+  proseLinkClass,
+  zebraRowClass,
+  zebraStripeClass,
+} from '~/utils/styles';
 import {
   getClanFromWom,
   getCompetitions,
@@ -58,8 +71,8 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
     : 'Members | Sanguine Member';
 
   const description = data?.user?.nickname
-    ? `More information about ${data.user.nickname}`
-    : 'More information about a member';
+    ? `${data.user.nickname}'s Sanguine record: drops, personal bests, and clan points.`
+    : 'A Sanguine member record: drops, personal bests, and clan points.';
 
   return [{ title }, { name: 'description', content: description }];
 };
@@ -281,15 +294,6 @@ export default function UserById() {
   // selectedAccount is either ALL_ACCOUNTS, mainName, or an alt's altName
   const [selectedAccount, setSelectedAccount] = useState(ALL_ACCOUNTS);
   const [currentPage, setCurrentPage] = useState(1);
-  const [tocOpen, setTocOpen] = useState(true);
-
-  // Contents links scroll manually: a plain hash anchor triggers a router navigation and
-  // Remix's scroll restoration stomps the browser's anchor jump with the saved position
-  // (the page twitches but lands back where it was until a second click).
-  const jumpToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView();
-    window.history.replaceState(null, '', `#${id}`);
-  };
   const itemsPerPage = 7;
 
   const filteredItems = useMemo(() => {
@@ -525,63 +529,29 @@ export default function UserById() {
     })),
   ];
   const accountSwitcher = hasAlts && (
-    <Flex align="center" gap="2" wrap="wrap">
-      {accountOptions.map(option => {
-        const active = selectedAccount === option.key;
-        return (
-          <button
-            key={option.key}
-            onClick={() => handleAccountChange(option.key)}
-            className={`flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-sm ${
-              active
-                ? 'border-sanguine-red bg-sanguine-red text-white'
-                : 'border-gray-800 bg-gray-900 text-gray-300 hover:border-gray-600 hover:text-white'
-            }`}
-          >
-            {option.role && (
-              <img
-                src={fetchRankImage(option.role)}
-                alt={rankLabel(option.role)}
-                width={16}
-                height={16}
-                className="shrink-0 [image-rendering:pixelated]"
-              />
-            )}
-            {option.label}
-            <span className={active ? 'text-white/70' : 'text-gray-600'}>
-              {dropCountByAccount[option.key] ?? 0}
-            </span>
-          </button>
-        );
-      })}
-    </Flex>
+    <ChipGroup
+      options={accountOptions.map(option => ({
+        key: option.key,
+        label: option.label,
+        iconSrc: option.role ? fetchRankImage(option.role) : undefined,
+        iconAlt: option.role ? rankLabel(option.role) : undefined,
+        count: dropCountByAccount[option.key] ?? 0,
+      }))}
+      value={selectedAccount}
+      onChange={handleAccountChange}
+    />
   );
 
   return (
     <Container size="4" mt="3" pb="6">
       {/* The member's page is their wiki article: a plain title over a hairline, an
           infobox with the vitals, a prose lede, a contents box, then sections. */}
-      <Box className="border-b border-gray-700 pb-2">
-        <Heading size="8" className="font-normal text-sanguine-bright">
-          {mainName}
-        </Heading>
-        <Text as="p" size="2" className="mt-1 text-gray-500">
-          From the records of Sanguine
-        </Text>
-      </Box>
+      <ArticleTitle title={mainName} />
 
       <div className="flex flex-col gap-6 lg:flex-row-reverse lg:gap-8">
         {/* Infobox — a functional table of vitals, portrait on top, wiki-style. */}
-        {/* Sticky below the fixed 73px navbar so the vitals ride along on tall pages */}
-        <aside className="mt-6 w-full shrink-0 self-start border border-gray-700 lg:sticky lg:top-[89px] lg:w-80">
-          <Text
-            as="div"
-            size="3"
-            weight="medium"
-            className="bg-sanguine-red px-3 py-1.5 text-center text-white"
-          >
-            {mainName}
-          </Text>
+        <Infobox>
+          <InfoboxBand primary>{mainName}</InfoboxBand>
           <Flex
             direction="column"
             align="center"
@@ -600,137 +570,95 @@ export default function UserById() {
             </Text>
           </Flex>
           <dl>
-            <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-              <dt className="text-base text-gray-500">Joined</dt>
-              <dd className="text-base text-gray-200">
-                {dayjs(user.joined).format('MMMM YYYY')}
-              </dd>
-            </div>
+            <InfoboxRow label="Joined">
+              {dayjs(user.joined).format('MMMM YYYY')}
+            </InfoboxRow>
             {hasAlts && (
-              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-base text-gray-500">Accounts</dt>
-                <dd>
-                  <Flex direction="column" gap="1">
-                    {accountOptions
-                      .filter(option => option.key !== ALL_ACCOUNTS)
-                      .map(option => (
-                        <Flex key={option.key} align="center" gap="2">
-                          {option.role && (
-                            <img
-                              src={fetchRankImage(option.role)}
-                              alt={rankLabel(option.role)}
-                              width={16}
-                              height={16}
-                              className="shrink-0 [image-rendering:pixelated]"
-                            />
-                          )}
-                          <span className="text-base text-gray-200">
-                            {option.label}
-                          </span>
-                        </Flex>
-                      ))}
-                  </Flex>
-                </dd>
-              </div>
+              <InfoboxRow label="Accounts">
+                <Flex direction="column" gap="1">
+                  {accountOptions
+                    .filter(option => option.key !== ALL_ACCOUNTS)
+                    .map(option => (
+                      <Flex key={option.key} align="center" gap="2">
+                        {option.role && (
+                          <img
+                            src={fetchRankImage(option.role)}
+                            alt={rankLabel(option.role)}
+                            width={16}
+                            height={16}
+                            className="shrink-0 [image-rendering:pixelated]"
+                          />
+                        )}
+                        <span className="text-base text-gray-200">
+                          {option.label}
+                        </span>
+                      </Flex>
+                    ))}
+                </Flex>
+              </InfoboxRow>
             )}
           </dl>
           {/* Second infobox band, wiki-style — vitals above, the clan record below */}
-          <Text
-            as="div"
-            size="2"
-            weight="medium"
-            className="border-t border-gray-800 bg-sanguine-red px-3 py-1 text-center text-white"
-          >
-            Clan record
-          </Text>
+          <InfoboxBand>Clan record</InfoboxBand>
           <dl>
-            <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-              <dt className="text-base text-gray-500">Drop points</dt>
-              <dd className="text-base text-white">
-                {user.points.toLocaleString()}
-              </dd>
-            </div>
-            <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-              <dt className="text-base text-gray-500">Clan points</dt>
-              <dd className="text-base text-osrs-gold">
-                {user.clanPoints.toLocaleString()}
-              </dd>
-            </div>
+            <InfoboxRow label="Drop points" valueClassName="text-white">
+              {user.points.toLocaleString()}
+            </InfoboxRow>
+            <InfoboxRow label="Clan points" valueClassName="text-osrs-gold">
+              {user.clanPoints.toLocaleString()}
+            </InfoboxRow>
             {allItemsLogged.length > 0 && (
-              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-base text-gray-500">Drops logged</dt>
-                <dd className="text-base text-gray-200">
-                  {allItemsLogged.length}
-                </dd>
-              </div>
+              <InfoboxRow label="Drops logged">
+                {allItemsLogged.length}
+              </InfoboxRow>
             )}
             {allDropsGP > 0 && (
-              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-base text-gray-500">Loot value</dt>
-                <dd className="text-base text-osrs-gold">
-                  <img
-                    src="https://oldschool.runescape.wiki/images/Coins_detail.png"
-                    alt=""
-                    className="inline h-3.5 w-3.5 object-contain align-[-2px]"
-                  />{' '}
-                  {allDropsGP.toLocaleString()} gp
-                </dd>
-              </div>
+              <InfoboxRow label="Loot value" valueClassName="text-osrs-gold">
+                <CoinsIcon /> {allDropsGP.toLocaleString()} gp
+              </InfoboxRow>
             )}
             {topBoss && (
-              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-base text-gray-500">Top boss</dt>
-                <dd className="text-base text-gray-200">
-                  {topBoss.bossName}
-                  <span className="block text-sm text-gray-500">
-                    {topBoss.count} {topBoss.count === 1 ? 'drop' : 'drops'}
-                    {topBoss.gp > 0 && (
-                      <>
-                        {' · '}
-                        <span className="text-osrs-gold">
-                          {topBoss.gp.toLocaleString()} gp
-                        </span>
-                      </>
-                    )}
-                    {topBoss.points > 0 && <> · {topBoss.points} pts</>}
-                  </span>
-                </dd>
-              </div>
+              <InfoboxRow label="Top boss">
+                {topBoss.bossName}
+                <span className="block text-sm text-gray-500">
+                  {topBoss.count} {topBoss.count === 1 ? 'drop' : 'drops'}
+                  {topBoss.gp > 0 && (
+                    <>
+                      {' · '}
+                      <span className="text-osrs-gold">
+                        {topBoss.gp.toLocaleString()} gp
+                      </span>
+                    </>
+                  )}
+                  {topBoss.points > 0 && <> · {topBoss.points} pts</>}
+                </span>
+              </InfoboxRow>
             )}
             {raids.length > 0 && (
-              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-base text-gray-500">Raids</dt>
-                <dd className="text-base text-gray-200">{raids.length}</dd>
-              </div>
+              <InfoboxRow label="Raids">{raids.length}</InfoboxRow>
             )}
             {totalComps > 0 && (
-              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-base text-gray-500">Competitions</dt>
-                <dd className="text-base text-gray-200">
-                  {totalComps}
-                  {compPodiums > 0 && (
-                    <span className="ml-2 text-sm text-gray-400">
-                      top three ×{compPodiums}
-                    </span>
-                  )}
-                </dd>
-              </div>
+              <InfoboxRow label="Competitions">
+                {totalComps}
+                {compPodiums > 0 && (
+                  <span className="ml-2 text-sm text-gray-400">
+                    top three ×{compPodiums}
+                  </span>
+                )}
+              </InfoboxRow>
             )}
             {personalBests.length > 0 && (
-              <div className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2">
-                <dt className="text-base text-gray-500">Personal bests</dt>
-                <dd className="text-base text-gray-200">
-                  {personalBests.length}
-                  {pbMedalSummary && (
-                    <span className="ml-2 text-sm text-gray-400">
-                      {pbMedalSummary}
-                    </span>
-                  )}
-                </dd>
-              </div>
+              <InfoboxRow label="Personal bests">
+                {personalBests.length}
+                {pbMedalSummary && (
+                  <span className="ml-2 text-sm text-gray-400">
+                    {pbMedalSummary}
+                  </span>
+                )}
+              </InfoboxRow>
             )}
           </dl>
-        </aside>
+        </Infobox>
 
         <Box className="min-w-0 flex-1">
           {/* Lede — the article's opening paragraph, assembled from what the member has
@@ -738,10 +666,7 @@ export default function UserById() {
           <Text as="p" size="3" className="mt-6 leading-7 text-gray-300">
             <strong className="font-medium text-white">{mainName}</strong> is{' '}
             {ledeRankPhrase} of{' '}
-            <Link
-              to="/"
-              className="text-sanguine-bright transition-colors hover:text-white"
-            >
+            <Link to="/" className={proseLinkClass}>
               Sanguine
             </Link>
             , {isGuest ? 'on the record' : 'a member'} since{' '}
@@ -775,10 +700,7 @@ export default function UserById() {
               <>
                 {' '}
                 The{' '}
-                <Link
-                  to="/drops"
-                  className="text-sanguine-bright transition-colors hover:text-white"
-                >
+                <Link to="/drops" className={proseLinkClass}>
                   drop log
                 </Link>{' '}
                 records{' '}
@@ -798,7 +720,7 @@ export default function UserById() {
                   href={`https://oldschool.runescape.wiki/w/${topBoss.bossName.replace(/ /g, '_')}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-sanguine-bright transition-colors hover:text-white"
+                  className={proseLinkClass}
                 >
                   {topBoss.bossName}
                 </a>
@@ -825,10 +747,7 @@ export default function UserById() {
               <>
                 {' '}
                 On the clan&apos;s{' '}
-                <Link
-                  to="/personal-bests"
-                  className="text-sanguine-bright transition-colors hover:text-white"
-                >
+                <Link to="/personal-bests" className={proseLinkClass}>
                   personal-best boards
                 </Link>{' '}
                 they hold{' '}
@@ -848,115 +767,36 @@ export default function UserById() {
             {!hasAnyRecord && <> So far, nothing interesting happens.</>}
           </Text>
 
-          {/* Contents — numbered because the sections genuinely are ordered below.
-              A single-section article doesn't need a table of contents. */}
-          {sections.length > 1 && (
-            <nav className="mt-6 inline-block border border-gray-800 bg-gray-900">
-              <Flex
-                align="baseline"
-                justify="between"
-                gap="5"
-                className={`px-5 py-1.5 ${tocOpen ? 'border-b border-gray-800' : ''}`}
-              >
-                <Text size="2" weight="medium" className="text-gray-300">
-                  Contents
-                </Text>
-                <button
-                  onClick={() => setTocOpen(open => !open)}
-                  className="text-sm text-gray-500 hover:text-white"
-                >
-                  [{tocOpen ? 'hide' : 'show'}]
-                </button>
-              </Flex>
-              {tocOpen && (
-                <ol className="space-y-1 px-5 py-3">
-                  {sections.map((section, index) => (
-                    <li key={section.id}>
-                      <a
-                        href={`#${section.id}`}
-                        onClick={event => {
-                          event.preventDefault();
-                          jumpToSection(section.id);
-                        }}
-                        className="text-base text-sanguine-bright transition-colors hover:text-white"
-                      >
-                        <span className="mr-2 text-gray-600">{index + 1}.</span>
-                        {section.title}
-                        {section.count !== undefined && (
-                          <span className="text-gray-600">
-                            {' '}
-                            ({section.count})
-                          </span>
-                        )}
-                      </a>
-                      {section.children && (
-                        <ol className="mt-1 space-y-1 pl-5">
-                          {section.children.map((child, childIndex) => (
-                            <li key={child.id}>
-                              <a
-                                href={`#${child.id}`}
-                                onClick={event => {
-                                  event.preventDefault();
-                                  jumpToSection(child.id);
-                                }}
-                                className="text-base text-sanguine-bright transition-colors hover:text-white"
-                              >
-                                <span className="mr-2 text-gray-600">
-                                  {index + 1}.{childIndex + 1}
-                                </span>
-                                {child.title}
-                              </a>
-                            </li>
-                          ))}
-                        </ol>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </nav>
-          )}
+          {/* A single-section article doesn't need a table of contents. */}
+          {sections.length > 1 && <ContentsBox sections={sections} />}
 
           {/* Drops — filtered by the account switcher */}
           {allItemsLogged.length > 0 && (
             <section id="drops" className="mt-10 scroll-mt-20">
-              <Flex
-                align="baseline"
-                justify="between"
-                gap="3"
-                wrap="wrap"
-                className="border-b border-gray-700 pb-1"
-              >
-                <Heading size="5" className="font-normal text-gray-100">
-                  Drops
-                </Heading>
-                <Text size="2" className="text-gray-500">
-                  <span className="text-white">{filteredItems.length}</span>{' '}
-                  items
-                  {totalGP > 0 && (
-                    <>
-                      {' worth '}
-                      <img
-                        src="https://oldschool.runescape.wiki/images/Coins_detail.png"
-                        alt=""
-                        className="inline h-3.5 w-3.5 object-contain align-[-2px]"
-                      />{' '}
-                      <span className="text-osrs-gold">
-                        {totalGP.toLocaleString()}
-                      </span>{' '}
-                      gp
-                    </>
-                  )}
-                </Text>
-              </Flex>
+              <SectionHeading
+                title="Drops"
+                summary={
+                  <Text size="2" className="text-gray-500">
+                    <span className="text-white">{filteredItems.length}</span>{' '}
+                    items
+                    {totalGP > 0 && (
+                      <>
+                        {' worth '}
+                        <CoinsIcon />{' '}
+                        <span className="text-osrs-gold">
+                          {totalGP.toLocaleString()}
+                        </span>{' '}
+                        gp
+                      </>
+                    )}
+                  </Text>
+                }
+              />
               {hasAlts && <Box mt="3">{accountSwitcher}</Box>}
               {filteredItems.length > 0 ? (
                 <Box mt="2">
                   {currentItems.map(item => (
-                    <div
-                      key={item.id}
-                      className="px-2 even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
-                    >
+                    <div key={item.id} className={`px-2 ${zebraRowClass}`}>
                       <DropItem
                         item={item}
                         showRecipient={false}
@@ -974,9 +814,7 @@ export default function UserById() {
                   />
                 </Box>
               ) : (
-                <Text as="p" align="center" className="py-12 text-gray-600">
-                  Nothing interesting happens.
-                </Text>
+                <EmptyState />
               )}
             </section>
           )}
@@ -985,22 +823,16 @@ export default function UserById() {
               and isn't affected by the account switcher. */}
           {personalBests.length > 0 && (
             <section id="personal-bests" className="mt-10 scroll-mt-20">
-              <Flex
-                align="baseline"
-                justify="between"
-                gap="3"
-                wrap="wrap"
-                className="border-b border-gray-700 pb-1"
-              >
-                <Heading size="5" className="font-normal text-gray-100">
-                  Personal bests
-                </Heading>
-                {pbMedalSummary && (
-                  <Text size="2" className="text-gray-400">
-                    {pbMedalSummary}
-                  </Text>
-                )}
-              </Flex>
+              <SectionHeading
+                title="Personal bests"
+                summary={
+                  pbMedalSummary && (
+                    <Text size="2" className="text-gray-400">
+                      {pbMedalSummary}
+                    </Text>
+                  )
+                }
+              />
               <Box mt="2" className="overflow-x-auto">
                 <Table.Root size="2">
                   <Table.Header>
@@ -1027,10 +859,7 @@ export default function UserById() {
                   </Table.Header>
                   <Table.Body>
                     {personalBests.map(pb => (
-                      <Table.Row
-                        key={pb.categoryKey}
-                        className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
-                      >
+                      <Table.Row key={pb.categoryKey} className={zebraRowClass}>
                         <Table.Cell className="text-white">
                           <Flex align="center" gap="2">
                             <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
@@ -1125,45 +954,35 @@ export default function UserById() {
               reconciles. */}
           {hasClanPointHistory && (
             <section id="clan-points" className="mt-10 scroll-mt-20">
-              <Flex
-                align="baseline"
-                justify="between"
-                gap="3"
-                wrap="wrap"
-                className="border-b border-gray-700 pb-1"
-              >
-                <Heading size="5" className="font-normal text-gray-100">
-                  Clan points
-                </Heading>
-                <Text size="2" className="whitespace-nowrap text-gray-500">
-                  <span className="text-osrs-gold">
-                    {user.clanPoints.toLocaleString()}
-                  </span>{' '}
-                  clan points
-                </Text>
-              </Flex>
+              <SectionHeading
+                title="Clan points"
+                summary={
+                  <Text size="2" className="whitespace-nowrap text-gray-500">
+                    <span className="text-osrs-gold">
+                      {user.clanPoints.toLocaleString()}
+                    </span>{' '}
+                    clan points
+                  </Text>
+                }
+              />
               <Flex direction="column" gap="5" mt="4">
                 {raids.length > 0 && (
                   <Box id="raids" className="scroll-mt-20">
                     {clanPointSources > 1 && (
-                      <Flex
-                        align="baseline"
-                        justify="between"
-                        className="pb-1 pt-2"
-                      >
-                        <Text size="3" className="text-osrs-orange">
-                          Raids
-                        </Text>
-                        <Text
-                          size="2"
-                          className="whitespace-nowrap text-gray-500"
-                        >
-                          <span className="text-osrs-gold">
-                            {raidsPointsTotal}
-                          </span>{' '}
-                          clan points
-                        </Text>
-                      </Flex>
+                      <SubsectionHeading
+                        title="Raids"
+                        summary={
+                          <Text
+                            size="2"
+                            className="whitespace-nowrap text-gray-500"
+                          >
+                            <span className="text-osrs-gold">
+                              {raidsPointsTotal}
+                            </span>{' '}
+                            clan points
+                          </Text>
+                        }
+                      />
                     )}
                     <div className="overflow-x-auto">
                       <Table.Root size="2">
@@ -1188,10 +1007,7 @@ export default function UserById() {
                         </Table.Header>
                         <Table.Body>
                           {currentRaids.map(raid => (
-                            <Table.Row
-                              key={raid.id}
-                              className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
-                            >
+                            <Table.Row key={raid.id} className={zebraRowClass}>
                               <Table.Cell className="text-white">
                                 <Flex align="center" gap="2">
                                   <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
@@ -1257,27 +1073,21 @@ export default function UserById() {
                 {hasCompetitionHistory && (
                   <Box id="competitions" className="scroll-mt-20">
                     {clanPointSources > 1 && (
-                      <Flex
-                        align="baseline"
-                        justify="between"
-                        className="pb-1 pt-2"
-                      >
-                        <Text size="3" className="text-osrs-orange">
-                          Competitions{' '}
-                          <span className="hidden text-gray-600 sm:inline">
-                            weeklies and one-off comps
-                          </span>
-                        </Text>
-                        <Text
-                          size="2"
-                          className="whitespace-nowrap text-gray-500"
-                        >
-                          <span className="text-osrs-gold">
-                            {competitionsPointsTotal}
-                          </span>{' '}
-                          clan points
-                        </Text>
-                      </Flex>
+                      <SubsectionHeading
+                        title="Competitions"
+                        hint="weeklies and one-off comps"
+                        summary={
+                          <Text
+                            size="2"
+                            className="whitespace-nowrap text-gray-500"
+                          >
+                            <span className="text-osrs-gold">
+                              {competitionsPointsTotal}
+                            </span>{' '}
+                            clan points
+                          </Text>
+                        }
+                      />
                     )}
                     <div className="overflow-x-auto">
                       <Table.Root size="2">
@@ -1302,10 +1112,7 @@ export default function UserById() {
                         </Table.Header>
                         <Table.Body>
                           {competitionAwards.map(award => (
-                            <Table.Row
-                              key={award.id}
-                              className="even:bg-sanguine-red/[0.05] hover:bg-sanguine-red/[0.09]"
-                            >
+                            <Table.Row key={award.id} className={zebraRowClass}>
                               <Table.Cell className="text-white">
                                 <Flex align="center" gap="2">
                                   <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
@@ -1366,7 +1173,7 @@ export default function UserById() {
                           ))}
                           {/* Awards that predate reliable competition records, rolled up */}
                           {historicalCompetitions && (
-                            <Table.Row className="even:bg-sanguine-red/[0.05]">
+                            <Table.Row className={zebraStripeClass}>
                               <Table.Cell>
                                 <Flex align="center" gap="2">
                                   <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
@@ -1421,33 +1228,27 @@ export default function UserById() {
 
                 {/* Manual awards (event prizes, corrections) — one net figure, not a ledger */}
                 {otherAwards && (
-                  <Flex
+                  <SubsectionHeading
                     id="other-awards"
-                    align="baseline"
-                    justify="between"
-                    gap="3"
-                    className="scroll-mt-20 pb-1 pt-2"
-                  >
-                    <Text size="3" className="text-osrs-orange">
-                      Other{' '}
-                      <span className="hidden text-gray-600 sm:inline">
-                        manual awards across {otherAwards.count}{' '}
-                        {otherAwards.count === 1 ? 'entry' : 'entries'}
-                      </span>
-                    </Text>
-                    <Text
-                      size="2"
-                      className={`font-medium ${
-                        otherAwards.points < 0
-                          ? 'text-red-400'
-                          : 'text-osrs-gold'
-                      }`}
-                    >
-                      {otherAwards.points < 0
-                        ? otherAwards.points
-                        : `+${otherAwards.points}`}
-                    </Text>
-                  </Flex>
+                    title="Other"
+                    hint={`manual awards across ${otherAwards.count} ${
+                      otherAwards.count === 1 ? 'entry' : 'entries'
+                    }`}
+                    summary={
+                      <Text
+                        size="2"
+                        className={`font-medium ${
+                          otherAwards.points < 0
+                            ? 'text-red-400'
+                            : 'text-osrs-gold'
+                        }`}
+                      >
+                        {otherAwards.points < 0
+                          ? otherAwards.points
+                          : `+${otherAwards.points}`}
+                      </Text>
+                    }
+                  />
                 )}
               </Flex>
             </section>
@@ -1455,20 +1256,14 @@ export default function UserById() {
 
           {/* Points chart — filtered by the account switcher */}
           <section id="chart" className="mt-10 scroll-mt-20">
-            <Flex
-              align="baseline"
-              justify="between"
-              gap="3"
-              wrap="wrap"
-              className="border-b border-gray-700 pb-1"
-            >
-              <Heading size="5" className="font-normal text-gray-100">
-                Points chart
-              </Heading>
-              <Text size="2" className="text-gray-500">
-                drop points by month · {displayName}
-              </Text>
-            </Flex>
+            <SectionHeading
+              title="Points chart"
+              summary={
+                <Text size="2" className="text-gray-500">
+                  drop points by month · {displayName}
+                </Text>
+              }
+            />
             {hasAlts && <Box mt="3">{accountSwitcher}</Box>}
             {filteredAuditData.length > 0 ? (
               <Box className="mt-3 h-96">
@@ -1502,32 +1297,18 @@ export default function UserById() {
                 </ResponsiveContainer>
               </Box>
             ) : (
-              <Text as="p" align="center" className="py-12 text-gray-600">
-                Nothing interesting happens.
-              </Text>
+              <EmptyState />
             )}
           </section>
         </Box>
       </div>
 
       {/* Categories — the wiki's footer strip, generated from the record */}
-      <Box mt="8" className="border border-gray-800 bg-gray-900 px-4 py-2">
-        <Text as="p" size="2" className="text-gray-500">
-          Categories:{' '}
-          <Link
-            to="/users"
-            className="text-sanguine-bright transition-colors hover:text-white"
-          >
-            {isGuest ? 'Sanguine guests' : 'Sanguine members'}
-          </Link>
-          {categories.map(category => (
-            <span key={category} className="text-gray-400">
-              {' | '}
-              {category}
-            </span>
-          ))}
-        </Text>
-      </Box>
+      <CategoriesFooter
+        to="/users"
+        primaryLabel={isGuest ? 'Sanguine guests' : 'Sanguine members'}
+        categories={categories}
+      />
     </Container>
   );
 }

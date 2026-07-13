@@ -2,6 +2,25 @@
  * Utility for getting OSRS Wiki images based on competition metrics
  */
 
+const TITLE_CASE_LOWERCASE_WORDS = new Set(['of', 'the', 'a', 'an']);
+
+/**
+ * "theatre_of_blood_hard_mode" -> "Theatre of Blood Hard Mode";
+ * acronym metrics (ehb, ehp) read fully uppercased.
+ */
+export const humanizeMetric = (metric: string | null) => {
+  if (!metric) return 'Unknown';
+  if (['ehb', 'ehp'].includes(metric)) return metric.toUpperCase();
+  return metric
+    .split('_')
+    .map((part, i) => {
+      if (!part.length) return part;
+      if (i > 0 && TITLE_CASE_LOWERCASE_WORDS.has(part)) return part;
+      return part[0].toUpperCase() + part.slice(1);
+    })
+    .join(' ');
+};
+
 // The transparent clan scythe from /public — the SVG sprite variant bakes in a dark
 // square background, so raster fallbacks use this instead.
 const SanguineLogo = '/sanguine_icon_small.png';

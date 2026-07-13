@@ -12,7 +12,6 @@ import tailwindStyleSheetUrl from './tailwind.css?url';
 import { LinksFunction, MetaFunction } from '@remix-run/node';
 import Navbar from '~/components/navbar';
 // import { LoadingBar } from '~/components/loading-bar';
-// import { SkeletonLoader } from '~/components/skeleton-loader';
 import { RouteSkeletonLoader } from '~/components/route-skeleton-loader';
 
 // LOADING INDICATOR OPTIONS:

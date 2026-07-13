@@ -1,15 +1,4 @@
-import {
-  Avatar,
-  Card,
-  Text,
-  Container,
-  Grid,
-  Heading,
-  Box,
-  Flex,
-  Button,
-  IconButton,
-} from '@radix-ui/themes';
+import { Text, Container, Box, Flex } from '@radix-ui/themes';
 import { defer, MetaFunction } from '@remix-run/node';
 import {
   getCompetitionById,
@@ -18,7 +7,11 @@ import {
 import { Await, Outlet, useLoaderData, useNavigate } from '@remix-run/react';
 import { Suspense, useState } from 'react';
 import { getCompetitionImageUrl } from '~/utils/competition-images';
-import { ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons';
+import { SPECIAL_COMPETITION_IDS } from '~/utils/events-config';
+import { PageHeader } from '~/components/PageHeader';
+import { Pagination } from '~/components/Pagination';
+import { EmptyState } from '~/components/EmptyState';
+import { zebraRowClass } from '~/utils/styles';
 
 export const meta: MetaFunction = () => {
   return [
@@ -27,69 +20,41 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+const rowGridClass =
+  'grid grid-cols-[28px_1fr_88px] items-center gap-2 px-2 sm:grid-cols-[28px_1fr_88px_11rem] md:grid-cols-[32px_1fr_88px_12rem_64px] md:gap-3 md:px-3';
+
 const SkeletonLoader = () => (
-  <>
-    <Box className="mb-4 text-center">
-      <Text size="2" className="text-gray-400">
-        Loading events... This may take up to a minute.
-      </Text>
-    </Box>
-    <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="4">
-      {[...Array(6).keys()].map((_, idx) => (
-        <Card
-          key={idx}
-          className="animate-pulse border border-gray-800 bg-gray-900"
-        >
-          <Flex p="4" gap="3" align="center">
-            <div className="h-12 w-12 rounded-full bg-gray-700"></div>
-            <Box className="flex-1">
-              <div className="mb-2 h-4 w-3/4 rounded bg-gray-700"></div>
-              <div className="h-3 w-1/2 rounded bg-gray-700"></div>
-            </Box>
-          </Flex>
-        </Card>
-      ))}
-    </Grid>
-  </>
+  <Box className="border-t-2 border-t-sanguine-red">
+    <Text as="p" size="2" className="py-2 text-gray-500">
+      Loading events... This may take up to a minute.
+    </Text>
+    {[...Array(8).keys()].map(idx => (
+      <div
+        key={idx}
+        className={`${rowGridClass} border-b border-gray-800 py-2.5 ${
+          idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''
+        }`}
+      >
+        <div className="h-7 w-7 animate-pulse rounded-sm bg-gray-800/50"></div>
+        <div className="h-4 w-56 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+        <div className="h-4 w-16 animate-pulse rounded-sm bg-gray-800/40"></div>
+        <div className="hidden h-4 w-36 animate-pulse rounded-sm bg-gray-800/40 sm:block"></div>
+        <div className="hidden h-4 w-8 animate-pulse justify-self-end rounded-sm bg-gray-800/40 md:block"></div>
+      </div>
+    ))}
+  </Box>
 );
 
 export async function loader() {
   const womCompsPromise = getCompetitions();
-  const sangFeb26Promise = getCompetitionById(128016);
-  const starCollectorsV2Promise = getCompetitionById(121056);
-  const fall2025BingoPromise = getCompetitionById(107621);
-  const rngBingoPromise = getCompetitionById(46594);
-  const starBingoPromise = getCompetitionById(79514);
-  const coalitionBingoPromise = getCompetitionById(101103);
-  const gottaBossEmAll2026Promise = getCompetitionById(144882);
-
-  const [
-    sangFeb26,
-    starCollectorsV2,
-    fall2025Bingo,
-    rngBingo,
-    starBingo,
-    coalitionBingo,
-    gottaBossEmAll2026,
-  ] = await Promise.all([
-    sangFeb26Promise,
-    starCollectorsV2Promise,
-    fall2025BingoPromise,
-    rngBingoPromise,
-    starBingoPromise,
-    coalitionBingoPromise,
-    gottaBossEmAll2026Promise,
-  ]);
+  const [lead, ...rest] = await Promise.all(
+    SPECIAL_COMPETITION_IDS.map(id => getCompetitionById(id)),
+  );
 
   const competitionsPromise = womCompsPromise.then(womComps => [
-    gottaBossEmAll2026,
+    lead,
     ...(womComps ?? []),
-    sangFeb26,
-    starCollectorsV2,
-    fall2025Bingo,
-    coalitionBingo,
-    starBingo,
-    rngBingo,
+    ...rest,
   ]);
 
   return defer(
@@ -103,182 +68,172 @@ export async function loader() {
     },
   );
 }
+
+const formatDate = (dateString: string) =>
+  new Date(dateString).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+// Status stays inside the palette: active reads friends-list green, upcoming
+// plain white, completed muted.
+const getEventStatus = (startsAt: string, endsAt: string) => {
+  const now = new Date();
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+
+  if (now < start) return { status: 'Upcoming', color: 'text-gray-200' };
+  if (now > end) return { status: 'Completed', color: 'text-gray-500' };
+  return { status: 'Active', color: 'text-green-400' };
+};
+
 const Events = () => {
   const { competitions } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const getEventStatus = (startsAt: string, endsAt: string) => {
-    const now = new Date();
-    const start = new Date(startsAt);
-    const end = new Date(endsAt);
-
-    if (now < start) return { status: 'Upcoming', color: 'text-blue-400' };
-    if (now > end) return { status: 'Completed', color: 'text-gray-400' };
-    return { status: 'Active', color: 'text-green-400' };
-  };
-
   return (
-    <Container size="4" mt="3">
-      <Flex direction="column" gap="5">
-        <Box className="text-center">
-          <Heading size="6" className="tracking-wide text-sanguine-red">
-            Sanguine Events
-          </Heading>
-          <Box className="mx-auto mt-2 h-1 w-32 bg-sanguine-red"></Box>
-          <Text size="3" className="mt-3 text-gray-400">
-            Recent competitions and clan events
-          </Text>
-        </Box>
+    <Container size="3" mt="3">
+      <Flex direction="column">
+        <PageHeader title="Events" iconSrc="/sanguine_icon_small.png">
+          <Suspense fallback={<>Recent competitions and clan events</>}>
+            <Await resolve={competitions}>
+              {competitions => {
+                const all = competitions ?? [];
+                const active = all.filter(
+                  comp =>
+                    getEventStatus(comp.startsAt, comp.endsAt).status ===
+                    'Active',
+                ).length;
+                return (
+                  <>
+                    <span className="font-semibold text-white">
+                      {all.length}
+                    </span>{' '}
+                    competitions on the books
+                    {active > 0 && (
+                      <>
+                        , <span className="text-green-400">{active}</span>{' '}
+                        running now
+                      </>
+                    )}
+                  </>
+                );
+              }}
+            </Await>
+          </Suspense>
+        </PageHeader>
 
         <Suspense fallback={<SkeletonLoader />}>
           <Await resolve={competitions}>
             {competitions => {
               const allCompetitions = competitions ?? [];
 
-              // Calculate pagination
               const totalItems = allCompetitions.length;
               const totalPages = Math.ceil(totalItems / itemsPerPage);
               const startIndex = (currentPage - 1) * itemsPerPage;
-              const endIndex = startIndex + itemsPerPage;
-              const currentItems = allCompetitions.slice(startIndex, endIndex);
+              const currentItems = allCompetitions.slice(
+                startIndex,
+                startIndex + itemsPerPage,
+              );
 
               return (
                 <>
-                  <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="4">
-                    {currentItems.map(comp => {
+                  {/* Column headers over the red rule, hiscores-style */}
+                  <div
+                    className={`${rowGridClass} border-b border-t-2 border-gray-700 border-t-sanguine-red py-2.5 text-sm text-osrs-orange`}
+                  >
+                    <span></span>
+                    <span>Competition</span>
+                    <span>Status</span>
+                    <span className="hidden sm:block">Dates</span>
+                    <span className="hidden text-right md:block">Players</span>
+                  </div>
+
+                  {currentItems.length === 0 ? (
+                    <EmptyState />
+                  ) : (
+                    currentItems.map(comp => {
                       const eventStatus = getEventStatus(
                         comp.startsAt,
                         comp.endsAt,
                       );
                       return (
-                        <Card
+                        <div
                           key={comp.id}
-                          className="border border-gray-800 bg-gray-900 transition-all duration-200 hover:border-sanguine-red hover:shadow-lg hover:shadow-sanguine-red/20"
-                        >
-                          <Box
-                            p="4"
-                            className="cursor-pointer"
-                            onClick={() => navigate(`/events/${comp.id}`)}
-                          >
-                            <Flex gap="3" align="center" mb="3">
-                              <Avatar
-                                size="3"
-                                src={getCompetitionImageUrl(comp.metric)}
-                                radius="full"
-                                fallback="S"
-                              />
-                              <Text
-                                as="div"
-                                size="4"
-                                className="font-bold text-sanguine-red"
-                              >
-                                {comp.title}
-                              </Text>
-                            </Flex>
-
-                            <Flex direction="column" gap="1">
-                              <Flex justify="between">
-                                <Text size="2" className="text-gray-400">
-                                  Status:
-                                </Text>
-                                <Text size="2" className={eventStatus.color}>
-                                  {eventStatus.status}
-                                </Text>
-                              </Flex>
-
-                              <Flex justify="between">
-                                <Text size="2" className="text-gray-400">
-                                  Started:
-                                </Text>
-                                <Text size="2" className="text-white">
-                                  {formatDate(comp.startsAt)}
-                                </Text>
-                              </Flex>
-
-                              <Flex justify="between">
-                                <Text size="2" className="text-gray-400">
-                                  Ends:
-                                </Text>
-                                <Text size="2" className="text-white">
-                                  {formatDate(comp.endsAt)}
-                                </Text>
-                              </Flex>
-
-                              {comp.participantCount > 0 && (
-                                <Flex justify="between">
-                                  <Text size="2" className="text-gray-400">
-                                    Participants:
-                                  </Text>
-                                  <Text size="2" className="text-sanguine-red">
-                                    {comp.participantCount}
-                                  </Text>
-                                </Flex>
-                              )}
-                            </Flex>
-                          </Box>
-                        </Card>
-                      );
-                    })}
-                  </Grid>
-
-                  {/* Pagination Controls */}
-                  {totalPages > 1 && (
-                    <Flex justify="center" align="center" gap="3" mt="6">
-                      <IconButton
-                        variant="ghost"
-                        color="gray"
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(currentPage - 1)}
-                      >
-                        <ChevronLeftIcon width="16" height="16" />
-                      </IconButton>
-
-                      <Flex gap="2" align="center">
-                        {Array.from(
-                          { length: totalPages },
-                          (_, i) => i + 1,
-                        ).map(pageNum => (
-                          <Button
-                            key={pageNum}
-                            variant={
-                              pageNum === currentPage ? 'solid' : 'ghost'
+                          onClick={() => navigate(`/events/${comp.id}`)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              navigate(`/events/${comp.id}`);
                             }
-                            color={pageNum === currentPage ? 'red' : 'gray'}
-                            size="2"
-                            onClick={() => setCurrentPage(pageNum)}
+                          }}
+                          role="link"
+                          tabIndex={0}
+                          className={`${rowGridClass} group cursor-pointer py-2.5 ${zebraRowClass}`}
+                        >
+                          <img
+                            src={getCompetitionImageUrl(comp.metric)}
+                            alt=""
+                            className="h-7 w-7 shrink-0 object-contain"
+                          />
+                          <Text
+                            as="div"
+                            className="min-w-0 truncate leading-tight text-sanguine-bright group-hover:text-white"
                           >
-                            {pageNum}
-                          </Button>
-                        ))}
-                      </Flex>
-
-                      <IconButton
-                        variant="ghost"
-                        color="gray"
-                        disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                      >
-                        <ChevronRightIcon width="16" height="16" />
-                      </IconButton>
-                    </Flex>
+                            {comp.title}
+                          </Text>
+                          <Text as="div" size="2" className={eventStatus.color}>
+                            {eventStatus.status}
+                          </Text>
+                          <Text
+                            as="div"
+                            size="2"
+                            className="hidden text-gray-400 sm:block"
+                          >
+                            {/* Break only between start and end, never inside a date */}
+                            <span className="whitespace-nowrap">
+                              {formatDate(comp.startsAt)} –
+                            </span>{' '}
+                            <span className="whitespace-nowrap">
+                              {formatDate(comp.endsAt)}
+                            </span>
+                          </Text>
+                          <Text
+                            as="div"
+                            size="2"
+                            className={`hidden text-right md:block ${
+                              comp.participantCount > 0
+                                ? 'text-white'
+                                : 'text-gray-600'
+                            }`}
+                          >
+                            {comp.participantCount > 0
+                              ? comp.participantCount
+                              : '—'}
+                          </Text>
+                        </div>
+                      );
+                    })
                   )}
 
-                  <Box mt="4" className="text-center">
-                    <Text size="2" className="text-gray-400">
-                      Showing {startIndex + 1}-{Math.min(endIndex, totalItems)}{' '}
-                      of {totalItems} events
-                    </Text>
-                  </Box>
+                  <Pagination
+                    page={currentPage}
+                    totalPages={totalPages}
+                    onPrev={() => setCurrentPage(page => Math.max(1, page - 1))}
+                    onNext={() =>
+                      setCurrentPage(page => Math.min(totalPages, page + 1))
+                    }
+                  />
+
+                  <Text
+                    as="p"
+                    size="1"
+                    className="mt-4 border-t border-gray-800 py-3 text-gray-600"
+                  >
+                    {totalItems} events
+                  </Text>
                 </>
               );
             }}

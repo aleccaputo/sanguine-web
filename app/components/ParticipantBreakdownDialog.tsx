@@ -255,7 +255,7 @@ export function ParticipantBreakdownDialog({
               </Box>
             ) : (
               <Text size="2" className="text-gray-400">
-                No drops recorded for this event.
+                No drops logged for this one.
               </Text>
             )}
           </Box>
