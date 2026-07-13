@@ -26,7 +26,11 @@ import {
   YAxis,
 } from 'recharts';
 import { Text, Container, Box, Flex } from '@radix-ui/themes';
-import { getCompetitionImageUrl, getMetricType } from '~/utils/competition-images';
+import {
+  getCompetitionImageUrl,
+  getMetricType,
+  humanizeMetric,
+} from '~/utils/competition-images';
 import { isClanPointAudit } from '~/utils/point-types';
 import { ParticipantBreakdownDialog } from '~/components/ParticipantBreakdownDialog';
 import { ClickableUserName } from '~/components/ClickableUserName';
@@ -67,7 +71,7 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
     { title: `${data?.compDetails.title ?? 'Sanguine Event'}` },
     {
       name: 'description',
-      content: `More information about ${data?.compDetails?.title ?? 'the event.'}`,
+      content: `${data?.compDetails?.title ?? 'A Sanguine event'}: standings, spoons, and drop points from the Sanguine side.`,
     },
   ];
 };
@@ -177,21 +181,6 @@ const formatDate = (dateString: string): string => {
     year: 'numeric',
   });
 };
-
-const TITLE_CASE_LOWERCASE_WORDS = new Set(['of', 'the', 'a', 'an']);
-
-const humanizeMetric = (metric: string) =>
-  // Acronym metrics (ehb, ehp) read fully uppercased, not title-cased
-  ['ehb', 'ehp'].includes(metric)
-    ? metric.toUpperCase()
-    : metric
-        .split('_')
-        .map((part, i) => {
-          if (!part.length) return part;
-          if (i > 0 && TITLE_CASE_LOWERCASE_WORDS.has(part)) return part;
-          return part[0].toUpperCase() + part.slice(1);
-        })
-        .join(' ');
 
 /**
  * Given an audit record's discordId and osrsName, find which participant entry it belongs to.
@@ -651,8 +640,8 @@ const EventById = () => {
             {hasParticipants && (
               <>
                 {' '}
-                <span className="text-white">{participantMap.size}</span>{' '}
-                member accounts {competingVerb}
+                <span className="text-white">{participantMap.size}</span> member
+                accounts {competingVerb}
                 {totalEventPoints > 0 && (
                   <>
                     , producing{' '}

@@ -71,8 +71,8 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
     : 'Members | Sanguine Member';
 
   const description = data?.user?.nickname
-    ? `More information about ${data.user.nickname}`
-    : 'More information about a member';
+    ? `${data.user.nickname}'s Sanguine record: drops, personal bests, and clan points.`
+    : 'A Sanguine member record: drops, personal bests, and clan points.';
 
   return [{ title }, { name: 'description', content: description }];
 };

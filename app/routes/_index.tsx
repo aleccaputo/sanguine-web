@@ -20,16 +20,21 @@ import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
 import { getAllClanDrops, getClanDropsPaginated } from '~/data/points-audit';
 import { computeClanTotals } from '~/data/points-audit/stats';
 import { getAllUserAlts } from '~/data/user';
-import {
-  getMonthlyWinners,
-  MonthlyWinnerEventType,
-} from '~/data/monthly-winners';
+import { getMonthlyWinners } from '~/data/monthly-winners';
 import {
   buildAltsByDiscordId,
   resolveDisplayName,
   resolveDisplayParts,
 } from '~/utils/account-matching';
-import { getCompetitionImageUrl } from '~/utils/competition-images';
+import {
+  getCompetitionImageUrl,
+  humanizeMetric,
+} from '~/utils/competition-images';
+import {
+  EVENT_LABELS,
+  EVENT_TYPES,
+  RANK_ICON,
+} from '~/utils/monthly-winners-display';
 import { proseLinkClass, zebraRowClass } from '~/utils/styles';
 
 export const meta: MetaFunction = () => {
@@ -38,23 +43,9 @@ export const meta: MetaFunction = () => {
     {
       name: 'description',
       content:
-        'Welcome to Sanguine - A Premier Old School RuneScape PvM and Social Clan',
+        'Sanguine, an OSRS PvM and social clan. ToB, CoX, and ToA in the cc Sanguine PvM on world 479.',
     },
   ];
-};
-
-const EVENT_LABELS: Record<MonthlyWinnerEventType, string> = {
-  BOSS: 'Boss of the Week',
-  RAID: 'Raid of the Week',
-  SKILL: 'Skill of the Week',
-};
-
-const EVENT_TYPES: MonthlyWinnerEventType[] = ['BOSS', 'RAID', 'SKILL'];
-
-const RANK_ICON: Record<MonthlyWinnerEventType, string> = {
-  BOSS: '/rank-icons/botw_winner_rank.png',
-  RAID: '/rank-icons/rotw_winner_rank.png',
-  SKILL: '/rank-icons/sotw_winner_rank.png',
 };
 
 // Prose speaks like a player: "95.5b gp", not eleven digits. Tables keep
@@ -64,20 +55,6 @@ const formatGp = (gp: number) => {
   if (gp >= 1_000_000) return `${(gp / 1_000_000).toFixed(1)}m`;
   if (gp >= 1_000) return `${(gp / 1_000).toFixed(0)}k`;
   return gp.toLocaleString();
-};
-
-const TITLE_CASE_LOWERCASE_WORDS = new Set(['of', 'the', 'a', 'an']);
-
-const humanizeMetric = (metric: string | null) => {
-  if (!metric) return 'Unknown';
-  return metric
-    .split('_')
-    .map((part, i) => {
-      if (!part.length) return part;
-      if (i > 0 && TITLE_CASE_LOWERCASE_WORDS.has(part)) return part;
-      return part[0].toUpperCase() + part.slice(1);
-    })
-    .join(' ');
 };
 
 export async function loader() {
@@ -104,14 +81,12 @@ export async function loader() {
         allDrops.map(d => d.itemId).filter((id): id is number => id != null),
       ),
     ];
-    const items = await Promise.all(
-      uniqueItemIds.map(id => fetchOSRSItem(id)),
-    );
+    const items = await Promise.all(uniqueItemIds.map(id => fetchOSRSItem(id)));
     const itemMap = new Map<number, OSRSItem>(
       uniqueItemIds
         .map((id, i) => [id, items[i]] as const)
-        .filter((entry): entry is readonly [number, OSRSItem] =>
-          entry[1] != null,
+        .filter(
+          (entry): entry is readonly [number, OSRSItem] => entry[1] != null,
         ),
     );
     const totals = computeClanTotals(allDrops, itemMap);
@@ -139,9 +114,7 @@ export async function loader() {
 
     const latestDrops = await Promise.all(
       drops.map(async item => {
-        const user = users.find(
-          u => u.discordId === item.destinationDiscordId,
-        );
+        const user = users.find(u => u.discordId === item.destinationDiscordId);
         const osrsData =
           item.itemId !== null ? await fetchOSRSItem(item.itemId) : null;
         const mainName = user?.nickname ?? user?.discordId ?? '';
@@ -193,8 +166,7 @@ export async function loader() {
         );
       })
       .sort(
-        (a, b) =>
-          new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime(),
+        (a, b) => new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime(),
       )
       .slice(0, 4)
       .map(comp => ({
@@ -218,16 +190,16 @@ export async function loader() {
 
 const PILLARS = [
   {
-    title: 'Elite PvM',
+    title: 'Endgame PvM',
     body: 'ToB/ToB HM, CoX/CoX CM, ToA, Nex and more',
   },
   {
-    title: 'Active community',
-    body: 'Dedicated OSRS players working together',
+    title: 'Social',
+    body: 'A busy Discord and cc between raids',
   },
   {
     title: 'Competitions',
-    body: 'Weekly challenges, bingo events, and skill competitions',
+    body: 'Weeklies, bingo events, and skill comps',
   },
 ] as const;
 
@@ -245,13 +217,12 @@ interface IFeedDrop {
  * One feed row: mounts collapsed and slides open when it "arrives". Rows that
  * were already on the board render settled, so only the newcomer moves.
  */
-const FeedRow = ({
-  animate,
-  children,
-}: {
+interface IFeedRowProps {
   animate: boolean;
   children: ReactNode;
-}) => {
+}
+
+const FeedRow = ({ animate, children }: IFeedRowProps) => {
   const [entered, setEntered] = useState(!animate);
   // The height clamp exists only while the row slides open — left on, it
   // clips tall rows (the stacked date/gp/points column) under the row below.
@@ -280,13 +251,17 @@ const FeedRow = ({
   );
 };
 
+interface ILiveDropFeedProps {
+  drops: IFeedDrop[];
+}
+
 /**
  * Simulated-live drop ticker. The window opens a few entries behind the real
  * latest drop and the newer ones land one by one on organic timing until the
  * feed has caught up — every item, date, and value is a real record; only the
  * arrival timing is theater.
  */
-const LiveDropFeed = ({ drops }: { drops: IFeedDrop[] }) => {
+const LiveDropFeed = ({ drops }: ILiveDropFeedProps) => {
   const WINDOW = 5;
   const initialPending = Math.max(0, drops.length - WINDOW);
   const [pending, setPending] = useState(initialPending);
@@ -319,8 +294,12 @@ const LiveDropFeed = ({ drops }: { drops: IFeedDrop[] }) => {
   );
 };
 
+interface IRowsSkeletonProps {
+  rows: number;
+}
+
 /** Pulse rows shaped like the noticeboard lists while a section streams in. */
-const RowsSkeleton = ({ rows }: { rows: number }) => (
+const RowsSkeleton = ({ rows }: IRowsSkeletonProps) => (
   <Box mt="2">
     {Array.from({ length: rows }, (_, idx) => (
       <Flex
@@ -336,7 +315,8 @@ const RowsSkeleton = ({ rows }: { rows: number }) => (
   </Box>
 );
 
-const sectionLink = 'text-sm text-sanguine-bright transition-colors hover:text-white';
+const sectionLink =
+  'text-sm text-sanguine-bright transition-colors hover:text-white';
 
 export default function Index() {
   const { stats, activity, competitions } = useLoaderData<typeof loader>();
@@ -351,9 +331,13 @@ export default function Index() {
             Sanguine
           </Heading>
         </Flex>
-        <Text as="p" size="3" className="mt-3 max-w-3xl leading-7 text-gray-300">
-          <strong className="font-medium text-white">Sanguine</strong> is an
-          Old School RuneScape PvM and social clan
+        <Text
+          as="p"
+          size="3"
+          className="mt-3 max-w-3xl leading-7 text-gray-300"
+        >
+          <strong className="font-medium text-white">Sanguine</strong> is an Old
+          School RuneScape PvM and social clan
           <Suspense fallback={<>.</>}>
             <Await resolve={stats}>
               {({ memberCount, totalDrops, totalGP }) => (
@@ -363,8 +347,8 @@ export default function Index() {
                     <span className="font-semibold">{memberCount} members</span>
                   </Link>{' '}
                   strong. We send ToB, CoX, and ToA (HMs, CMs, and experts
-                  included), boss everything else worth killing, and have
-                  racked up{' '}
+                  included), boss everything else worth killing, and have racked
+                  up{' '}
                   <span className="font-semibold text-white">
                     {totalDrops.toLocaleString()}
                   </span>{' '}
@@ -382,8 +366,8 @@ export default function Index() {
           </Suspense>{' '}
           Catch us in-game in the cc{' '}
           <span className="text-white">Sanguine PvM</span> on world{' '}
-          <span className="text-white">479</span>, mostly EST/PST hours. More
-          on the{' '}
+          <span className="text-white">479</span>, mostly EST/PST hours. More on
+          the{' '}
           <Link to="/about" className={proseLinkClass}>
             about page
           </Link>
@@ -467,10 +451,7 @@ export default function Index() {
                             </Text>
                           </Box>
                           {comp.participantCount > 0 && (
-                            <Text
-                              size="2"
-                              className="shrink-0 text-gray-400"
-                            >
+                            <Text size="2" className="shrink-0 text-gray-400">
                               {comp.participantCount} players
                             </Text>
                           )}
@@ -573,13 +554,13 @@ export default function Index() {
             like the noticeboard above it */}
         <div className="mt-3 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
           <Text as="p" size="3" className="max-w-xl leading-7 text-gray-300">
-            Applications run through Discord: join the server, read the
-            rules, and click the green checkmark in{' '}
+            Applications run through Discord: join the server, read the rules,
+            and click the green checkmark in{' '}
             <span className="text-white">#welcome</span> to open your
             application channel. We ask for{' '}
             <span className="text-white">110+ combat</span> and{' '}
-            <span className="text-white">10 kc</span> in either ToB, CoX, or
-            ToA Expert; everything else is on the{' '}
+            <span className="text-white">10 kc</span> in either ToB, CoX, or ToA
+            Expert; everything else is on the{' '}
             <Link to="/about" className={proseLinkClass}>
               about page
             </Link>

@@ -34,7 +34,10 @@ const STAFF_RANKS = ['owner', 'deputy_owner', 'administrator', 'moderator'];
 export const meta: MetaFunction = () => {
   return [
     { title: 'Sanguine Members' },
-    { name: 'description', content: 'Members of sanguine' },
+    {
+      name: 'description',
+      content: 'The Sanguine roster: ranks, drop points, and clan points.',
+    },
   ];
 };
 

@@ -30,6 +30,10 @@ import {
 } from '~/utils/account-matching';
 import { getBossImageUrl } from '~/utils/competition-images';
 import { PageHeader } from '~/components/PageHeader';
+import {
+  SortableHeaderCell,
+  SortConfig,
+} from '~/components/SortableHeaderCell';
 import { SectionHeading } from '~/components/SectionHeading';
 import { ChipGroup } from '~/components/ChipGroup';
 import { CoinsIcon } from '~/components/CoinsIcon';
@@ -134,9 +138,6 @@ export async function loader() {
   return json(data, { headers: { 'Cache-Control': 'max-age=3600' } });
 }
 
-type SortDirection = 'asc' | 'desc';
-type SortConfig<K extends string> = { key: K; direction: SortDirection };
-
 function compare(a: string | number, b: string | number) {
   if (typeof a === 'string' && typeof b === 'string') return a.localeCompare(b);
   return (a as number) - (b as number);
@@ -184,48 +185,49 @@ function useSortableData<K extends string, T>(
   return { sorted, activeSort, toggle };
 }
 
-// Sortable Radix table header in the roster's chrome: orange label golding on
-// hover/active, ▲▼ before the label on right-aligned columns so the label
-// stays flush with the numbers beneath it.
-function SortableHeaderCell<K extends string>({
-  label,
-  columnKey,
-  activeSort,
-  onToggle,
-  align = 'left',
-  className = '',
-}: {
-  label: string;
-  columnKey: K;
-  activeSort: SortConfig<K> | null;
-  onToggle: () => void;
-  align?: 'left' | 'right';
-  className?: string;
-}) {
-  const active = activeSort?.key === columnKey;
-  const arrow = active && (
-    <span
-      className={`text-[9px] text-sanguine-bright ${
-        align === 'right' ? 'mr-1' : 'ml-1'
-      }`}
-    >
-      {activeSort.direction === 'asc' ? '▲' : '▼'}
-    </span>
-  );
-  return (
-    <Table.ColumnHeaderCell
-      align={align}
-      onClick={onToggle}
-      className={`cursor-pointer select-none hover:text-osrs-gold ${
-        active ? 'text-osrs-gold' : 'text-osrs-orange'
-      } ${className}`}
-    >
-      {align === 'right' && arrow}
-      {label}
-      {align === 'left' && arrow}
-    </Table.ColumnHeaderCell>
-  );
-}
+// Stable accessors and default sorts live at module scope so useSortableData's
+// memo dependencies don't change reference every render.
+type BossRow = ReturnType<typeof getBossBreakdown>[number];
+type CommonItemRow = ReturnType<typeof getMostCommonItems>[number];
+type ValuableRow = ReturnType<typeof getMostValuableItems>[number];
+type LeaderboardRow = ReturnType<typeof getMemberLeaderboard>[number] & {
+  nickname: string;
+};
+
+type BossSortKey = 'bossName' | 'dropCount' | 'totalGP';
+type CommonSortKey = 'name' | 'count';
+type ValuableSortKey = 'name' | 'price' | 'totalGP' | 'count';
+type LeaderboardSortKey = 'nickname' | 'dropCount' | 'totalGP' | 'totalPoints';
+
+const bossAccessor = (item: BossRow, key: BossSortKey) => item[key];
+const bossPinToBottom = (item: BossRow) => item.bossName === 'Unknown';
+const BOSS_DEFAULT_SORT: SortConfig<BossSortKey> = {
+  key: 'totalGP',
+  direction: 'desc',
+};
+
+const commonAccessor = (item: CommonItemRow, key: CommonSortKey) => item[key];
+const COMMON_DEFAULT_SORT: SortConfig<CommonSortKey> = {
+  key: 'count',
+  direction: 'desc',
+};
+
+const valuableAccessor = (item: ValuableRow, key: ValuableSortKey) => {
+  if (key === 'name') return item.osrsData.name;
+  if (key === 'price') return item.osrsData.price ?? 0;
+  return item[key];
+};
+const VALUABLE_DEFAULT_SORT: SortConfig<ValuableSortKey> = {
+  key: 'totalGP',
+  direction: 'desc',
+};
+
+const leaderboardAccessor = (item: LeaderboardRow, key: LeaderboardSortKey) =>
+  item[key];
+const LEADERBOARD_DEFAULT_SORT: SortConfig<LeaderboardSortKey> = {
+  key: 'totalGP',
+  direction: 'desc',
+};
 
 export default function DropStats() {
   const { enrichedDrops, nicknameMap, serializedItemMap } =
@@ -283,32 +285,27 @@ export default function DropStats() {
 
   const sortedBosses = useSortableData(
     bossBreakdown,
-    (item, key: 'bossName' | 'dropCount' | 'totalGP') => item[key],
-    { key: 'totalGP', direction: 'desc' },
-    item => item.bossName === 'Unknown',
+    bossAccessor,
+    BOSS_DEFAULT_SORT,
+    bossPinToBottom,
   );
 
   const sortedValuable = useSortableData(
     mostValuableItems,
-    (item, key: 'name' | 'price' | 'totalGP' | 'count') => {
-      if (key === 'name') return item.osrsData.name;
-      if (key === 'price') return item.osrsData.price ?? 0;
-      return item[key];
-    },
-    { key: 'totalGP', direction: 'desc' },
+    valuableAccessor,
+    VALUABLE_DEFAULT_SORT,
   );
 
   const sortedLeaderboard = useSortableData(
     memberLeaderboard,
-    (item, key: 'nickname' | 'dropCount' | 'totalGP' | 'totalPoints') =>
-      item[key],
-    { key: 'totalGP', direction: 'desc' },
+    leaderboardAccessor,
+    LEADERBOARD_DEFAULT_SORT,
   );
 
   const sortedCommon = useSortableData(
     commonItems,
-    (item, key: 'name' | 'count') => item[key],
-    { key: 'count', direction: 'desc' },
+    commonAccessor,
+    COMMON_DEFAULT_SORT,
   );
 
   const periodPhrase =
@@ -451,7 +448,10 @@ export default function DropStats() {
                     </Table.Header>
                     <Table.Body>
                       {sortedBosses.sorted.map(boss => (
-                        <Table.Row key={boss.bossName} className={zebraRowClass}>
+                        <Table.Row
+                          key={boss.bossName}
+                          className={zebraRowClass}
+                        >
                           <Table.Cell className="text-white">
                             <Flex align="center" gap="2">
                               <Box className="flex h-8 w-8 flex-shrink-0 items-center justify-center">

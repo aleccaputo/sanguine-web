@@ -120,7 +120,10 @@ export default function PersonalBests() {
                       </Flex>
                     }
                     summary={
-                      <Text size="2" className="whitespace-nowrap text-gray-500">
+                      <Text
+                        size="2"
+                        className="whitespace-nowrap text-gray-500"
+                      >
                         <span className="text-white">{boss.totalEntries}</span>{' '}
                         {boss.totalEntries === 1 ? 'time' : 'times'}
                       </Text>

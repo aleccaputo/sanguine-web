@@ -14,7 +14,15 @@ import {
   buildAltsByDiscordId,
   resolveDisplayParts,
 } from '~/utils/account-matching';
-import { getCompetitionImageUrl } from '~/utils/competition-images';
+import {
+  getCompetitionImageUrl,
+  humanizeMetric,
+} from '~/utils/competition-images';
+import {
+  EVENT_LABELS,
+  EVENT_TYPES,
+  RANK_ICON,
+} from '~/utils/monthly-winners-display';
 import { PageHeader } from '~/components/PageHeader';
 import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
@@ -32,34 +40,6 @@ export const meta: MetaFunction = () => [
     content: 'Monthly Boss, Raid, and Skill of the Week winners',
   },
 ];
-
-const EVENT_LABELS: Record<MonthlyWinnerEventType, string> = {
-  BOSS: 'Boss of the Week',
-  RAID: 'Raid of the Week',
-  SKILL: 'Skill of the Week',
-};
-
-const EVENT_COLUMNS: MonthlyWinnerEventType[] = ['BOSS', 'RAID', 'SKILL'];
-
-const RANK_ICON: Record<MonthlyWinnerEventType, string> = {
-  BOSS: '/rank-icons/botw_winner_rank.png',
-  RAID: '/rank-icons/rotw_winner_rank.png',
-  SKILL: '/rank-icons/sotw_winner_rank.png',
-};
-
-const TITLE_CASE_LOWERCASE_WORDS = new Set(['of', 'the', 'a', 'an']);
-
-const humanizeMetric = (metric: string | null) => {
-  if (!metric) return 'Unknown';
-  return metric
-    .split('_')
-    .map((part, i) => {
-      if (!part.length) return part;
-      if (i > 0 && TITLE_CASE_LOWERCASE_WORDS.has(part)) return part;
-      return part[0].toUpperCase() + part.slice(1);
-    })
-    .join(' ');
-};
 
 export async function loader() {
   const [winners, users, allAlts, nextEventEndsByType] = await Promise.all([
@@ -86,16 +66,18 @@ export async function loader() {
   );
 }
 
+interface IReigningChampionProps {
+  type: MonthlyWinnerEventType;
+  winner: WinnerWithName | undefined;
+  nextEventEndIso: string | null;
+}
+
 /** One column of the reigning-champions band: the current title holder. */
 const ReigningChampion = ({
   type,
   winner,
   nextEventEndIso,
-}: {
-  type: MonthlyWinnerEventType;
-  winner: WinnerWithName | undefined;
-  nextEventEndIso: string | null;
-}) => {
+}: IReigningChampionProps) => {
   if (!winner) {
     return (
       <Box className="py-2">
@@ -157,8 +139,12 @@ const ReigningChampion = ({
   );
 };
 
+interface IPastWinnerRowProps {
+  winner: WinnerWithName;
+}
+
 /** One past title in a column: metric over the winner's name, month at right. */
-const PastWinnerRow = ({ winner }: { winner: WinnerWithName }) => (
+const PastWinnerRow = ({ winner }: IPastWinnerRowProps) => (
   <Flex gap="3" align="center" className={`px-2 py-2 ${zebraRowClass}`}>
     <img
       src={getCompetitionImageUrl(winner.metric ?? '')}
@@ -190,7 +176,7 @@ const PastWinnerRow = ({ winner }: { winner: WinnerWithName }) => (
 export default function MonthlyWinners() {
   const { winners, nextEventEndsByType } = useLoaderData<typeof loader>();
 
-  const winnersByType = EVENT_COLUMNS.reduce<
+  const winnersByType = EVENT_TYPES.reduce<
     Record<MonthlyWinnerEventType, WinnerWithName[]>
   >(
     (acc, type) => ({
@@ -200,14 +186,14 @@ export default function MonthlyWinners() {
     { BOSS: [], RAID: [], SKILL: [] },
   );
 
-  const pastWinnersCount = EVENT_COLUMNS.reduce(
+  const pastWinnersCount = EVENT_TYPES.reduce(
     (sum, type) => sum + Math.max(0, winnersByType[type].length - 1),
     0,
   );
   const earliestStart = winners
     .map(w => w.startDate)
     .sort((a, b) => a.localeCompare(b))[0];
-  const nextCrowning = EVENT_COLUMNS.map(type => nextEventEndsByType[type])
+  const nextCrowning = EVENT_TYPES.map(type => nextEventEndsByType[type])
     .filter((iso): iso is string => iso !== null)
     .sort((a, b) => a.localeCompare(b))[0];
 
@@ -217,18 +203,14 @@ export default function MonthlyWinners() {
         <PageHeader title="Monthly winners" iconSrc="/sanguine_icon_small.png">
           {winners.length > 0 ? (
             <>
-              <span className="font-semibold text-white">
-                {winners.length}
-              </span>{' '}
+              <span className="font-semibold text-white">{winners.length}</span>{' '}
               champions crowned across the weekly Boss, Raid, and Skill
               rotations
               {earliestStart && (
                 <> since {dayjs(earliestStart).format('MMMM YYYY')}</>
               )}
               {nextCrowning && (
-                <>
-                  , the next on {dayjs(nextCrowning).format('MMM D')}
-                </>
+                <>, the next on {dayjs(nextCrowning).format('MMM D')}</>
               )}
             </>
           ) : (
@@ -242,7 +224,7 @@ export default function MonthlyWinners() {
           className="border-b border-t-2 border-gray-800 border-t-sanguine-red"
         >
           <div className="grid grid-cols-1 sm:grid-cols-3">
-            {EVENT_COLUMNS.map((type, index) => (
+            {EVENT_TYPES.map((type, index) => (
               <div
                 key={type}
                 className={
@@ -280,7 +262,7 @@ export default function MonthlyWinners() {
           <EmptyState />
         ) : (
           <div className="mt-3 grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-5">
-            {EVENT_COLUMNS.map(type => {
+            {EVENT_TYPES.map(type => {
               const past = winnersByType[type].slice(1);
               return (
                 <Box key={type} className="min-w-0">

@@ -13,7 +13,8 @@ export const meta: MetaFunction = () => {
     { title: 'About Sanguine' },
     {
       name: 'description',
-      content: 'Learn about Sanguine - A Premier OSRS PvM and Social Clan',
+      content:
+        'Sanguine, an OSRS PvM and social clan: what we raid, how points work, and how to join.',
     },
   ];
 };
@@ -41,7 +42,7 @@ const COMMUNITY_EVENTS = [
   ['Weekly competitions', 'boss and skill challenges'],
   ['Bingo events', 'varied challenges and rewards'],
   ['Inter-clan events', 'compete with other clans'],
-  ['Active Discord', 'community chat and coordination'],
+  ['Active Discord', 'cc chatter, raid pings, and event signups'],
 ] as const;
 
 const listItemClass = `px-2 py-1 ${zebraStripeClass}`;
@@ -71,12 +72,7 @@ export default function AboutRoute() {
             gap="1"
             className="bg-sanguine-red/[0.04] px-3 py-5"
           >
-            <img
-              src="/sanguine_icon_small.png"
-              alt=""
-              width={56}
-              height={56}
-            />
+            <img src="/sanguine_icon_small.png" alt="" width={56} height={56} />
             <Text size="2" className="text-gray-400">
               PvM & social clan
             </Text>
@@ -114,16 +110,15 @@ export default function AboutRoute() {
           {/* Lede */}
           <Text as="p" size="3" className="mt-6 leading-7 text-gray-300">
             <strong className="font-medium text-white">Sanguine</strong> is a
-            PvM and social Old School RuneScape clan dedicated to excellence,
-            community, and helping members achieve their goals. Its{' '}
+            PvM and social Old School RuneScape clan,{' '}
             <Link to="/users" className={proseLinkClass}>
               <span className="font-semibold">{memberCount} members</span>
             </Link>{' '}
-            raid together across the game&apos;s endgame content, chase{' '}
+            strong. We raid the game&apos;s hardest content together, chase{' '}
             <Link to="/personal-bests" className={proseLinkClass}>
               clan records
             </Link>
-            , and log their{' '}
+            , and log our{' '}
             <Link to="/drops" className={proseLinkClass}>
               drops
             </Link>{' '}
@@ -139,7 +134,7 @@ export default function AboutRoute() {
             <SectionHeading title="What we offer" />
             <div className="mt-1 grid grid-cols-1 gap-x-8 md:grid-cols-2">
               <Box className="min-w-0">
-                <SubsectionHeading title="Elite PvM content" />
+                <SubsectionHeading title="Endgame PvM" />
                 <ul>
                   {PVM_CONTENT.map(content => (
                     <li key={content} className={listItemClass}>
@@ -184,13 +179,13 @@ export default function AboutRoute() {
               </li>
               <li className={listItemClass}>
                 <Text size="3" className="text-gray-300">
-                  <span className="text-white">10 kc</span> in either ToB,
-                  CoX, or ToA Expert
+                  <span className="text-white">10 kc</span> in either ToB, CoX,
+                  or ToA Expert
                 </Text>
               </li>
               <li className={listItemClass}>
                 <Text size="3" className="text-gray-300">
-                  Active Discord participation
+                  Be active in Discord
                 </Text>
               </li>
               <li className={listItemClass}>
@@ -238,12 +233,12 @@ export default function AboutRoute() {
               </li>
               <li className={listItemClass}>
                 <Text size="3" className="text-gray-300">
-                  Expert mentorship and guidance
+                  Clanmates who&apos;ll teach you the harder raids
                 </Text>
               </li>
               <li className={listItemClass}>
                 <Text size="3" className="text-gray-300">
-                  Social events and community activities
+                  Socials, bingos, and inter-clan events
                 </Text>
               </li>
             </ul>
@@ -253,12 +248,12 @@ export default function AboutRoute() {
           <section className="mt-10">
             <SectionHeading title="How to join" />
             <Text as="p" size="3" className="mt-3 leading-7 text-gray-300">
-              Join the Discord and give the rules a read. When you&apos;re
-              done, click the green checkmark in{' '}
-              <span className="text-white">#welcome</span> and your
-              application channel opens up; fill it out there and a staff
-              member will take it from that point. In the meantime, come see
-              who you&apos;ll be raiding with on the{' '}
+              Join the Discord and give the rules a read. When you&apos;re done,
+              click the green checkmark in{' '}
+              <span className="text-white">#welcome</span> and your application
+              channel opens up; fill it out there and a staff member will take
+              it from that point. In the meantime, come see who you&apos;ll be
+              raiding with on the{' '}
               <Link to="/users" className={proseLinkClass}>
                 members roster
               </Link>
