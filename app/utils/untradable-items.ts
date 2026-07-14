@@ -117,6 +117,9 @@ export const untradeableItems: Record<number, string> = {
   // Curved bone (untradeable prayer item)
   10977: 'curved bone',
 
+  // Boss head trophies (untradeable)
+  7980: 'kbd heads',
+
   29265: 'guild hunter top',
   29267: 'guild hunter legs',
   29269: 'guild hunter boots',
