@@ -336,8 +336,8 @@ export default function Index() {
           size="3"
           className="mt-3 max-w-3xl leading-7 text-gray-300"
         >
-          <strong className="font-medium text-white">Sanguine</strong> is an Old
-          School RuneScape PvM and social clan
+          <strong className="font-medium text-white">Sanguine</strong> is an
+          OSRS PvM and social clan
           <Suspense fallback={<>.</>}>
             <Await resolve={stats}>
               {({ memberCount, totalDrops, totalGP }) => (
@@ -346,9 +346,8 @@ export default function Index() {
                   <Link to="/users" className={proseLinkClass}>
                     <span className="font-semibold">{memberCount} members</span>
                   </Link>{' '}
-                  strong. We send ToB, CoX, and ToA (HMs, CMs, and experts
-                  included), boss everything else worth killing, and have racked
-                  up{' '}
+                  strong. Any given night it&apos;s CoX, ToB, ToA, or whatever
+                  everyone&apos;s grinding that week. So far that&apos;s{' '}
                   <span className="font-semibold text-white">
                     {totalDrops.toLocaleString()}
                   </span>{' '}
