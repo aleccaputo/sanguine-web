@@ -80,6 +80,11 @@ function formatItemNameForWiki(name: string): string {
     .join('_');
 }
 
+/** Detail-image URL on the OSRS Wiki for an item name. */
+export function wikiItemIconUrl(name: string): string {
+  return `https://oldschool.runescape.wiki/images/${formatItemNameForWiki(name)}_detail.png`;
+}
+
 /**
  * Fetches the full item mapping from the OSRS Wiki (id → name)
  */
@@ -140,8 +145,7 @@ export async function fetchOSRSItem(itemId: number): Promise<OSRSItem | null> {
     const icon =
       itemId === 0
         ? '/sanguine_icon.png'
-        : customItemIcons[itemId] ??
-          `https://oldschool.runescape.wiki/images/${formatItemNameForWiki(itemName)}_detail.png`;
+        : customItemIcons[itemId] ?? wikiItemIconUrl(itemName);
 
     const itemData: OSRSItem = {
       id: itemId,
@@ -169,7 +173,7 @@ export async function fetchOSRSItem(itemId: number): Promise<OSRSItem | null> {
       const itemData: OSRSItem = {
         id: itemId,
         name: toTitleCase(entry.name),
-        icon: `https://oldschool.runescape.wiki/images/${formatItemNameForWiki(entry.name)}_detail.png`,
+        icon: wikiItemIconUrl(entry.name),
         price: currentPrice,
       };
 

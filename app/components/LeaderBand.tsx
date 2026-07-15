@@ -6,7 +6,8 @@ export interface ILeaderEntry {
   iconAlt: string;
   label: string;
   value: string;
-  onClick: () => void;
+  /** Omit for entries with no page to go to — they render inert and gray. */
+  onClick?: () => void;
 }
 
 export interface ILeaderBoard {
@@ -47,46 +48,51 @@ export function LeaderBand({ boards }: ILeaderBandProps) {
             <Text as="p" size="2" className="pt-2 text-gray-500">
               {board.title}
             </Text>
-            {board.entries.map((entry, index) => (
-              <button
-                key={entry.key}
-                onClick={entry.onClick}
-                className="group flex w-full min-w-0 items-center gap-3 py-1.5 text-left"
-              >
-                <span
-                  className={`w-5 shrink-0 text-right leading-none ${
-                    index === 0
-                      ? 'text-xl text-osrs-gold'
-                      : 'text-base text-gray-600'
-                  }`}
+            {board.entries.map((entry, index) => {
+              const Row = entry.onClick ? 'button' : 'div';
+              return (
+                <Row
+                  key={entry.key}
+                  onClick={entry.onClick}
+                  className="group flex w-full min-w-0 items-center gap-3 py-1.5 text-left"
                 >
-                  {index + 1}
-                </span>
-                <img
-                  src={entry.iconSrc}
-                  alt={entry.iconAlt}
-                  width={22}
-                  height={22}
-                  className="shrink-0 [image-rendering:pixelated]"
-                />
-                <Text
-                  as="div"
-                  className={`min-w-0 flex-1 truncate leading-tight text-sanguine-bright group-hover:text-white ${
-                    index === 0 ? 'text-xl' : 'text-base'
-                  }`}
-                >
-                  {entry.label}
-                </Text>
-                <Text
-                  as="div"
-                  className={`text-right ${board.valueClassName} ${
-                    index === 0 ? 'text-xl' : 'text-base'
-                  }`}
-                >
-                  {entry.value}
-                </Text>
-              </button>
-            ))}
+                  <span
+                    className={`w-5 shrink-0 text-right leading-none ${
+                      index === 0
+                        ? 'text-xl text-osrs-gold'
+                        : 'text-base text-gray-600'
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <img
+                    src={entry.iconSrc}
+                    alt={entry.iconAlt}
+                    width={22}
+                    height={22}
+                    className="shrink-0 [image-rendering:pixelated]"
+                  />
+                  <Text
+                    as="div"
+                    className={`min-w-0 flex-1 truncate leading-tight ${
+                      entry.onClick
+                        ? 'text-sanguine-bright group-hover:text-white'
+                        : 'text-gray-400'
+                    } ${index === 0 ? 'text-xl' : 'text-base'}`}
+                  >
+                    {entry.label}
+                  </Text>
+                  <Text
+                    as="div"
+                    className={`text-right ${board.valueClassName} ${
+                      index === 0 ? 'text-xl' : 'text-base'
+                    }`}
+                  >
+                    {entry.value}
+                  </Text>
+                </Row>
+              );
+            })}
           </div>
         ))}
       </div>

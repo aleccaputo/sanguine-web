@@ -14,6 +14,7 @@ const eventsLinks: SubLink[] = [
 const dropsLinks: SubLink[] = [
   { to: '/drops', label: 'Drops' },
   { to: '/drop-stats', label: 'Drop Stats' },
+  { to: '/collection-log', label: 'Collection Log' },
 ];
 
 const topLinks = [
