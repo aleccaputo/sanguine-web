@@ -23,6 +23,10 @@ const mockAliases = mockMode
         '~/services/osrs-wiki-prices-service',
         './app/mocks/osrs-wiki-prices-service.ts',
       ),
+      mockAlias(
+        '~/services/temple-api-service.server',
+        './app/mocks/temple-api-service.server.ts',
+      ),
       mockAlias('~/data/user', './app/mocks/user/index.ts'),
       mockAlias('~/data/nicknames', './app/mocks/nicknames/index.ts'),
       mockAlias('~/data/points-audit', './app/mocks/points-audit/index.ts'),

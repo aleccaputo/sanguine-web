@@ -49,10 +49,20 @@ import {
   zebraRowClass,
   zebraStripeClass,
 } from '~/utils/styles';
+import { usePagination } from '~/utils/use-pagination';
 import {
   getClanFromWom,
   getCompetitions,
 } from '~/services/wom-api-service.server';
+import {
+  getGroupCollectionLog,
+  getPlayerRecentItems,
+} from '~/services/temple-api-service.server';
+import {
+  findClogMemberByName,
+  resolveClogItemData,
+} from '~/utils/collection-log';
+import { ClogUnlockRow } from '~/components/ClogUnlockRow';
 import {
   getCompetitionImageUrl,
   getFallbackImageUrl,
@@ -80,6 +90,9 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
 export async function loader({ params }: LoaderFunctionArgs) {
   const discordId = params.id ?? '';
 
+  // The Temple group log depends on nothing else — fetch it alongside the rest
+  // so its round-trip overlaps the DB and WOM work. Temple being unreachable
+  // just drops the collection log section, never the profile.
   const [
     user,
     userAuditData,
@@ -87,13 +100,15 @@ export async function loader({ params }: LoaderFunctionArgs) {
     userAlts,
     pbCategoryKeys,
     raidCompletions,
+    templeClog,
   ] = await Promise.all([
     getUserWithNickname(discordId),
     getAuditDataForUserById(discordId),
-    getClanFromWom(18435),
+    getClanFromWom(),
     getUserAlts(discordId),
     getPersonalBestCategoryKeysForDiscordId(discordId),
     getRaidCompletionsForDiscordId(discordId),
+    getGroupCollectionLog().catch(() => null),
   ]);
 
   // Clan-bucket audit rows (raid payouts, manual clan adjustments, post-cutover competition
@@ -233,6 +248,46 @@ export async function loader({ params }: LoaderFunctionArgs) {
     allAccountNames.map(name => [name, findWomRole(name)]),
   );
 
+  // Collection log — opt-in TempleOSRS data covering whichever of the member's
+  // accounts sync via the Temple RuneLite plugin.
+  const clogAccounts = templeClog
+    ? allAccountNames.flatMap(name => {
+        const clogMember = findClogMemberByName(templeClog, name);
+        return clogMember ? [{ name, clogMember }] : [];
+      })
+    : [];
+  const clogSummaries = templeClog
+    ? clogAccounts.map(({ name, clogMember }) => ({
+        accountName: name,
+        slots: clogMember.total_collections_finished,
+        totalSlots: templeClog.total_collections_available,
+      }))
+    : [];
+  // Recent unlocks per synced account — each account owns its own log, so the
+  // section never merges them; the client filters by one account at a time.
+  // Item resolution chains onto each account's fetch so wiki lookups overlap
+  // Temple I/O. Temple only reports items obtained after an account's initial
+  // sync.
+  const clogUnlocks = (
+    await Promise.all(
+      clogAccounts.map(async ({ name }) => {
+        const recentItems = await getPlayerRecentItems(name);
+        return Promise.all(
+          recentItems.map(async item => {
+            const itemData = await resolveClogItemData(item);
+            return {
+              key: `${name}-${item.id}-${item.date_unix}`,
+              name: itemData.name,
+              icon: itemData.icon,
+              date: item.date,
+              accountName: name,
+            };
+          }),
+        );
+      }),
+    )
+  ).flat();
+
   return json({
     user: { ...user, clanPoints: user.clanPoints + legacyCompetitionPoints },
     auditData: dropAuditData,
@@ -246,6 +301,8 @@ export async function loader({ params }: LoaderFunctionArgs) {
     otherAwards,
     pbNameByDiscordId,
     pbBossImageByName,
+    clogSummaries,
+    clogUnlocks,
   });
 }
 
@@ -275,6 +332,8 @@ export default function UserById() {
     otherAwards,
     pbNameByDiscordId,
     pbBossImageByName,
+    clogSummaries,
+    clogUnlocks,
   } = useLoaderData<typeof loader>();
 
   const hasAlts = userAlts.length > 0;
@@ -293,7 +352,6 @@ export default function UserById() {
 
   // selectedAccount is either ALL_ACCOUNTS, mainName, or an alt's altName
   const [selectedAccount, setSelectedAccount] = useState(ALL_ACCOUNTS);
-  const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 7;
 
   const filteredItems = useMemo(() => {
@@ -337,22 +395,42 @@ export default function UserById() {
       ),
     ).map(([date, points]) => ({ date, points }));
 
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentItems = filteredItems.slice(
-    startIndex,
-    startIndex + itemsPerPage,
+  const dropsPagination = usePagination(filteredItems, itemsPerPage);
+
+  // Collection log — each account keeps its own log in-game, so the section
+  // shows one synced account at a time (its own switcher, since the synced set
+  // rarely matches the full account list). The infobox and lede lead with the
+  // main account's log when it syncs.
+  const mainClog =
+    clogSummaries.find(summary => summary.accountName === mainName) ?? null;
+  const primaryClog = mainClog ?? clogSummaries[0] ?? null;
+  const otherClogs = clogSummaries.filter(summary => summary !== primaryClog);
+  // Derived rather than seeded state: navigating to another member reuses this
+  // component, and a choice that doesn't match the new member's synced
+  // accounts must fall back to their primary log instead of sticking around.
+  const [chosenClogAccount, setChosenClogAccount] = useState<string | null>(
+    null,
   );
+  const clogAccount =
+    chosenClogAccount !== null &&
+    clogSummaries.some(summary => summary.accountName === chosenClogAccount)
+      ? chosenClogAccount
+      : primaryClog?.accountName ?? '';
+  const selectedClog =
+    clogSummaries.find(summary => summary.accountName === clogAccount) ?? null;
+  const accountClogUnlocks = useMemo(
+    () => clogUnlocks.filter(unlock => unlock.accountName === clogAccount),
+    [clogUnlocks, clogAccount],
+  );
+  const clogPagination = usePagination(accountClogUnlocks, itemsPerPage);
+  const handleClogAccountChange = (value: string) => {
+    setChosenClogAccount(value);
+    clogPagination.reset();
+  };
 
   // Raids paginate independently of drops — they ignore the account switcher, so their page
   // never needs resetting.
-  const [raidsPage, setRaidsPage] = useState(1);
-  const raidsTotalPages = Math.ceil(raids.length / itemsPerPage);
-  const raidsStartIndex = (raidsPage - 1) * itemsPerPage;
-  const currentRaids = raids.slice(
-    raidsStartIndex,
-    raidsStartIndex + itemsPerPage,
-  );
+  const raidsPagination = usePagination(raids, itemsPerPage);
 
   const totalGP = filteredItems.reduce(
     (sum, item) => sum + (item.osrsData?.price || 0),
@@ -361,7 +439,7 @@ export default function UserById() {
 
   const handleAccountChange = (value: string) => {
     setSelectedAccount(value);
-    setCurrentPage(1);
+    dropsPagination.reset();
   };
 
   const displayName =
@@ -400,6 +478,9 @@ export default function UserById() {
   }[] = [
     ...(allItemsLogged.length > 0
       ? [{ id: 'drops', title: 'Drops', count: allItemsLogged.length }]
+      : []),
+    ...(clogUnlocks.length > 0
+      ? [{ id: 'collection-log', title: 'Collection log' }]
       : []),
     ...(personalBests.length > 0
       ? [
@@ -612,6 +693,27 @@ export default function UserById() {
                 {allItemsLogged.length}
               </InfoboxRow>
             )}
+            {primaryClog && (
+              <InfoboxRow label="Log slots" valueClassName="text-white">
+                {primaryClog.slots.toLocaleString()}{' '}
+                <span className="text-gray-500">
+                  of {primaryClog.totalSlots.toLocaleString()}
+                </span>
+                {!mainClog && (
+                  <span className="block text-sm text-gray-500">
+                    on {primaryClog.accountName}
+                  </span>
+                )}
+                {otherClogs.map(summary => (
+                  <span
+                    key={summary.accountName}
+                    className="block text-sm text-gray-500"
+                  >
+                    on {summary.accountName}: {summary.slots.toLocaleString()}
+                  </span>
+                ))}
+              </InfoboxRow>
+            )}
             {allDropsGP > 0 && (
               <InfoboxRow label="Loot value" valueClassName="text-osrs-gold">
                 <CoinsIcon /> {allDropsGP.toLocaleString()} gp
@@ -743,6 +845,21 @@ export default function UserById() {
                 .
               </>
             )}
+            {primaryClog && (
+              <>
+                {' '}
+                Their{' '}
+                <Link to="/collection-log" className={proseLinkClass}>
+                  collection log
+                </Link>{' '}
+                fills{' '}
+                <span className="text-white">
+                  {primaryClog.slots.toLocaleString()}
+                </span>{' '}
+                of its {primaryClog.totalSlots.toLocaleString()} slots
+                {!mainClog && <> on {primaryClog.accountName}</>}.
+              </>
+            )}
             {personalBests.length > 0 && (
               <>
                 {' '}
@@ -795,7 +912,7 @@ export default function UserById() {
               {hasAlts && <Box mt="3">{accountSwitcher}</Box>}
               {filteredItems.length > 0 ? (
                 <Box mt="2">
-                  {currentItems.map(item => (
+                  {dropsPagination.pageItems.map(item => (
                     <div key={item.id} className={`px-2 ${zebraRowClass}`}>
                       <DropItem
                         item={item}
@@ -805,12 +922,73 @@ export default function UserById() {
                     </div>
                   ))}
                   <Pagination
-                    page={currentPage}
-                    totalPages={totalPages}
-                    onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    onNext={() =>
-                      setCurrentPage(p => Math.min(totalPages, p + 1))
-                    }
+                    page={dropsPagination.page}
+                    totalPages={dropsPagination.totalPages}
+                    onPrev={dropsPagination.onPrev}
+                    onNext={dropsPagination.onNext}
+                  />
+                </Box>
+              ) : (
+                <EmptyState />
+              )}
+            </section>
+          )}
+
+          {/* Collection log — one account's log at a time (they're separate
+              in-game), switched by chips over the member's synced accounts.
+              Temple only reports unlocks made after an account's initial sync,
+              so this is a recent-history feed, not the full log. */}
+          {clogUnlocks.length > 0 && (
+            <section id="collection-log" className="mt-10 scroll-mt-20">
+              <SectionHeading
+                title="Collection log"
+                summary={
+                  selectedClog && (
+                    <Text size="2" className="text-gray-500">
+                      <span className="text-white">
+                        {selectedClog.slots.toLocaleString()}
+                      </span>{' '}
+                      of {selectedClog.totalSlots.toLocaleString()} slots filled
+                    </Text>
+                  )
+                }
+              />
+              {clogSummaries.length > 1 && (
+                <Box mt="3">
+                  <ChipGroup
+                    options={clogSummaries.map(summary => ({
+                      key: summary.accountName,
+                      label: summary.accountName,
+                      iconSrc: womRoles[summary.accountName]
+                        ? fetchRankImage(womRoles[summary.accountName] ?? '')
+                        : undefined,
+                      iconAlt: womRoles[summary.accountName]
+                        ? rankLabel(womRoles[summary.accountName] ?? '')
+                        : undefined,
+                      count: clogUnlocks.filter(
+                        unlock => unlock.accountName === summary.accountName,
+                      ).length,
+                    }))}
+                    value={clogAccount}
+                    onChange={handleClogAccountChange}
+                  />
+                </Box>
+              )}
+              {accountClogUnlocks.length > 0 ? (
+                <Box mt="2">
+                  {clogPagination.pageItems.map(unlock => (
+                    <div
+                      key={unlock.key}
+                      className={`px-2 ${zebraStripeClass}`}
+                    >
+                      <ClogUnlockRow unlock={unlock} />
+                    </div>
+                  ))}
+                  <Pagination
+                    page={clogPagination.page}
+                    totalPages={clogPagination.totalPages}
+                    onPrev={clogPagination.onPrev}
+                    onNext={clogPagination.onNext}
                   />
                 </Box>
               ) : (
@@ -1006,7 +1184,7 @@ export default function UserById() {
                           </Table.Row>
                         </Table.Header>
                         <Table.Body>
-                          {currentRaids.map(raid => (
+                          {raidsPagination.pageItems.map(raid => (
                             <Table.Row key={raid.id} className={zebraRowClass}>
                               <Table.Cell className="text-white">
                                 <Flex align="center" gap="2">
@@ -1060,12 +1238,10 @@ export default function UserById() {
                       </Table.Root>
                     </div>
                     <Pagination
-                      page={raidsPage}
-                      totalPages={raidsTotalPages}
-                      onPrev={() => setRaidsPage(p => Math.max(1, p - 1))}
-                      onNext={() =>
-                        setRaidsPage(p => Math.min(raidsTotalPages, p + 1))
-                      }
+                      page={raidsPagination.page}
+                      totalPages={raidsPagination.totalPages}
+                      onPrev={raidsPagination.onPrev}
+                      onNext={raidsPagination.onNext}
                     />
                   </Box>
                 )}

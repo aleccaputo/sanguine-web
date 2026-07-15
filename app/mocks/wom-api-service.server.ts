@@ -22,6 +22,6 @@ export const getCompetitionById = async (
 
 export const getClanFromWom = async (
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  id: number,
+  id?: number,
 ): Promise<MembershipWithPlayer[]> =>
   MOCK_GROUP_MEMBERSHIPS as unknown as MembershipWithPlayer[];

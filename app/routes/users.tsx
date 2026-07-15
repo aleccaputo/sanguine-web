@@ -1,6 +1,6 @@
 import { defer, MetaFunction, SerializeFrom } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import dayjs from 'dayjs';
 import {
   getUsersWithNicknames,
@@ -25,6 +25,7 @@ import { StickyToolbar, SearchInput } from '~/components/StickyToolbar';
 import { SortableHeaderButton } from '~/components/SortableHeaderButton';
 import { EmptyState } from '~/components/EmptyState';
 import { zebraRowClass } from '~/utils/styles';
+import { useSelectGhostClickGuard } from '~/utils/use-select-ghost-click';
 
 type SortField = 'rank' | 'points' | 'clanPoints' | 'name' | 'joined';
 type SortDirection = 'asc' | 'desc';
@@ -45,7 +46,7 @@ export async function loader() {
   const [users, sanguineWomMembers, legacyCompetitionPoints] =
     await Promise.all([
       getUsersWithNicknames(),
-      getClanFromWom(18435),
+      getClanFromWom(),
       getLegacyCompetitionPointsByDiscordId(),
     ]);
   // Pre-cutover COMPETITION awards count as clan points retroactively but were only ever added
@@ -80,13 +81,11 @@ export default function Index() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [rankFilter, setRankFilter] = useState('all');
 
-  // On touch devices Radix Select leaks a ghost click to whatever sits behind the closing
-  // dropdown (radix-ui/primitives#1658) — the browser dispatches the tap's click after the
-  // content unmounts, landing on a roster row. Ignore navigation clicks that arrive right
-  // after the dropdown closes.
-  const rankFilterClosedAt = useRef(0);
+  // The rank filter Select floats over clickable roster rows — guard against
+  // the Radix ghost click.
+  const { onSelectOpenChange, isGhostClick } = useSelectGhostClickGuard();
   const navigateToUser = (discordId: string) => {
-    if (Date.now() - rankFilterClosedAt.current < 400) return;
+    if (isGhostClick()) return;
     navigate(`/users/${discordId}`);
   };
 
@@ -300,9 +299,7 @@ export default function Index() {
           <Select.Root
             value={rankFilter}
             onValueChange={setRankFilter}
-            onOpenChange={open => {
-              if (!open) rankFilterClosedAt.current = Date.now();
-            }}
+            onOpenChange={onSelectOpenChange}
           >
             <Select.Trigger color="gray" />
             <Select.Content position="popper">

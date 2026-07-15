@@ -18,7 +18,9 @@ let lastMemberFetch: number = 0;
 // Cache durations
 const WOM_MEMBER_CACHE_DURATION = 1 * 60 * 1000; // 1 minutes
 
-const groupId = parseInt(process.env.WOM_GROUP_ID!, 10);
+// Sanguine's WOM group. Overridable for pointing at a test group; the routes
+// all use this default rather than repeating the id.
+const groupId = parseInt(process.env.WOM_GROUP_ID ?? '18435', 10);
 
 const client = remember('wom', () => {
   return new WOMClient({
@@ -56,7 +58,7 @@ export const getCompetitionById = async (id: number) => {
   return competition;
 };
 
-export const getClanFromWom = async (id: number) => {
+export const getClanFromWom = async (id: number = groupId) => {
   const now = Date.now();
   if (
     lastMemberFetch !== null &&

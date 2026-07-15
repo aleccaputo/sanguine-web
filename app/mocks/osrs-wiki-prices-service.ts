@@ -7,6 +7,8 @@ export interface OSRSItem {
   price?: number;
 }
 
+export const wikiItemIconUrl = (): string => '/sanguine_icon.png';
+
 const itemCache = new Map<number, OSRSItem>();
 
 export const fetchOSRSItem = async (
