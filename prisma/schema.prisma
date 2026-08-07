@@ -101,6 +101,82 @@ model RaidCompletions {
   approvedAt            String
 }
 
+// ---- Sanguine Slayer (the Discord bot calls it the Boss Wheel) ----
+
+// The item filter a task applies to qualifying drops (ANY / INCLUDE / EXCLUDE).
+type WheelTaskItemFilter {
+  mode    String
+  itemIds Int[]
+}
+
+// Snapshot of the assigned task, embedded on each spin so later alias/filter edits never
+// rewrite history. bossMetric is a WOM metric slug (e.g. 'general_graardor').
+type WheelTask {
+  type            String
+  bossMetric      String
+  bossDisplayName String
+  dinkNames       String[]
+  itemFilter      WheelTaskItemFilter
+}
+
+// The drop that finished a task. Strictly 1:1 with its spin, so the bot embeds it rather than
+// keeping a second collection. dropPoints/bonusPoints pay the drop bucket, taskClanPoints the
+// clan bucket (audited as BOSS_WHEEL / BOSS_WHEEL_CLAN).
+type WheelSpinCompletion {
+  itemId         Int
+  itemName       String
+  dropPoints     Int
+  bonusPoints    Int
+  eventPoints    Int
+  taskClanPoints Int
+  bossNameRaw    String
+  osrsName       String?
+  dropMessageId  String
+  completedAt    String
+}
+
+// One document per spin — the task log's full history. ACTIVE spins are the tasks members are
+// out on right now; COMPLETED ones carry their completion.
+model WheelSpins {
+  id           String               @id @default(auto()) @map("_id") @db.ObjectId
+  v            Int?                 @map("__v")
+  clanEventId  String               @db.ObjectId
+  discordId    String
+  task         WheelTask
+  spinType     String
+  status       String
+  spunAt       String
+  completion   WheelSpinCompletion?
+}
+
+// Podium/participation prizes paid when an EVENT-mode wheel ends (all zero in STANDING mode).
+type WheelPrizePoints {
+  first       Int
+  second      Int
+  third       Int
+  participant Int
+}
+
+// Per-instance wheel config, sibling to a BOSS_WHEEL ClanEvents row (which owns the window).
+// STANDING is the always-on grind; EVENT is a time-boxed competition that supersedes it.
+// taskOverrides is a Mongo map the site never reads, so it stays out of the model.
+model WheelEvents {
+  id                  String           @id @default(auto()) @map("_id") @db.ObjectId
+  v                   Int?             @map("__v")
+  clanEventId         String           @unique @db.ObjectId
+  mode                String
+  name                String
+  multiplier          Float
+  taskClanPoints      Int
+  startingRerolls     Int
+  rerollEarnRate      Float
+  respinCooldownHours Float
+  prizePoints         WheelPrizePoints
+  bossPool            String[]
+  createdByDiscordId  String
+  createdAt           String
+}
+
 model PersonalBests {
   id                    String   @id @default(auto()) @map("_id") @db.ObjectId
   v                     Int?     @map("__v")

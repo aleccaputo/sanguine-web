@@ -30,6 +30,13 @@ const topLinks = [
     label: 'PBs',
     match: (p: string) => p.startsWith('/personal-bests'),
   },
+  // The slayer grind is always on, so it sits with the other standing ladders
+  // rather than under Events (which is time-boxed competitions and their winners).
+  {
+    to: '/slayer',
+    label: 'Slayer',
+    match: (p: string) => p.startsWith('/slayer'),
+  },
 ];
 
 const topLinkClass = (active: boolean) =>
@@ -151,7 +158,9 @@ const Navbar = () => {
             delayDuration={100}
             className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4 font-medium md:mt-0 md:border-0 md:bg-white md:p-0 dark:border-gray-700 dark:bg-gray-800 md:dark:bg-gray-900"
           >
-            <NavigationMenu.List className="m-0 flex list-none flex-col p-0 md:flex-row md:space-x-8 rtl:space-x-reverse">
+            {/* Seven items only just fit the md row — tighten the gap there and
+                give it back once there's room. */}
+            <NavigationMenu.List className="m-0 flex list-none flex-col p-0 md:flex-row md:space-x-5 lg:space-x-8 rtl:space-x-reverse">
               {topLinks.map(({ to, label, match }) => {
                 const active = match(location.pathname);
                 return (
