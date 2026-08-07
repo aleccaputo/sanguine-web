@@ -30,6 +30,7 @@ const mockAliases = mockMode
       mockAlias('~/data/user', './app/mocks/user/index.ts'),
       mockAlias('~/data/nicknames', './app/mocks/nicknames/index.ts'),
       mockAlias('~/data/points-audit', './app/mocks/points-audit/index.ts'),
+      mockAlias('~/data/slayer', './app/mocks/slayer/index.ts'),
       mockAlias(
         '~/data/monthly-winners',
         './app/mocks/monthly-winners/index.ts',

@@ -74,6 +74,7 @@ import {
   isClanPointAudit,
   isLegacyCompetitionAudit,
 } from '~/utils/point-types';
+import { getSlayerRecordForDiscordId } from '~/services/slayer-service.server';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = data?.user?.nickname
@@ -100,6 +101,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
     userAlts,
     pbCategoryKeys,
     raidCompletions,
+    slayerRecord,
     templeClog,
   ] = await Promise.all([
     getUserWithNickname(discordId),
@@ -108,6 +110,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
     getUserAlts(discordId),
     getPersonalBestCategoryKeysForDiscordId(discordId),
     getRaidCompletionsForDiscordId(discordId),
+    getSlayerRecordForDiscordId(discordId),
     getGroupCollectionLog().catch(() => null),
   ]);
 
@@ -177,6 +180,17 @@ export async function loader({ params }: LoaderFunctionArgs) {
           to: historicalAwards[0].createdAt,
         }
       : null;
+  // Slayer's clan-bucket audits are the reconciling total: the flat per-task rewards the spin
+  // documents carry, plus anything else the wheel paid (competition podium prizes). The
+  // difference between the two is surfaced as one prize line rather than guessed at per row.
+  const slayerAuditPoints = userAuditData
+    .filter(x => x.type === 'BOSS_WHEEL_CLAN')
+    .reduce((sum, x) => sum + x.pointsGiven, 0);
+  const slayer = {
+    ...slayerRecord,
+    prizePoints: Math.max(0, slayerAuditPoints - slayerRecord.taskClanPoints),
+  };
+
   // Manual clan awards (event prizes, corrections) — surfaced as one lump sum, not a ledger.
   const otherClanAudits = userAuditData.filter(x => x.type === 'CLAN_MANUAL');
   const otherAwards =
@@ -299,6 +313,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
     competitionAwards,
     historicalCompetitions,
     otherAwards,
+    slayer,
     pbNameByDiscordId,
     pbBossImageByName,
     clogSummaries,
@@ -330,6 +345,7 @@ export default function UserById() {
     competitionAwards,
     historicalCompetitions,
     otherAwards,
+    slayer,
     pbNameByDiscordId,
     pbBossImageByName,
     clogSummaries,
@@ -428,9 +444,10 @@ export default function UserById() {
     clogPagination.reset();
   };
 
-  // Raids paginate independently of drops — they ignore the account switcher, so their page
-  // never needs resetting.
+  // Raids and slayer tasks paginate independently of drops — they ignore the account
+  // switcher, so their pages never need resetting.
   const raidsPagination = usePagination(raids, itemsPerPage);
+  const slayerPagination = usePagination(slayer.completions, itemsPerPage);
 
   const totalGP = filteredItems.reduce(
     (sum, item) => sum + (item.osrsData?.price || 0),
@@ -457,13 +474,19 @@ export default function UserById() {
   const competitionsPointsTotal =
     competitionAwards.reduce((sum, a) => sum + a.pointsGiven, 0) +
     (historicalCompetitions?.points ?? 0);
+  const hasSlayerHistory = slayer.completions.length > 0;
+  const slayerPointsTotal = slayer.taskClanPoints + slayer.prizePoints;
   const hasClanPointHistory =
-    raids.length > 0 || hasCompetitionHistory || otherAwards !== null;
+    raids.length > 0 ||
+    hasCompetitionHistory ||
+    hasSlayerHistory ||
+    otherAwards !== null;
   // Subsection headers exist to divide multiple point sources (their totals reconcile
   // the section figure). With a single source they'd just repeat the h2 total — skip them.
   const clanPointSources = [
     raids.length > 0,
     hasCompetitionHistory,
+    hasSlayerHistory,
     otherAwards !== null,
   ].filter(Boolean).length;
 
@@ -504,6 +527,9 @@ export default function UserById() {
                       : []),
                     ...(hasCompetitionHistory
                       ? [{ id: 'competitions', title: 'Competitions' }]
+                      : []),
+                    ...(hasSlayerHistory
+                      ? [{ id: 'slayer', title: 'Slayer' }]
                       : []),
                     ...(otherAwards
                       ? [{ id: 'other-awards', title: 'Other' }]
@@ -594,6 +620,7 @@ export default function UserById() {
   const categories = [
     ...(isGuest ? [] : [mainRankLabel]),
     ...(raids.length > 0 ? ['Raiders'] : []),
+    ...(hasSlayerHistory ? ['Slayers'] : []),
     ...(pbGolds > 0 ? ['Clan record holders'] : []),
     ...(compPodiums > 0 ? ['Competition medalists'] : []),
   ];
@@ -739,6 +766,20 @@ export default function UserById() {
             {raids.length > 0 && (
               <InfoboxRow label="Raids">{raids.length}</InfoboxRow>
             )}
+            {(hasSlayerHistory || slayer.activeTask) && (
+              <InfoboxRow label="Slayer">
+                {hasSlayerHistory
+                  ? `${slayer.completions.length} ${
+                      slayer.completions.length === 1 ? 'task' : 'tasks'
+                    }`
+                  : 'out on task'}
+                {slayer.activeTask && (
+                  <span className="block text-sm text-gray-500">
+                    on task: {slayer.activeTask.bossDisplayName}
+                  </span>
+                )}
+              </InfoboxRow>
+            )}
             {totalComps > 0 && (
               <InfoboxRow label="Competitions">
                 {totalComps}
@@ -875,6 +916,27 @@ export default function UserById() {
                     ,{' '}
                     <span className="text-osrs-gold">
                       {pbGolds} of them clan records
+                    </span>
+                  </>
+                )}
+                .
+              </>
+            )}
+            {hasSlayerHistory && (
+              <>
+                {' '}
+                For the{' '}
+                <Link to="/slayer" className={proseLinkClass}>
+                  Slayer Master
+                </Link>{' '}
+                they have completed{' '}
+                <span className="text-white">{slayer.completions.length}</span>{' '}
+                {slayer.completions.length === 1 ? 'task' : 'tasks'}
+                {slayerPointsTotal > 0 && (
+                  <>
+                    , worth{' '}
+                    <span className="text-osrs-gold">
+                      {slayerPointsTotal.toLocaleString()} clan points
                     </span>
                   </>
                 )}
@@ -1399,6 +1461,181 @@ export default function UserById() {
                         </Table.Body>
                       </Table.Root>
                     </div>
+                  </Box>
+                )}
+
+                {/* Slayer — the tasks the Slayer Master set and the drop that finished
+                    each one. Keyed to the member, so it ignores the account switcher; the
+                    completing account is noted on the row instead. */}
+                {hasSlayerHistory && (
+                  <Box id="slayer" className="scroll-mt-20">
+                    {clanPointSources > 1 && (
+                      <SubsectionHeading
+                        title="Slayer"
+                        hint="boss tasks completed"
+                        summary={
+                          <Text
+                            size="2"
+                            className="whitespace-nowrap text-gray-500"
+                          >
+                            <span className="text-osrs-gold">
+                              {slayerPointsTotal}
+                            </span>{' '}
+                            clan points
+                          </Text>
+                        }
+                      />
+                    )}
+                    {slayer.activeTask && (
+                      <Text as="p" size="2" className="pb-1 text-gray-500">
+                        Currently on task:{' '}
+                        <span className="text-white">
+                          {slayer.activeTask.bossDisplayName}
+                        </span>
+                        , assigned{' '}
+                        {dayjs(slayer.activeTask.spunAt).format('MMM D')}
+                      </Text>
+                    )}
+                    <div className="overflow-x-auto">
+                      <Table.Root size="2">
+                        <Table.Header>
+                          <Table.Row>
+                            <Table.ColumnHeaderCell className="text-osrs-orange">
+                              Task
+                            </Table.ColumnHeaderCell>
+                            <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
+                              Completed by
+                            </Table.ColumnHeaderCell>
+                            <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
+                              Date
+                            </Table.ColumnHeaderCell>
+                            <Table.ColumnHeaderCell
+                              className="whitespace-nowrap text-osrs-orange"
+                              align="right"
+                            >
+                              Clan pts
+                            </Table.ColumnHeaderCell>
+                          </Table.Row>
+                        </Table.Header>
+                        <Table.Body>
+                          {slayerPagination.pageItems.map(completion => (
+                            <Table.Row
+                              key={completion.id}
+                              className={zebraRowClass}
+                            >
+                              <Table.Cell className="text-white">
+                                <Flex align="center" gap="2">
+                                  <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
+                                    <img
+                                      src={completion.bossImageUrl}
+                                      alt=""
+                                      className="max-h-7 max-w-7 object-contain"
+                                    />
+                                  </Box>
+                                  <Flex direction="column">
+                                    <Text size="2" weight="medium">
+                                      {completion.bossDisplayName}
+                                    </Text>
+                                    {/* Phones lose the item column — two icon
+                                        columns squeeze the names to a word per
+                                        line — so the drop reads underneath. */}
+                                    <Text
+                                      size="2"
+                                      className="text-gray-300 sm:hidden"
+                                    >
+                                      {completion.itemName}
+                                    </Text>
+                                  </Flex>
+                                </Flex>
+                              </Table.Cell>
+                              <Table.Cell className="hidden sm:table-cell">
+                                <Flex align="center" gap="2">
+                                  <Box className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
+                                    {completion.itemIcon && (
+                                      <img
+                                        src={completion.itemIcon}
+                                        alt=""
+                                        className="max-h-6 max-w-6 object-contain"
+                                      />
+                                    )}
+                                  </Box>
+                                  <Flex direction="column">
+                                    <Text size="2" className="text-white">
+                                      {completion.itemName}
+                                    </Text>
+                                    {completion.osrsName && (
+                                      <Text size="1" className="text-gray-500">
+                                        on {completion.osrsName}
+                                      </Text>
+                                    )}
+                                  </Flex>
+                                </Flex>
+                              </Table.Cell>
+                              <Table.Cell className="hidden text-gray-400 sm:table-cell">
+                                <span className="whitespace-nowrap">
+                                  {dayjs(completion.completedAt).format(
+                                    'MMM D,',
+                                  )}
+                                </span>{' '}
+                                <span className="whitespace-nowrap">
+                                  {dayjs(completion.completedAt).format('YYYY')}
+                                </span>
+                              </Table.Cell>
+                              <Table.Cell align="right">
+                                <Text
+                                  as="div"
+                                  size="2"
+                                  className={`whitespace-nowrap font-medium ${
+                                    completion.clanPoints === 0
+                                      ? 'text-gray-600'
+                                      : 'text-osrs-gold'
+                                  }`}
+                                >
+                                  {completion.clanPoints === 0
+                                    ? '—'
+                                    : `+${completion.clanPoints}`}
+                                </Text>
+                                {/* Competition tasks pay bonus drop points instead —
+                                    white, never gold (see the color grammar). */}
+                                {completion.bonusPoints > 0 && (
+                                  <Text
+                                    as="div"
+                                    size="1"
+                                    className="whitespace-nowrap text-white"
+                                  >
+                                    +{completion.bonusPoints} pts
+                                  </Text>
+                                )}
+                              </Table.Cell>
+                            </Table.Row>
+                          ))}
+                          {/* Competition podium and participation prizes, rolled up */}
+                          {slayer.prizePoints > 0 && (
+                            <Table.Row className={zebraStripeClass}>
+                              <Table.Cell>
+                                <Text size="2" className="text-gray-400">
+                                  Competition prizes
+                                </Text>
+                              </Table.Cell>
+                              <Table.Cell className="hidden sm:table-cell" />
+                              <Table.Cell className="hidden sm:table-cell" />
+                              <Table.Cell
+                                align="right"
+                                className="whitespace-nowrap font-medium text-osrs-gold"
+                              >
+                                +{slayer.prizePoints}
+                              </Table.Cell>
+                            </Table.Row>
+                          )}
+                        </Table.Body>
+                      </Table.Root>
+                    </div>
+                    <Pagination
+                      page={slayerPagination.page}
+                      totalPages={slayerPagination.totalPages}
+                      onPrev={slayerPagination.onPrev}
+                      onNext={slayerPagination.onNext}
+                    />
                   </Box>
                 )}
 

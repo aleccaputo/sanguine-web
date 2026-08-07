@@ -1,7 +1,13 @@
-// PointAudit types that always pay into the clan-points bucket (GROUP_RAID payouts and manual
-// CLAN adjustments) rather than the drop-driven `points` bucket. Mirrors the Discord bot's
-// leaderboard exclusion — clan points never count toward drop-point charts or event totals.
-export const CLAN_POINT_AUDIT_TYPES = ['GROUP_RAID', 'CLAN_MANUAL'] as const;
+// PointAudit types that always pay into the clan-points bucket (GROUP_RAID payouts, manual
+// CLAN adjustments and Sanguine Slayer task rewards) rather than the drop-driven `points`
+// bucket. Mirrors the Discord bot's leaderboard exclusion — clan points never count toward
+// drop-point charts or event totals. Slayer's other audit type, BOSS_WHEEL, is a genuine
+// drop-point bonus and stays out of this list.
+export const CLAN_POINT_AUDIT_TYPES = [
+  'GROUP_RAID',
+  'CLAN_MANUAL',
+  'BOSS_WHEEL_CLAN',
+] as const;
 
 // When COMPETITION rewards (BOTW/SOTW/ROTW) moved from the drop-points bucket to clan points.
 // COMPETITION audits before this instant were drop points and still count toward drop-point

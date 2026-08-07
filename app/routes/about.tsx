@@ -38,12 +38,14 @@ export async function loader() {
 
 const PVM_CONTENT = ['ToB / ToB HM', 'CoX / CoX CM', 'ToA', 'Nex'];
 
-const COMMUNITY_EVENTS = [
-  ['Weekly competitions', 'boss and skill challenges'],
-  ['Bingo events', 'varied challenges and rewards'],
+// The third entry links the activity's page, where it has one.
+const CLAN_ACTIVITIES: [name: string, detail: string, to?: string][] = [
+  ['Sanguine Slayer', 'a boss task on demand, any day of the week', '/slayer'],
+  ['Weekly competitions', 'boss and skill challenges', '/events'],
+  ['Bingo events', 'varied challenges and rewards', '/bingo'],
   ['Inter-clan events', 'compete with other clans'],
   ['Active Discord', 'cc chatter, raid pings, and event signups'],
-] as const;
+];
 
 const listItemClass = `px-2 py-1 ${zebraStripeClass}`;
 
@@ -128,6 +130,17 @@ export default function AboutRoute() {
             </Link>{' '}
             and bingo events.
           </Text>
+          <Text as="p" size="3" className="mt-3 leading-7 text-gray-300">
+            Between the raids there is{' '}
+            <Link to="/slayer" className={proseLinkClass}>
+              Sanguine Slayer
+            </Link>
+            , our own Slayer Master: ask for a task, get a random boss, and any
+            drop from it that is worth{' '}
+            <span className="text-white">drop points</span> completes the task
+            and pays <span className="text-osrs-gold">clan points</span> on top.
+            No signup, no schedule, and the bot spots the drop for you.
+          </Text>
 
           {/* What we offer */}
           <section className="mt-10">
@@ -146,12 +159,20 @@ export default function AboutRoute() {
                 </ul>
               </Box>
               <Box className="min-w-0">
-                <SubsectionHeading title="Community events" />
+                {/* "Activities", not "events" — the slayer grind and the
+                    Discord are always on, not scheduled. */}
+                <SubsectionHeading title="Clan activities" />
                 <ul>
-                  {COMMUNITY_EVENTS.map(([name, detail]) => (
+                  {CLAN_ACTIVITIES.map(([name, detail, to]) => (
                     <li key={name} className={listItemClass}>
                       <Text size="3" className="text-gray-300">
-                        <span className="text-white">{name}</span>
+                        {to ? (
+                          <Link to={to} className={proseLinkClass}>
+                            {name}
+                          </Link>
+                        ) : (
+                          <span className="text-white">{name}</span>
+                        )}
                         <span className="text-gray-400"> · {detail}</span>
                       </Text>
                     </li>
