@@ -1,6 +1,6 @@
 import { useNavigation } from '@remix-run/react';
 import { useSpinDelay } from 'spin-delay';
-import { Container, Flex, Box, Card } from '@radix-ui/themes';
+import { Container, Flex, Box } from '@radix-ui/themes';
 import { useEffect } from 'react';
 
 function RouteSkeletonLoader() {
@@ -71,6 +71,11 @@ function RouteSkeletonLoader() {
       return <DropStatsSkeleton />;
     }
 
+    // Slayer page
+    if (targetPath === '/slayer') {
+      return <SlayerSkeleton />;
+    }
+
     // Collection log page
     if (targetPath === '/collection-log') {
       return <CollectionLogSkeleton />;
@@ -79,6 +84,16 @@ function RouteSkeletonLoader() {
     // Collection log category page (e.g., /collection-log/chambers_of_xeric)
     if (targetPath.match(/^\/collection-log\/[\w-]+$/)) {
       return <CollectionLogCategorySkeleton />;
+    }
+
+    // About page
+    if (targetPath === '/about') {
+      return <AboutSkeleton />;
+    }
+
+    // Home page
+    if (targetPath === '/') {
+      return <HomeSkeleton />;
     }
 
     // Generic fallback for other pages
@@ -147,14 +162,7 @@ function EventsListSkeleton() {
   return (
     <Container size="3" className="min-h-full py-6">
       <Flex direction="column">
-        {/* Page header */}
-        <Box mb="6">
-          <Flex align="center" gap="3">
-            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
-            <div className="h-9 w-40 animate-pulse rounded-sm bg-gray-800/50"></div>
-          </Flex>
-          <div className="mt-3 h-4 w-72 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
-        </Box>
+        <SkeletonPageHeader titleWidth="w-40" summaryWidth="w-72" />
 
         {/* Column header + rows */}
         <div className="border-b border-t-2 border-gray-700 border-t-sanguine-red py-2.5">
@@ -184,14 +192,7 @@ function UsersListSkeleton() {
   return (
     <Container size="3" className="min-h-full py-6">
       <Flex direction="column">
-        {/* Page header */}
-        <Box mb="6">
-          <Flex align="center" gap="3">
-            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
-            <div className="h-9 w-48 animate-pulse rounded-sm bg-gray-800/50"></div>
-          </Flex>
-          <div className="mt-3 h-4 w-80 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
-        </Box>
+        <SkeletonPageHeader titleWidth="w-48" summaryWidth="w-80" />
 
         {/* Leader band */}
         <Box
@@ -343,14 +344,7 @@ function DropsPageSkeleton() {
   return (
     <Container size="3" className="min-h-full py-6">
       <Flex direction="column">
-        {/* Page header */}
-        <Box mb="6">
-          <Flex align="center" gap="3">
-            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
-            <div className="h-9 w-44 animate-pulse rounded-sm bg-gray-800/50"></div>
-          </Flex>
-          <div className="mt-3 h-4 w-80 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
-        </Box>
+        <SkeletonPageHeader titleWidth="w-44" summaryWidth="w-80" />
 
         {/* Drop log rows */}
         <Box className="border-t-2 border-t-sanguine-red">
@@ -386,14 +380,7 @@ function MonthlyWinnersSkeleton() {
   return (
     <Container size="3" className="min-h-full py-6">
       <Flex direction="column">
-        {/* Page header */}
-        <Box mb="6">
-          <Flex align="center" gap="3">
-            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
-            <div className="h-9 w-64 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
-          </Flex>
-          <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
-        </Box>
+        <SkeletonPageHeader titleWidth="w-64" />
 
         {/* Reigning champions band */}
         <Box
@@ -461,14 +448,7 @@ function PersonalBestsSkeleton() {
   return (
     <Container size="3" className="min-h-full py-6">
       <Flex direction="column">
-        {/* Page header */}
-        <Box mb="6">
-          <Flex align="center" gap="3">
-            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
-            <div className="h-9 w-56 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
-          </Flex>
-          <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
-        </Box>
+        <SkeletonPageHeader titleWidth="w-56" />
 
         {/* Toolbar */}
         <Flex gap="2" align="center" className="mb-2">
@@ -514,14 +494,7 @@ function DropStatsSkeleton() {
   return (
     <Container size="3" className="min-h-full py-6">
       <Flex direction="column">
-        {/* Page header */}
-        <Box mb="6">
-          <Flex align="center" gap="3">
-            <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
-            <div className="h-9 w-60 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
-          </Flex>
-          <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
-        </Box>
+        <SkeletonPageHeader titleWidth="w-60" />
 
         {/* Chip toolbar */}
         <Flex gap="2" align="center" wrap="wrap" className="mb-6">
@@ -543,9 +516,15 @@ function DropStatsSkeleton() {
   );
 }
 
-// Shared ghost blocks for the collection log skeletons. (Older skeletons
-// predate these and can migrate opportunistically.)
-function SkeletonPageHeader({ titleWidth }: { titleWidth: string }) {
+// Shared ghost blocks: the icon-and-title page header and h2 section rule
+// every list page opens with.
+function SkeletonPageHeader({
+  titleWidth,
+  summaryWidth = 'w-96',
+}: {
+  titleWidth: string;
+  summaryWidth?: string;
+}) {
   return (
     <Box mb="6">
       <Flex align="center" gap="3">
@@ -554,7 +533,9 @@ function SkeletonPageHeader({ titleWidth }: { titleWidth: string }) {
           className={`h-9 ${titleWidth} max-w-full animate-pulse rounded-sm bg-gray-800/50`}
         ></div>
       </Flex>
-      <div className="mt-3 h-4 w-96 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+      <div
+        className={`mt-3 h-4 ${summaryWidth} max-w-full animate-pulse rounded-sm bg-gray-800/50`}
+      ></div>
     </Box>
   );
 }
@@ -679,6 +660,122 @@ function CollectionLogSkeleton() {
   );
 }
 
+// Slayer Skeleton — mirrors the task log: header, the two-column leader band,
+// then the task table and the completions feed either side of the red rule.
+function SlayerSkeleton() {
+  return (
+    <Container size="4" className="min-h-full py-6">
+      <Flex direction="column">
+        <SkeletonPageHeader titleWidth="w-40" />
+
+        {/* Leader band */}
+        <Box
+          mb="6"
+          className="border-b border-t-2 border-gray-800 border-t-sanguine-red"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2">
+            {[0, 1].map(col => (
+              <div
+                key={col}
+                className={
+                  col > 0
+                    ? 'border-t border-gray-800 pb-2 sm:border-l sm:border-t-0 sm:pl-5'
+                    : 'pb-2 sm:pr-5'
+                }
+              >
+                <div className="mb-2 mt-2 h-3 w-36 animate-pulse rounded-sm bg-gray-800/50"></div>
+                {[...Array(3)].map((_, idx) => (
+                  <Flex key={idx} align="center" gap="3" className="py-1.5">
+                    <div className="h-4 w-5 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                    <div className="h-[22px] w-[22px] shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                    <div
+                      className={`h-4 flex-1 animate-pulse rounded-sm bg-gray-800/50 ${idx === 0 ? 'h-5' : ''}`}
+                    ></div>
+                    <div className="h-4 w-12 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  </Flex>
+                ))}
+              </div>
+            ))}
+          </div>
+        </Box>
+
+        {/* Task log and completions, split by the red column divider */}
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-0 lg:divide-x-2 lg:divide-sanguine-red">
+          <Box className="lg:pr-8">
+            <SkeletonSectionHeading titleWidth="w-28" />
+            <Box mt="2">
+              {[...Array(10)].map((_, idx) => (
+                <Flex
+                  key={idx}
+                  align="center"
+                  gap="3"
+                  className={`px-2 py-2 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+                >
+                  <div className="h-4 w-6 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="h-[22px] w-[22px] shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="h-4 w-32 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+                    <div className="h-3 w-24 animate-pulse rounded-sm bg-gray-800/40"></div>
+                  </div>
+                  <div className="h-4 w-8 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="h-4 w-10 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="hidden h-4 w-16 animate-pulse rounded-sm bg-gray-800/40 md:block"></div>
+                </Flex>
+              ))}
+            </Box>
+          </Box>
+          <Box className="hidden lg:block lg:pl-8">
+            <SkeletonSectionHeading titleWidth="w-36" />
+            <Box mt="2">
+              {[...Array(10)].map((_, idx) => (
+                <Flex
+                  key={idx}
+                  align="center"
+                  gap="3"
+                  className={`border-b border-gray-800 px-2 py-2 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+                >
+                  <div className="h-7 w-7 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="h-4 w-40 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+                    <div className="h-3 w-28 animate-pulse rounded-sm bg-gray-800/40"></div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="ml-auto h-3 w-12 animate-pulse rounded-sm bg-gray-800/40"></div>
+                    <div className="ml-auto h-4 w-16 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  </div>
+                </Flex>
+              ))}
+            </Box>
+          </Box>
+        </div>
+
+        {/* How it works: heading rule, prose lines, then the command rows */}
+        <Box mt="9">
+          <SkeletonSectionHeading titleWidth="w-40" />
+          <div className="mt-3 space-y-2.5">
+            <div className="h-4 w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-11/12 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-3/4 animate-pulse rounded-sm bg-gray-800/50"></div>
+          </div>
+          <Box mt="4" className="border-t-2 border-t-sanguine-red">
+            {[...Array(3)].map((_, idx) => (
+              <Flex
+                key={idx}
+                align="center"
+                gap="3"
+                className={`border-b border-gray-800 px-2 py-2 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+              >
+                <div className="h-4 w-32 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                <div className="h-4 w-52 max-w-full animate-pulse rounded-sm bg-gray-800/40"></div>
+              </Flex>
+            ))}
+          </Box>
+        </Box>
+      </Flex>
+    </Container>
+  );
+}
+
 // Collection Log Category Skeleton — mirrors the log book: header, a tile
 // grid of ghost items, then collector rows with wrapped loot-shelf ghosts.
 function CollectionLogCategorySkeleton() {
@@ -730,17 +827,150 @@ function CollectionLogCategorySkeleton() {
   );
 }
 
-// Generic Skeleton for unknown routes
+// Home Skeleton — mirrors the front page: hero (icon + title over prose and
+// the banner), then the two-column noticeboard of heading rules and rows.
+function HomeSkeleton() {
+  return (
+    <Container size="3" className="min-h-full py-6">
+      {/* Hero */}
+      <Box mt="4">
+        <Flex align="center" gap="3">
+          <div className="h-11 w-11 animate-pulse rounded-sm bg-gray-800/50"></div>
+          <div className="h-9 w-44 animate-pulse rounded-sm bg-gray-800/50"></div>
+        </Flex>
+        <div className="mt-4 max-w-3xl space-y-2.5">
+          <div className="h-4 w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+          <div className="h-4 w-11/12 animate-pulse rounded-sm bg-gray-800/50"></div>
+          <div className="h-4 w-2/3 animate-pulse rounded-sm bg-gray-800/50"></div>
+        </div>
+        <div className="mt-6 h-40 w-full animate-pulse rounded-sm bg-gray-800/30 sm:h-56"></div>
+      </Box>
+
+      {/* Noticeboard columns */}
+      <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-x-8">
+        <Box>
+          <SkeletonSectionHeading titleWidth="w-32" />
+          <Box mt="2">
+            {[...Array(5)].map((_, idx) => (
+              <Flex
+                key={idx}
+                align="center"
+                gap="3"
+                className={`px-2 py-2.5 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+              >
+                <div className="h-6 w-6 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                <div className="h-4 max-w-56 flex-1 animate-pulse rounded-sm bg-gray-800/50"></div>
+              </Flex>
+            ))}
+          </Box>
+        </Box>
+        <Box>
+          {[0, 1].map(section => (
+            <Box key={section} className={section > 0 ? 'mt-10' : undefined}>
+              <SkeletonSectionHeading titleWidth="w-40" />
+              <Box mt="2">
+                {[...Array(3)].map((_, idx) => (
+                  <Flex
+                    key={idx}
+                    align="center"
+                    gap="3"
+                    className={`px-2 py-2.5 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+                  >
+                    <div className="h-6 w-6 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                    <div className="h-4 max-w-56 flex-1 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  </Flex>
+                ))}
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      </div>
+    </Container>
+  );
+}
+
+// About Skeleton — mirrors the about page: title over a plain subtitle,
+// right-hand infobox with its red band, prose lede, then ruled sections
+// of list rows.
+function AboutSkeleton() {
+  return (
+    <Container size="4" className="min-h-full py-6">
+      <Box mt="2">
+        <div className="h-10 w-72 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+        <div className="mt-3 h-4 w-80 max-w-full animate-pulse rounded-sm bg-gray-800/40"></div>
+      </Box>
+
+      <div className="flex flex-col gap-6 lg:flex-row-reverse lg:gap-8">
+        {/* Infobox */}
+        <aside className="mt-6 w-full shrink-0 self-start border border-gray-700 lg:w-80">
+          <div className="h-9 animate-pulse bg-sanguine-red/40"></div>
+          <Flex align="center" justify="center" className="py-5">
+            <div className="h-14 w-14 animate-pulse rounded-sm bg-gray-800/50"></div>
+          </Flex>
+          {[...Array(6)].map((_, idx) => (
+            <div
+              key={idx}
+              className="grid grid-cols-[6.5rem_1fr] gap-x-3 border-t border-gray-800 px-3 py-2.5"
+            >
+              <div className="h-4 w-20 animate-pulse rounded-sm bg-gray-800/40"></div>
+              <div className="h-4 w-28 animate-pulse rounded-sm bg-gray-800/50"></div>
+            </div>
+          ))}
+        </aside>
+
+        <Box className="min-w-0 flex-1">
+          {/* Lede */}
+          <div className="mt-6 space-y-2.5">
+            <div className="h-4 w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-11/12 animate-pulse rounded-sm bg-gray-800/50"></div>
+            <div className="h-4 w-3/4 animate-pulse rounded-sm bg-gray-800/50"></div>
+          </div>
+
+          {/* Ruled sections of list rows */}
+          {[0, 1].map(section => (
+            <Box key={section} className="mt-10">
+              <SkeletonSectionHeading titleWidth="w-40" />
+              <Box mt="3" className="max-w-2xl">
+                {[...Array(4)].map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`px-2 py-1.5 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+                  >
+                    <div
+                      className={`h-4 animate-pulse rounded-sm bg-gray-800/50 ${idx % 2 === 0 ? 'w-64' : 'w-52'} max-w-full`}
+                    ></div>
+                  </div>
+                ))}
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      </div>
+    </Container>
+  );
+}
+
+// Generic Skeleton for unknown routes — flat and square like everything else:
+// a ghost page header over one committed red rule and zebra rows.
 function GenericSkeleton() {
   return (
-    <Container size="4" className="min-h-full py-8">
-      <Flex direction="column" gap="6">
-        <Card className="border border-gray-800 bg-gray-900">
-          <Box p="5">
-            <div className="mb-4 h-6 w-48 animate-pulse rounded bg-gray-800/50"></div>
-            <div className="h-64 animate-pulse rounded bg-gray-800/30"></div>
-          </Box>
-        </Card>
+    <Container size="3" className="min-h-full py-6">
+      <Flex direction="column">
+        <SkeletonPageHeader titleWidth="w-52" summaryWidth="w-80" />
+        <Box className="border-t-2 border-t-sanguine-red">
+          {[...Array(8)].map((_, idx) => (
+            <Flex
+              key={idx}
+              align="center"
+              gap="3"
+              className={`border-b border-gray-800 px-2 py-3 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+            >
+              <div className="h-6 w-6 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="h-4 w-64 max-w-full flex-1 animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="h-4 w-16 animate-pulse rounded-sm bg-gray-800/40"></div>
+            </Flex>
+          ))}
+        </Box>
       </Flex>
     </Container>
   );
