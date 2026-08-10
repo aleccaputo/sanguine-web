@@ -204,6 +204,14 @@ const resolveParticipantKey = (
   return participantMap.has(discordId) ? discordId : null;
 };
 
+// WOM metric slugs strip punctuation ("Phosani's Nightmare" -> phosanis_nightmare,
+// "TzTok-Jad" -> tztok_jad), so normalize the Dink boss name the same way.
+const toMetricSlug = (bossName: string): string =>
+  bossName
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
+
 const matchesMetric = (
   audit: { bossName?: string | null },
   metric: string,
@@ -211,7 +219,7 @@ const matchesMetric = (
 ): boolean =>
   metric === 'EHB' || metric === 'EHP'
     ? true
-    : audit.bossName?.toLowerCase().replaceAll(' ', '_') === compMetric;
+    : audit.bossName != null && toMetricSlug(audit.bossName) === compMetric;
 
 // Status stays inside the palette: active reads friends-list green, upcoming
 // plain white, completed muted.
