@@ -27,7 +27,10 @@ type BuilderCell =
 
 const NEW_TILE: IBoardTileInput = { type: 'TASK', name: '' };
 
-export function TileRaceBoardBuilder({ tiles, onChange }: ITileRaceBoardBuilderProps) {
+export function TileRaceBoardBuilder({
+  tiles,
+  onChange,
+}: ITileRaceBoardBuilderProps) {
   const [selected, setSelected] = useState<number | null>(null);
 
   const cells: BuilderCell[] = [
@@ -39,7 +42,9 @@ export function TileRaceBoardBuilder({ tiles, onChange }: ITileRaceBoardBuilderP
   const rows = chunkIntoSnakeRows(cells, BOARD_COLUMNS);
 
   const updateTile = (index: number, patch: Partial<IBoardTileInput>) =>
-    onChange(tiles.map((tile, i) => (i === index ? { ...tile, ...patch } : tile)));
+    onChange(
+      tiles.map((tile, i) => (i === index ? { ...tile, ...patch } : tile)),
+    );
 
   const appendTile = () => {
     onChange([...tiles, NEW_TILE]);
@@ -47,7 +52,11 @@ export function TileRaceBoardBuilder({ tiles, onChange }: ITileRaceBoardBuilderP
   };
 
   const insertAfter = (index: number) => {
-    onChange([...tiles.slice(0, index + 1), NEW_TILE, ...tiles.slice(index + 1)]);
+    onChange([
+      ...tiles.slice(0, index + 1),
+      NEW_TILE,
+      ...tiles.slice(index + 1),
+    ]);
     setSelected(index + 1);
   };
 
@@ -100,32 +109,66 @@ export function TileRaceBoardBuilder({ tiles, onChange }: ITileRaceBoardBuilderP
       </Box>
 
       {selectedTile && selected !== null && (
-        <Box mt="3" className="border-t-2 border-t-sanguine-red bg-sanguine-red/[0.04] p-3">
+        <Box
+          mt="3"
+          className="border-t-2 border-t-sanguine-red bg-sanguine-red/[0.04] p-3"
+        >
           <Flex align="center" justify="between" gap="3" wrap="wrap">
-            <Text size="2" className="text-osrs-orange">
+            <Text size="3" className="text-osrs-orange">
               Tile {selected + 1} of {tiles.length}
             </Text>
-            <Flex gap="2">
-              <Button size="1" variant="soft" type="button" className="cursor-pointer" onClick={() => moveTile(selected, -1)} disabled={selected === 0}>
+            <Flex gap="2" wrap="wrap">
+              <Button
+                size="2"
+                variant="soft"
+                type="button"
+                className="cursor-pointer"
+                onClick={() => moveTile(selected, -1)}
+                disabled={selected === 0}
+              >
                 ◀ Move
               </Button>
-              <Button size="1" variant="soft" type="button" className="cursor-pointer" onClick={() => moveTile(selected, 1)} disabled={selected === tiles.length - 1}>
+              <Button
+                size="2"
+                variant="soft"
+                type="button"
+                className="cursor-pointer"
+                onClick={() => moveTile(selected, 1)}
+                disabled={selected === tiles.length - 1}
+              >
                 Move ▶
               </Button>
-              <Button size="1" variant="soft" type="button" className="cursor-pointer" onClick={() => insertAfter(selected)}>
+              <Button
+                size="2"
+                variant="soft"
+                type="button"
+                className="cursor-pointer"
+                onClick={() => insertAfter(selected)}
+              >
                 Insert after
               </Button>
-              <Button size="1" color="red" variant="soft" type="button" className="cursor-pointer" onClick={() => removeTile(selected)}>
+              <Button
+                size="2"
+                color="red"
+                variant="soft"
+                type="button"
+                className="cursor-pointer"
+                onClick={() => removeTile(selected)}
+              >
                 Delete
               </Button>
             </Flex>
           </Flex>
           <Flex mt="3" gap="4" wrap="wrap" align="end">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tileType">Type</Label>
+              <Label className="text-base" htmlFor="tileType">
+                Type
+              </Label>
               <Select.Root
                 value={selectedTile.type}
-                onValueChange={value => changeType(selected, value as BoardTileInputType)}
+                onValueChange={value =>
+                  changeType(selected, value as BoardTileInputType)
+                }
               >
                 <Select.Trigger id="tileType" className="min-w-40" />
                 <Select.Content>
@@ -138,37 +181,53 @@ export function TileRaceBoardBuilder({ tiles, onChange }: ITileRaceBoardBuilderP
             {selectedTile.type === 'TASK' ? (
               <>
                 <div className="flex min-w-64 flex-1 flex-col gap-1.5">
-                  <Label htmlFor="tileName">Task name</Label>
+                  <Label className="text-base" htmlFor="tileName">
+                    Task name
+                  </Label>
                   <Input
                     id="tileName"
                     value={selectedTile.name ?? ''}
-                    onChange={e => updateTile(selected, { name: e.target.value })}
+                    onChange={e =>
+                      updateTile(selected, { name: e.target.value })
+                    }
                     placeholder="50KC @ Vorkath"
+                    className="text-base"
                     maxLength={100}
                   />
                 </div>
                 <div className="flex min-w-64 flex-1 flex-col gap-1.5">
-                  <Label htmlFor="tileDescription">Description (optional)</Label>
+                  <Label className="text-base" htmlFor="tileDescription">
+                    Description (optional)
+                  </Label>
                   <Input
                     id="tileDescription"
                     value={selectedTile.description ?? ''}
-                    onChange={e => updateTile(selected, { description: e.target.value })}
+                    onChange={e =>
+                      updateTile(selected, { description: e.target.value })
+                    }
                     placeholder="Any team member reaches 50 KC gained during the event"
+                    className="text-base"
                     maxLength={300}
                   />
                 </div>
               </>
             ) : (
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="tileAmount">Tiles</Label>
+                <Label className="text-base" htmlFor="tileAmount">
+                  Tiles
+                </Label>
                 <Input
                   id="tileAmount"
                   type="number"
                   min={1}
                   max={20}
                   value={selectedTile.amount ?? 1}
-                  onChange={e => updateTile(selected, { amount: Math.max(1, Number(e.target.value) || 1) })}
-                  className="w-24"
+                  onChange={e =>
+                    updateTile(selected, {
+                      amount: Math.max(1, Number(e.target.value) || 1),
+                    })
+                  }
+                  className="w-24 text-base"
                 />
               </div>
             )}
@@ -200,7 +259,7 @@ function BuilderCellView({
   if (cell.kind === 'start' || cell.kind === 'finish') {
     return (
       <div className={`${CELL_BASE} border-gray-800 bg-gray-900`}>
-        <span className="text-[11px] text-green-400">
+        <span className="text-xs text-green-400">
           {cell.kind === 'start' ? 'START' : 'FINISH'}
         </span>
       </div>
@@ -223,13 +282,21 @@ function BuilderCellView({
   const { tile, index } = cell;
   const content =
     tile.type === 'GO_BACK' ? (
-      <span className="text-[10px] leading-tight text-red-400">Go back {tile.amount}</span>
+      <span className="text-[11px] leading-tight text-red-400">
+        Go back {tile.amount}
+      </span>
     ) : tile.type === 'GO_FORWARD' ? (
-      <span className="text-[10px] leading-tight text-sky-400">Forward {tile.amount}</span>
+      <span className="text-[11px] leading-tight text-sky-400">
+        Forward {tile.amount}
+      </span>
     ) : tile.name?.trim() ? (
-      <span className="text-[10px] leading-tight text-gray-200">{tile.name}</span>
+      <span className="text-[11px] leading-tight text-gray-200">
+        {tile.name}
+      </span>
     ) : (
-      <span className="text-[10px] leading-tight text-gray-500">(unnamed task)</span>
+      <span className="text-[11px] leading-tight text-gray-500">
+        (unnamed task)
+      </span>
     );
 
   return (
@@ -243,7 +310,9 @@ function BuilderCellView({
           : 'border-gray-800 bg-gray-900 hover:border-gray-500'
       }`}
     >
-      <span className="absolute left-1 top-0.5 text-[9px] text-gray-600">{index + 1}</span>
+      <span className="absolute left-1 top-0.5 text-[10px] text-gray-600">
+        {index + 1}
+      </span>
       {content}
     </button>
   );

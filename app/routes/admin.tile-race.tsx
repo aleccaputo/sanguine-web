@@ -80,7 +80,10 @@ const resolveMemberIds = async (
   ];
   const users = await getUsersWithNicknames();
   const idByNickname = new Map(
-    users.map(user => [user.nickname?.toLocaleLowerCase() ?? '', user.discordId]),
+    users.map(user => [
+      user.nickname?.toLocaleLowerCase() ?? '',
+      user.discordId,
+    ]),
   );
   const resolved = tokens.map(token => ({
     token,
@@ -107,17 +110,25 @@ export async function action({ request }: ActionFunctionArgs) {
         try {
           tiles = JSON.parse(String(formData.get('board') ?? ''));
         } catch {
-          return json({ intent, errors: ['The board payload was malformed.'] }, { status: 400 });
+          return json(
+            { intent, errors: ['The board payload was malformed.'] },
+            { status: 400 },
+          );
         }
         if (!Array.isArray(tiles) || !tiles.length) {
-          return json({ intent, errors: ['Add at least one tile to the board.'] }, { status: 400 });
+          return json(
+            { intent, errors: ['Add at least one tile to the board.'] },
+            { status: 400 },
+          );
         }
         await createRace(
           {
             name: String(formData.get('name') ?? '').trim(),
             diceSides: Number(formData.get('diceSides') ?? 6),
             tiles,
-            approvalsChannelId: String(formData.get('approvalsChannelId') ?? ''),
+            approvalsChannelId: String(
+              formData.get('approvalsChannelId') ?? '',
+            ),
             announcementsChannelId: String(
               formData.get('announcementsChannelId') ?? '',
             ),
@@ -140,7 +151,11 @@ export async function action({ request }: ActionFunctionArgs) {
             { status: 400 },
           );
         }
-        await addTeam(String(formData.get('name') ?? '').trim(), ids, user.discordId);
+        await addTeam(
+          String(formData.get('name') ?? '').trim(),
+          ids,
+          user.discordId,
+        );
         return json({ intent, errors: null });
       }
       case 'removeteam':
@@ -175,10 +190,14 @@ export async function action({ request }: ActionFunctionArgs) {
     // surface them inline like API errors instead of crashing to the error boundary
     if (
       e instanceof TypeError ||
-      (e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError'))
+      (e instanceof Error &&
+        (e.name === 'TimeoutError' || e.name === 'AbortError'))
     ) {
       return json(
-        { intent, errors: ['The events API is unreachable — try again shortly.'] },
+        {
+          intent,
+          errors: ['The events API is unreachable — try again shortly.'],
+        },
         { status: 503 },
       );
     }
@@ -220,17 +239,31 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
 
   return (
     <Box>
-      <SectionHeading title="New tile race" summary="no race is currently open" />
+      <SectionHeading
+        title="New tile race"
+        summary="no race is currently open"
+      />
       <Form method="post" className="mt-4 flex flex-col gap-4">
         <input type="hidden" name="intent" value="create" />
         <input type="hidden" name="board" value={JSON.stringify(tiles)} />
         <div className={fieldClass}>
-          <Label htmlFor="name">Event name</Label>
-          <Input id="name" name="name" required maxLength={100} placeholder="Sanguine Tile Race III" />
+          <Label className="text-base" htmlFor="name">
+            Event name
+          </Label>
+          <Input
+            id="name"
+            name="name"
+            required
+            maxLength={100}
+            className="text-base"
+            placeholder="Sanguine Tile Race III"
+          />
         </div>
         <Flex gap="4" wrap="wrap">
           <div className={fieldClass}>
-            <Label htmlFor="diceSides">Dice sides</Label>
+            <Label className="text-base" htmlFor="diceSides">
+              Dice sides
+            </Label>
             <Input
               id="diceSides"
               name="diceSides"
@@ -238,11 +271,13 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
               min={2}
               max={20}
               defaultValue={6}
-              className="w-24"
+              className="w-24 text-base"
             />
           </div>
           <div className={fieldClass}>
-            <Label htmlFor="days">Planned days</Label>
+            <Label className="text-base" htmlFor="days">
+              Planned days
+            </Label>
             <Input
               id="days"
               name="days"
@@ -250,17 +285,21 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
               min={1}
               max={90}
               defaultValue={14}
-              className="w-24"
+              className="w-24 text-base"
             />
           </div>
         </Flex>
         <Flex gap="4" wrap="wrap">
           <div className={fieldClass}>
-            <Label htmlFor="approvalsChannelId">Approvals channel (private)</Label>
+            <Label className="text-base" htmlFor="approvalsChannelId">
+              Approvals channel (private)
+            </Label>
             <ChannelSelect name="approvalsChannelId" channels={channels} />
           </div>
           <div className={fieldClass}>
-            <Label htmlFor="announcementsChannelId">Announcements channel (public)</Label>
+            <Label className="text-base" htmlFor="announcementsChannelId">
+              Announcements channel (public)
+            </Label>
             <ChannelSelect name="announcementsChannelId" channels={channels} />
           </div>
         </Flex>
@@ -269,8 +308,8 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
             Board — {tiles.length} tile{tiles.length === 1 ? '' : 's'}
           </Label>
           <Text size="1" className="text-gray-500">
-            Click ＋ to add a tile, click a tile to edit it. START and FINISH are
-            added automatically.
+            Click ＋ to add a tile, click a tile to edit it. START and FINISH
+            are added automatically.
           </Text>
           <TileRaceBoardBuilder tiles={tiles} onChange={setTiles} />
         </div>
@@ -350,9 +389,11 @@ function RaceDashboard({
           <span className="text-gray-100">
             {channelName(race.channels.announcementsChannelId)}
           </span>
-          .
-          The public page is{' '}
-          <Link to="/tile-race" className="text-sanguine-bright hover:text-white">
+          . The public page is{' '}
+          <Link
+            to="/tile-race"
+            className="text-sanguine-bright hover:text-white"
+          >
             /tile-race
           </Link>
           .
@@ -360,7 +401,12 @@ function RaceDashboard({
         {event.status === 'DRAFT' && (
           <Form method="post" className="mt-3">
             <input type="hidden" name="intent" value="start" />
-            <Button size="2" type="submit" disabled={submitting} className="cursor-pointer">
+            <Button
+              size="2"
+              type="submit"
+              disabled={submitting}
+              className="cursor-pointer"
+            >
               Start race — roll first tasks
             </Button>
           </Form>
@@ -375,15 +421,24 @@ function RaceDashboard({
         {standings.length === 0 ? (
           <EmptyState>No teams yet — add the first one below.</EmptyState>
         ) : (
-          <Table.Root size="2" mt="2">
+          <Table.Root size="3" mt="2">
             <Table.Header>
               <Table.Row>
-                <Table.ColumnHeaderCell className="text-osrs-orange">Team</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell justify="end" className="text-osrs-orange">Tile</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell className="text-osrs-orange">
+                  Team
+                </Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell
+                  justify="end"
+                  className="text-osrs-orange"
+                >
+                  Tile
+                </Table.ColumnHeaderCell>
                 <Table.ColumnHeaderCell className="hidden text-osrs-orange md:table-cell">
                   Current task
                 </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell className="text-osrs-orange">Overrides</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell className="text-osrs-orange">
+                  Overrides
+                </Table.ColumnHeaderCell>
               </Table.Row>
             </Table.Header>
             <Table.Body>
@@ -406,23 +461,40 @@ function RaceDashboard({
           <Form
             method="post"
             onSubmit={e => {
-              if (!confirm('End the race and post final standings?')) e.preventDefault();
+              if (!confirm('End the race and post final standings?'))
+                e.preventDefault();
             }}
           >
             <input type="hidden" name="intent" value="end" />
-            <Button size="2" color="amber" variant="soft" type="submit" className="cursor-pointer">
+            <Button
+              size="2"
+              color="amber"
+              variant="soft"
+              type="submit"
+              className="cursor-pointer"
+            >
               End race
             </Button>
           </Form>
           <Form
             method="post"
             onSubmit={e => {
-              if (!confirm('Cancel the race? Progress stays in the database but the race is over.'))
+              if (
+                !confirm(
+                  'Cancel the race? Progress stays in the database but the race is over.',
+                )
+              )
                 e.preventDefault();
             }}
           >
             <input type="hidden" name="intent" value="cancel" />
-            <Button size="2" color="red" variant="soft" type="submit" className="cursor-pointer">
+            <Button
+              size="2"
+              color="red"
+              variant="soft"
+              type="submit"
+              className="cursor-pointer"
+            >
               Cancel race
             </Button>
           </Form>
@@ -448,24 +520,24 @@ function TeamRow({
   return (
     <Table.Row className={zebraStripeClass}>
       <Table.Cell>
-        <Text size="2" className="text-gray-100">
+        <Text size="3" className="text-gray-100">
           {standing.name}
         </Text>
       </Table.Cell>
       <Table.Cell justify="end">
         <span className="whitespace-nowrap">
-          <Text size="2" className="text-gray-100">
+          <Text size="3" className="text-gray-100">
             {standing.tileIndex}
           </Text>
-          <Text size="1" className="text-gray-600">
+          <Text size="2" className="text-gray-600">
             {' '}
             / {standing.finishIndex}
           </Text>
         </span>
       </Table.Cell>
       <Table.Cell className="hidden md:table-cell">
-        <Text size="2" className="text-gray-400">
-          {standing.isFinished ? '🏁 Finished' : (standing.currentTask ?? '—')}
+        <Text size="3" className="text-gray-400">
+          {standing.isFinished ? '🏁 Finished' : standing.currentTask ?? '—'}
         </Text>
       </Table.Cell>
       <Table.Cell>
@@ -475,14 +547,26 @@ function TeamRow({
               <fetcher.Form method="post">
                 <input type="hidden" name="intent" value="complete" />
                 <input type="hidden" name="team" value={standing.name} />
-                <Button size="1" variant="soft" type="submit" disabled={busy} className="cursor-pointer">
+                <Button
+                  size="2"
+                  variant="soft"
+                  type="submit"
+                  disabled={busy}
+                  className="cursor-pointer"
+                >
                   Complete task
                 </Button>
               </fetcher.Form>
               <fetcher.Form method="post">
                 <input type="hidden" name="intent" value="reroll" />
                 <input type="hidden" name="team" value={standing.name} />
-                <Button size="1" variant="soft" type="submit" disabled={busy} className="cursor-pointer">
+                <Button
+                  size="2"
+                  variant="soft"
+                  type="submit"
+                  disabled={busy}
+                  className="cursor-pointer"
+                >
                   Reroll
                 </Button>
               </fetcher.Form>
@@ -496,9 +580,15 @@ function TeamRow({
                   max={standing.finishIndex}
                   required
                   placeholder="tile"
-                  className="h-6 w-16 px-1 py-0 text-xs"
+                  className="h-8 w-20 px-2 py-0 text-sm"
                 />
-                <Button size="1" variant="soft" type="submit" disabled={busy} className="cursor-pointer">
+                <Button
+                  size="2"
+                  variant="soft"
+                  type="submit"
+                  disabled={busy}
+                  className="cursor-pointer"
+                >
                   Move
                 </Button>
               </fetcher.Form>
@@ -513,7 +603,14 @@ function TeamRow({
           >
             <input type="hidden" name="intent" value="removeteam" />
             <input type="hidden" name="team" value={standing.name} />
-            <Button size="1" color="red" variant="soft" type="submit" disabled={busy} className="cursor-pointer">
+            <Button
+              size="2"
+              color="red"
+              variant="soft"
+              type="submit"
+              disabled={busy}
+              className="cursor-pointer"
+            >
               Remove
             </Button>
           </fetcher.Form>
@@ -531,29 +628,45 @@ function AddTeamForm() {
 
   return (
     <Box mt="4" className="max-w-xl">
-      <Text as="p" size="3" className="text-osrs-orange">
+      <Text as="p" size="4" className="text-osrs-orange">
         Add a team
       </Text>
       <Form method="post" className="mt-2 flex flex-col gap-3">
         <input type="hidden" name="intent" value="addteam" />
         <div className={fieldClass}>
-          <Label htmlFor="teamName">Team name</Label>
-          <Input id="teamName" name="name" required maxLength={50} placeholder="Blood Reapers" />
+          <Label className="text-base" htmlFor="teamName">
+            Team name
+          </Label>
+          <Input
+            id="teamName"
+            name="name"
+            required
+            maxLength={50}
+            className="text-base"
+            placeholder="Blood Reapers"
+          />
         </div>
         <div className={fieldClass}>
-          <Label htmlFor="members">Members — OSRS names or Discord ids, one per line</Label>
+          <Label className="text-base" htmlFor="members">
+            Members — OSRS names or Discord ids, one per line
+          </Label>
           <textarea
             id="members"
             name="members"
             required
             rows={4}
-            className="rounded-sm border border-gray-700 bg-gray-900 p-2 text-sm text-gray-100 placeholder:text-gray-600"
+            className="rounded-sm border border-gray-700 bg-gray-900 p-2 text-base text-gray-100 placeholder:text-gray-600"
           />
         </div>
         {actionData?.intent === 'addteam' && actionData.errors && (
           <ActionErrors errors={actionData.errors} />
         )}
-        <Button size="2" type="submit" disabled={submitting} className="w-fit cursor-pointer">
+        <Button
+          size="2"
+          type="submit"
+          disabled={submitting}
+          className="w-fit cursor-pointer"
+        >
           Add team
         </Button>
       </Form>
@@ -565,7 +678,7 @@ function ActionErrors({ errors }: { errors: string[] }) {
   return (
     <Box mt="2">
       {errors.map(error => (
-        <Text key={error} as="p" size="2" className="text-red-400">
+        <Text key={error} as="p" size="3" className="text-red-400">
           {error}
         </Text>
       ))}

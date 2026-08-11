@@ -35,11 +35,16 @@ export default function AdminLayout() {
               className="rounded-sm"
             />
           )}
-          <Text size="2" className="text-sanguine-bright">
+          <Text size="3" className="text-sanguine-bright">
             {user.username}
           </Text>
           <Form method="post" action="/logout">
-            <Button size="1" variant="soft" type="submit" className="cursor-pointer">
+            <Button
+              size="2"
+              variant="soft"
+              type="submit"
+              className="cursor-pointer"
+            >
               Log out
             </Button>
           </Form>
