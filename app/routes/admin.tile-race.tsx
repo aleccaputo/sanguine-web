@@ -12,7 +12,7 @@ import {
   useLoaderData,
   useNavigation,
 } from '@remix-run/react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, Flex, Select, Table, Text } from '@radix-ui/themes';
 import { requireStaff } from '~/services/auth.server';
 import {
@@ -28,6 +28,7 @@ import {
   rerollTeam,
   startRace,
   endRace,
+  updateTeam,
 } from '~/services/events-admin-service.server';
 import {
   getGuildTextChannels,
@@ -37,6 +38,7 @@ import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import { IBoardTileInput } from '~/utils/tile-race-board';
 import { Input } from '~/components/input';
 import { Label } from '~/components/label';
+import { IPickerMember, MemberPicker } from '~/components/MemberPicker';
 import { TileRaceBoardBuilder } from '~/components/TileRaceBoardBuilder';
 import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
@@ -44,57 +46,56 @@ import { zebraStripeClass } from '~/utils/styles';
 
 export const meta: MetaFunction = () => [{ title: 'Events Admin — Tile Race' }];
 
+// The clan roster feeding the member typeahead — same source the rest of the
+// site uses for nickname resolution.
+const getRoster = async (): Promise<IPickerMember[]> => {
+  const users = await getUsersWithNicknames();
+  return users
+    .flatMap(user =>
+      user.nickname
+        ? [{ discordId: user.discordId, nickname: user.nickname }]
+        : [],
+    )
+    .sort((a, b) => a.nickname.localeCompare(b.nickname));
+};
+
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireStaff(request);
   try {
     const race = await getAdminRace();
     // Channels feed the create form's pickers and name the dashboard's channel refs;
-    // a Discord API hiccup degrades to raw ids rather than failing the page.
+    // a Discord API hiccup degrades to raw ids rather than failing the page. Same
+    // spirit for the roster: no roster just means the typeahead only takes raw ids.
     const channels = await getGuildTextChannels().catch(
       () => [] as IGuildTextChannel[],
     );
-    return json({ race, channels, apiError: null as string | null });
+    const members = await getRoster().catch(() => [] as IPickerMember[]);
+    return json({ race, channels, members, apiError: null as string | null });
   } catch (e) {
     const message =
       e instanceof EventsApiError ? e.message : 'Events API is unreachable';
     return json({
       race: null as IAdminTileRace | null,
       channels: [] as IGuildTextChannel[],
+      members: [] as IPickerMember[],
       apiError: message,
     });
   }
 }
 
-// Turns the members field (nicknames or raw Discord ids, one per line or
-// comma-separated) into Discord ids via the same roster the rest of the site uses.
-const resolveMemberIds = async (
-  input: string,
-): Promise<{ ids: string[]; unknown: string[] }> => {
-  const tokens = [
-    ...new Set(
-      input
-        .split(/[\n,]/)
-        .map(token => token.trim())
-        .filter(Boolean),
-    ),
-  ];
-  const users = await getUsersWithNicknames();
-  const idByNickname = new Map(
-    users.map(user => [
-      user.nickname?.toLocaleLowerCase() ?? '',
-      user.discordId,
-    ]),
-  );
-  const resolved = tokens.map(token => ({
-    token,
-    id: /^\d{5,25}$/.test(token)
-      ? token
-      : idByNickname.get(token.toLocaleLowerCase()),
-  }));
-  return {
-    ids: [...new Set(resolved.flatMap(r => (r.id ? [r.id] : [])))],
-    unknown: resolved.filter(r => !r.id).map(r => r.token),
-  };
+// The MemberPicker submits its selection as a JSON array of Discord ids.
+const parseMemberIds = (raw: string): string[] | null => {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) &&
+      parsed.every(
+        (id): id is string => typeof id === 'string' && /^\d{5,25}$/.test(id),
+      )
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
 };
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -139,21 +140,38 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ intent, errors: null });
       }
       case 'addteam': {
-        const { ids, unknown } = await resolveMemberIds(
-          String(formData.get('members') ?? ''),
-        );
-        if (unknown.length) {
+        const ids = parseMemberIds(String(formData.get('members') ?? ''));
+        if (!ids?.length) {
           return json(
-            {
-              intent,
-              errors: [`Unknown members: ${unknown.join(', ')}`],
-            },
+            { intent, errors: ['Pick at least one member.'] },
             { status: 400 },
           );
         }
         await addTeam(
           String(formData.get('name') ?? '').trim(),
           ids,
+          user.discordId,
+        );
+        return json({ intent, errors: null });
+      }
+      case 'editteam': {
+        const ids = parseMemberIds(String(formData.get('members') ?? ''));
+        const newName = String(formData.get('name') ?? '').trim();
+        if (!ids?.length) {
+          return json(
+            { intent, errors: ['Pick at least one member.'] },
+            { status: 400 },
+          );
+        }
+        if (!newName) {
+          return json(
+            { intent, errors: ['Team name is required.'] },
+            { status: 400 },
+          );
+        }
+        await updateTeam(
+          teamName,
+          { name: newName, memberDiscordIds: ids },
           user.discordId,
         );
         return json({ intent, errors: null });
@@ -206,7 +224,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function AdminTileRace() {
-  const { race, channels, apiError } = useLoaderData<typeof loader>();
+  const { race, channels, members, apiError } = useLoaderData<typeof loader>();
 
   if (apiError) {
     return (
@@ -220,7 +238,7 @@ export default function AdminTileRace() {
   }
 
   return race ? (
-    <RaceDashboard race={race} channels={channels} />
+    <RaceDashboard race={race} channels={channels} members={members} />
   ) : (
     <CreateRaceForm channels={channels} />
   );
@@ -360,9 +378,11 @@ function ChannelSelect({
 function RaceDashboard({
   race,
   channels,
+  members,
 }: {
   race: IAdminTileRace;
   channels: IGuildTextChannel[];
+  members: IPickerMember[];
 }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -447,12 +467,13 @@ function RaceDashboard({
                   key={standing.teamId}
                   standing={standing}
                   raceStatus={event.status}
+                  members={members}
                 />
               ))}
             </Table.Body>
           </Table.Root>
         )}
-        <AddTeamForm />
+        <AddTeamForm members={members} />
       </Box>
 
       <Box>
@@ -509,119 +530,209 @@ function RaceDashboard({
 function TeamRow({
   standing,
   raceStatus,
+  members,
 }: {
   standing: IAdminTileRace['standings'][number];
   raceStatus: IAdminTileRace['event']['status'];
+  members: IPickerMember[];
 }) {
   const fetcher = useFetcher<typeof action>();
   const busy = fetcher.state !== 'idle';
   const raceRunning = raceStatus === 'ACTIVE';
+  const [editing, setEditing] = useState(false);
+
+  const nicknameById = useMemo(
+    () => new Map(members.map(m => [m.discordId, m.nickname])),
+    [members],
+  );
+  const rosterNames = standing.memberDiscordIds
+    .map(id => nicknameById.get(id) ?? id)
+    .join(', ');
+
+  // Close the editor once its save lands cleanly
+  useEffect(() => {
+    if (fetcher.state === 'idle' && fetcher.data && !fetcher.data.errors) {
+      setEditing(false);
+    }
+  }, [fetcher.state, fetcher.data]);
 
   return (
-    <Table.Row className={zebraStripeClass}>
-      <Table.Cell>
-        <Text size="3" className="text-gray-100">
-          {standing.name}
-        </Text>
-      </Table.Cell>
-      <Table.Cell justify="end">
-        <span className="whitespace-nowrap">
+    <>
+      <Table.Row className={zebraStripeClass}>
+        <Table.Cell>
           <Text size="3" className="text-gray-100">
-            {standing.tileIndex}
+            {standing.name}
           </Text>
-          <Text size="2" className="text-gray-600">
-            {' '}
-            / {standing.finishIndex}
-          </Text>
-        </span>
-      </Table.Cell>
-      <Table.Cell className="hidden md:table-cell">
-        <Text size="3" className="text-gray-400">
-          {standing.isFinished ? '🏁 Finished' : standing.currentTask ?? '—'}
-        </Text>
-      </Table.Cell>
-      <Table.Cell>
-        <Flex gap="2" align="center" wrap="wrap">
-          {raceRunning && !standing.isFinished && (
-            <>
-              <fetcher.Form method="post">
-                <input type="hidden" name="intent" value="complete" />
-                <input type="hidden" name="team" value={standing.name} />
-                <Button
-                  size="2"
-                  variant="soft"
-                  type="submit"
-                  disabled={busy}
-                  className="cursor-pointer"
-                >
-                  Complete task
-                </Button>
-              </fetcher.Form>
-              <fetcher.Form method="post">
-                <input type="hidden" name="intent" value="reroll" />
-                <input type="hidden" name="team" value={standing.name} />
-                <Button
-                  size="2"
-                  variant="soft"
-                  type="submit"
-                  disabled={busy}
-                  className="cursor-pointer"
-                >
-                  Reroll
-                </Button>
-              </fetcher.Form>
-              <fetcher.Form method="post" className="flex items-center gap-1">
-                <input type="hidden" name="intent" value="move" />
-                <input type="hidden" name="team" value={standing.name} />
-                <Input
-                  name="tile"
-                  type="number"
-                  min={1}
-                  max={standing.finishIndex}
-                  required
-                  placeholder="tile"
-                  className="h-8 w-20 px-2 py-0 text-sm"
-                />
-                <Button
-                  size="2"
-                  variant="soft"
-                  type="submit"
-                  disabled={busy}
-                  className="cursor-pointer"
-                >
-                  Move
-                </Button>
-              </fetcher.Form>
-            </>
+          {rosterNames && (
+            <Text as="p" size="2" className="text-sanguine-bright">
+              {rosterNames}
+            </Text>
           )}
-          <fetcher.Form
-            method="post"
-            onSubmit={e => {
-              if (!confirm(`Remove ${standing.name} and all of its progress?`))
-                e.preventDefault();
-            }}
-          >
-            <input type="hidden" name="intent" value="removeteam" />
-            <input type="hidden" name="team" value={standing.name} />
+        </Table.Cell>
+        <Table.Cell justify="end">
+          <span className="whitespace-nowrap">
+            <Text size="3" className="text-gray-100">
+              {standing.tileIndex}
+            </Text>
+            <Text size="2" className="text-gray-600">
+              {' '}
+              / {standing.finishIndex}
+            </Text>
+          </span>
+        </Table.Cell>
+        <Table.Cell className="hidden md:table-cell">
+          <Text size="3" className="text-gray-400">
+            {standing.isFinished ? '🏁 Finished' : standing.currentTask ?? '—'}
+          </Text>
+        </Table.Cell>
+        <Table.Cell>
+          <Flex gap="2" align="center" wrap="wrap">
+            {raceRunning && !standing.isFinished && (
+              <>
+                <fetcher.Form method="post">
+                  <input type="hidden" name="intent" value="complete" />
+                  <input type="hidden" name="team" value={standing.name} />
+                  <Button
+                    size="2"
+                    variant="soft"
+                    type="submit"
+                    disabled={busy}
+                    className="cursor-pointer"
+                  >
+                    Complete task
+                  </Button>
+                </fetcher.Form>
+                <fetcher.Form method="post">
+                  <input type="hidden" name="intent" value="reroll" />
+                  <input type="hidden" name="team" value={standing.name} />
+                  <Button
+                    size="2"
+                    variant="soft"
+                    type="submit"
+                    disabled={busy}
+                    className="cursor-pointer"
+                  >
+                    Reroll
+                  </Button>
+                </fetcher.Form>
+                <fetcher.Form method="post" className="flex items-center gap-1">
+                  <input type="hidden" name="intent" value="move" />
+                  <input type="hidden" name="team" value={standing.name} />
+                  <Input
+                    name="tile"
+                    type="number"
+                    min={1}
+                    max={standing.finishIndex}
+                    required
+                    placeholder="tile"
+                    className="h-8 w-20 px-2 py-0 text-sm"
+                  />
+                  <Button
+                    size="2"
+                    variant="soft"
+                    type="submit"
+                    disabled={busy}
+                    className="cursor-pointer"
+                  >
+                    Move
+                  </Button>
+                </fetcher.Form>
+              </>
+            )}
             <Button
               size="2"
-              color="red"
-              variant="soft"
-              type="submit"
+              variant={editing ? 'solid' : 'soft'}
+              type="button"
               disabled={busy}
               className="cursor-pointer"
+              onClick={() => setEditing(current => !current)}
             >
-              Remove
+              {editing ? 'Close' : 'Edit'}
             </Button>
-          </fetcher.Form>
-        </Flex>
-        {fetcher.data?.errors && <ActionErrors errors={fetcher.data.errors} />}
-      </Table.Cell>
-    </Table.Row>
+            <fetcher.Form
+              method="post"
+              onSubmit={e => {
+                if (
+                  !confirm(`Remove ${standing.name} and all of its progress?`)
+                )
+                  e.preventDefault();
+              }}
+            >
+              <input type="hidden" name="intent" value="removeteam" />
+              <input type="hidden" name="team" value={standing.name} />
+              <Button
+                size="2"
+                color="red"
+                variant="soft"
+                type="submit"
+                disabled={busy}
+                className="cursor-pointer"
+              >
+                Remove
+              </Button>
+            </fetcher.Form>
+          </Flex>
+          {fetcher.data?.errors && (
+            <ActionErrors errors={fetcher.data.errors} />
+          )}
+        </Table.Cell>
+      </Table.Row>
+      {editing && (
+        <Table.Row>
+          <Table.Cell colSpan={4} className="bg-sanguine-red/[0.04]">
+            <fetcher.Form
+              method="post"
+              className="flex max-w-xl flex-col gap-3 py-2"
+            >
+              <input type="hidden" name="intent" value="editteam" />
+              <input type="hidden" name="team" value={standing.name} />
+              <div className={fieldClass}>
+                <Label
+                  className="text-base"
+                  htmlFor={`editName-${standing.teamId}`}
+                >
+                  Team name
+                </Label>
+                <Input
+                  id={`editName-${standing.teamId}`}
+                  name="name"
+                  required
+                  maxLength={50}
+                  defaultValue={standing.name}
+                  className="text-base"
+                />
+              </div>
+              <div className={fieldClass}>
+                <Label
+                  className="text-base"
+                  htmlFor={`editMembers-${standing.teamId}`}
+                >
+                  Members
+                </Label>
+                <MemberPicker
+                  id={`editMembers-${standing.teamId}`}
+                  members={members}
+                  inputName="members"
+                  defaultSelectedIds={standing.memberDiscordIds}
+                />
+              </div>
+              <Button
+                size="2"
+                type="submit"
+                disabled={busy}
+                className="w-fit cursor-pointer"
+              >
+                Save team
+              </Button>
+            </fetcher.Form>
+          </Table.Cell>
+        </Table.Row>
+      )}
+    </>
   );
 }
 
-function AddTeamForm() {
+function AddTeamForm({ members }: { members: IPickerMember[] }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submitting = navigation.state === 'submitting';
@@ -648,15 +759,9 @@ function AddTeamForm() {
         </div>
         <div className={fieldClass}>
           <Label className="text-base" htmlFor="members">
-            Members — OSRS names or Discord ids, one per line
+            Members
           </Label>
-          <textarea
-            id="members"
-            name="members"
-            required
-            rows={4}
-            className="rounded-sm border border-gray-700 bg-gray-900 p-2 text-base text-gray-100 placeholder:text-gray-600"
-          />
+          <MemberPicker id="members" members={members} inputName="members" />
         </div>
         {actionData?.intent === 'addteam' && actionData.errors && (
           <ActionErrors errors={actionData.errors} />

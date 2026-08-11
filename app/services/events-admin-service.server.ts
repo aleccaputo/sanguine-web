@@ -56,7 +56,9 @@ const adminRequest = async <T>(
     headers: {
       Authorization: `Bearer ${EVENTS_API_TOKEN}`,
       ...(init?.actingUserId ? { 'x-acting-user': init.actingUserId } : {}),
-      ...(init?.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(init?.body !== undefined
+        ? { 'Content-Type': 'application/json' }
+        : {}),
     },
     body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
     signal: AbortSignal.timeout(EVENTS_API_TIMEOUT_MS),
@@ -126,6 +128,16 @@ export const addTeam = (
     actingUserId,
     body: { name, memberDiscordIds },
   });
+
+export const updateTeam = (
+  name: string,
+  patch: { name?: string; memberDiscordIds?: string[] },
+  actingUserId: string,
+) =>
+  adminRequest<{ name: string; memberDiscordIds: string[] }>(
+    `/races/current/teams/${encodeURIComponent(name)}`,
+    { method: 'PATCH', actingUserId, body: patch },
+  );
 
 export const removeTeam = (name: string, actingUserId: string) =>
   adminRequest<{ removed: boolean }>(

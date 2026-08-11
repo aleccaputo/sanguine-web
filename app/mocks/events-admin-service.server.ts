@@ -38,6 +38,14 @@ export const endRace = async (): Promise<IAdminTileRace> => {
 };
 export const cancelRace = () => ok({ cancelled: true });
 export const addTeam = () => ok({ teamId: 'mock-team', name: 'Mock Team' });
+export const updateTeam = (
+  name: string,
+  patch: { name?: string; memberDiscordIds?: string[] },
+) =>
+  ok({
+    name: patch.name ?? name,
+    memberDiscordIds: patch.memberDiscordIds ?? [],
+  });
 export const removeTeam = () => ok({ removed: true });
 export const moveTeam = () => ok({ tileIndex: 1 });
 export const completeTeamTask = () => ok({ tileIndex: 2 });
