@@ -23,6 +23,8 @@ export interface ITileRaceTile {
   description?: string;
   /** TASK tiles: admin-picked OSRS wiki artwork */
   imageUrl?: string;
+  /** TASK tiles: approved submissions required to complete the tile (absent = 1) */
+  quantity?: number;
   /** GO_BACK / GO_FORWARD tiles */
   amount?: number;
 }

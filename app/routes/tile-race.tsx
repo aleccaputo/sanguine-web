@@ -88,10 +88,14 @@ const tileTitle = (tile: ITileRaceTile): string => {
       return `Go back ${tile.amount} tiles`;
     case 'GO_FORWARD':
       return `Go forward ${tile.amount} tiles`;
-    case 'TASK':
-      return tile.description
+    case 'TASK': {
+      const base = tile.description
         ? `${tile.name} — ${tile.description}`
         : (tile.name ?? 'Task');
+      return (tile.quantity ?? 1) > 1
+        ? `${base} (${tile.quantity} approved drops to complete)`
+        : base;
+    }
   }
 };
 
@@ -151,6 +155,11 @@ function TileCell({
       <span className="absolute left-1 top-0.5 text-[9px] text-gray-600">
         {tile.index}
       </span>
+      {tile.type === 'TASK' && (tile.quantity ?? 1) > 1 && (
+        <span className="absolute right-1 top-0.5 text-[9px] text-osrs-gold">
+          ×{tile.quantity}
+        </span>
+      )}
       {/* relative lifts the label above the absolutely-positioned artwork */}
       <span className="relative">{content}</span>
       {teamsHere.length > 0 && (

@@ -199,6 +199,26 @@ export function TileRaceBoardBuilder({
                     maxLength={300}
                   />
                 </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-lg" htmlFor="tileQuantity">
+                    Drops needed
+                  </Label>
+                  <Input
+                    id="tileQuantity"
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={selectedTile.quantity ?? 1}
+                    onChange={e => {
+                      const quantity = Math.max(1, Number(e.target.value) || 1);
+                      // 1 is an ordinary tile — keep the payload clean
+                      updateTile(selected, {
+                        quantity: quantity > 1 ? quantity : undefined,
+                      });
+                    }}
+                    className="w-24 text-lg"
+                  />
+                </div>
                 <div className="flex min-w-64 flex-col gap-1.5">
                   <Label className="text-lg" htmlFor="tileImage">
                     Image (optional)
@@ -317,6 +337,11 @@ function BuilderCellView({
       <span className="absolute left-1 top-0.5 text-[11px] text-gray-600">
         {index + 1}
       </span>
+      {tile.type === 'TASK' && (tile.quantity ?? 1) > 1 && (
+        <span className="absolute right-1 top-0.5 text-[11px] text-osrs-gold">
+          ×{tile.quantity}
+        </span>
+      )}
       {/* relative lifts the label above the absolutely-positioned artwork */}
       <span className="relative">{content}</span>
     </button>
