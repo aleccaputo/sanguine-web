@@ -1,0 +1,45 @@
+import type { IAdminTileRace } from '../services/events-admin-service.server';
+import { getCurrentTileRace } from './tile-race-service.server';
+
+// MOCK_MODE stand-in for the sanguine-events admin API: serves the public mock
+// race with admin channel config bolted on; mutations succeed without doing
+// anything (the fixture is static).
+
+export class EventsApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'EventsApiError';
+  }
+}
+
+export const getAdminRace = async (): Promise<IAdminTileRace | null> => {
+  const race = await getCurrentTileRace();
+  return race
+    ? {
+        ...race,
+        channels: {
+          approvalsChannelId: '200000000000000002',
+          announcementsChannelId: '200000000000000001',
+        },
+      }
+    : null;
+};
+
+const ok = async <T>(value: T): Promise<T> => value;
+
+export const createRace = () => ok({ eventId: 'mock-race' });
+export const startRace = () => ok({ started: true, teamCount: 4 });
+export const endRace = async (): Promise<IAdminTileRace> => {
+  const race = await getAdminRace();
+  if (!race) throw new EventsApiError('No open tile race', 404);
+  return race;
+};
+export const cancelRace = () => ok({ cancelled: true });
+export const addTeam = () => ok({ teamId: 'mock-team', name: 'Mock Team' });
+export const removeTeam = () => ok({ removed: true });
+export const moveTeam = () => ok({ tileIndex: 1 });
+export const completeTeamTask = () => ok({ tileIndex: 2 });
+export const rerollTeam = () => ok({ tileIndex: 3 });
