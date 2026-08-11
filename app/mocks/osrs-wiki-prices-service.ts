@@ -9,6 +9,18 @@ export interface OSRSItem {
 
 export const wikiItemIconUrl = (): string => '/sanguine_icon.png';
 
+// Deterministic stand-in for the admin image picker's item search
+export const searchItems = async (
+  query: string,
+  limit: number,
+): Promise<{ name: string; icon: string }[]> => {
+  const lower = query.toLocaleLowerCase();
+  return ['Abyssal whip', 'Dragon warhammer', 'Twisted bow', 'Scythe of vitur']
+    .filter(name => name.toLocaleLowerCase().includes(lower))
+    .slice(0, limit)
+    .map(name => ({ name, icon: '/sanguine_icon.png' }));
+};
+
 const itemCache = new Map<number, OSRSItem>();
 
 export const fetchOSRSItem = async (

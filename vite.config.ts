@@ -35,6 +35,19 @@ const mockAliases = mockMode
         '~/data/monthly-winners',
         './app/mocks/monthly-winners/index.ts',
       ),
+      mockAlias(
+        '~/services/tile-race-service.server',
+        './app/mocks/tile-race-service.server.ts',
+      ),
+      mockAlias('~/services/auth.server', './app/mocks/auth.server.ts'),
+      mockAlias(
+        '~/services/discord-admin-service.server',
+        './app/mocks/discord-admin-service.server.ts',
+      ),
+      mockAlias(
+        '~/services/events-admin-service.server',
+        './app/mocks/events-admin-service.server.ts',
+      ),
     ]
   : [];
 
