@@ -13,6 +13,8 @@ import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
 import { zebraStripeClass } from '~/utils/styles';
 import { chunkIntoSnakeRows } from '~/utils/tile-race-board';
+import { getTileImageUrl } from '~/utils/tile-race-images';
+import { TileArt } from '~/components/TileArt';
 
 export const meta: MetaFunction = () => {
   return [
@@ -106,6 +108,11 @@ function TileCell({
     return <div aria-hidden />;
   }
 
+  const imageUrl =
+    tile.type === 'TASK'
+      ? (tile.imageUrl ?? getTileImageUrl(tile.name, tile.description))
+      : null;
+
   const content = (() => {
     switch (tile.type) {
       case 'START':
@@ -140,10 +147,12 @@ function TileCell({
         teamsHere.length ? 'border-gray-500' : 'border-gray-800'
       }`}
     >
+      {imageUrl && <TileArt src={imageUrl} />}
       <span className="absolute left-1 top-0.5 text-[9px] text-gray-600">
         {tile.index}
       </span>
-      {content}
+      {/* relative lifts the label above the absolutely-positioned artwork */}
+      <span className="relative">{content}</span>
       {teamsHere.length > 0 && (
         <Flex gap="1" className="absolute bottom-0.5">
           {teamsHere.map(team => (

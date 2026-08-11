@@ -192,6 +192,45 @@ export async function fetchOSRSItem(itemId: number): Promise<OSRSItem | null> {
 }
 
 /**
+ * Searches item names (tradeable mapping + untradeables) for the admin image
+ * picker. Every query token must appear in the name; prefix matches rank first.
+ */
+export async function searchItems(
+  query: string,
+  limit: number,
+): Promise<{ name: string; icon: string }[]> {
+  const tokens = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  if (!tokens.length) return [];
+
+  const mapping = await fetchAllMapping().catch(
+    () => ({}) as Record<number, MappingItem>,
+  );
+  const candidates = [
+    ...Object.values(mapping).map(item => ({ id: item.id, name: item.name })),
+    ...Object.entries(untradeableItems).map(([id, name]) => ({
+      id: Number(id),
+      name: toTitleCase(name),
+    })),
+  ];
+
+  return candidates
+    .filter(item => {
+      const lower = item.name.toLocaleLowerCase();
+      return tokens.every(token => lower.includes(token));
+    })
+    .sort((a, b) => {
+      const aStarts = a.name.toLocaleLowerCase().startsWith(tokens[0]) ? 0 : 1;
+      const bStarts = b.name.toLocaleLowerCase().startsWith(tokens[0]) ? 0 : 1;
+      return aStarts - bStarts || a.name.localeCompare(b.name);
+    })
+    .slice(0, limit)
+    .map(item => ({
+      name: item.name,
+      icon: customItemIcons[item.id] ?? wikiItemIconUrl(item.name),
+    }));
+}
+
+/**
  * Fetches all item prices from the OSRS Wiki API with caching
  */
 async function fetchAllPrices(): Promise<PricesResponseData> {

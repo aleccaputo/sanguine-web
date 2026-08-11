@@ -13,8 +13,10 @@ import {
   useNavigation,
 } from '@remix-run/react';
 import { useEffect, useMemo, useState } from 'react';
-import { Box, Button, Flex, Select, Table, Text } from '@radix-ui/themes';
+import { Box, Flex, Select, Table, Text } from '@radix-ui/themes';
+import { Button } from '~/components/button';
 import { requireStaff } from '~/services/auth.server';
+import { audit } from '~/services/audit.server';
 import {
   addTeam,
   cancelRace,
@@ -103,6 +105,16 @@ export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = String(formData.get('intent'));
   const teamName = String(formData.get('team') ?? '').trim();
+
+  // Attempts are audited, not just successes — a rejected override is still an
+  // action someone took. The events API logs its own side under the same actor.
+  audit('admin.action', {
+    area: 'tile-race',
+    intent,
+    ...(teamName ? { team: teamName } : {}),
+    discordId: user.discordId,
+    username: user.username,
+  });
 
   try {
     switch (intent) {
@@ -336,10 +348,11 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
         )}
         <Flex align="center" gap="3">
           <Button
-            size="3"
+            variant="primary"
+            size="md"
             type="submit"
             disabled={submitting || !boardValid}
-            className="w-fit cursor-pointer"
+            className="w-fit"
           >
             {submitting ? 'Creating…' : 'Create race (draft)'}
           </Button>
@@ -421,12 +434,7 @@ function RaceDashboard({
         {event.status === 'DRAFT' && (
           <Form method="post" className="mt-3">
             <input type="hidden" name="intent" value="start" />
-            <Button
-              size="2"
-              type="submit"
-              disabled={submitting}
-              className="cursor-pointer"
-            >
+            <Button variant="primary" type="submit" disabled={submitting}>
               Start race — roll first tasks
             </Button>
           </Form>
@@ -487,13 +495,7 @@ function RaceDashboard({
             }}
           >
             <input type="hidden" name="intent" value="end" />
-            <Button
-              size="2"
-              color="amber"
-              variant="soft"
-              type="submit"
-              className="cursor-pointer"
-            >
+            <Button variant="gold" type="submit">
               End race
             </Button>
           </Form>
@@ -509,13 +511,7 @@ function RaceDashboard({
             }}
           >
             <input type="hidden" name="intent" value="cancel" />
-            <Button
-              size="2"
-              color="red"
-              variant="soft"
-              type="submit"
-              className="cursor-pointer"
-            >
+            <Button variant="danger" type="submit">
               Cancel race
             </Button>
           </Form>
@@ -592,26 +588,14 @@ function TeamRow({
                 <fetcher.Form method="post">
                   <input type="hidden" name="intent" value="complete" />
                   <input type="hidden" name="team" value={standing.name} />
-                  <Button
-                    size="2"
-                    variant="soft"
-                    type="submit"
-                    disabled={busy}
-                    className="cursor-pointer"
-                  >
+                  <Button type="submit" disabled={busy}>
                     Complete task
                   </Button>
                 </fetcher.Form>
                 <fetcher.Form method="post">
                   <input type="hidden" name="intent" value="reroll" />
                   <input type="hidden" name="team" value={standing.name} />
-                  <Button
-                    size="2"
-                    variant="soft"
-                    type="submit"
-                    disabled={busy}
-                    className="cursor-pointer"
-                  >
+                  <Button type="submit" disabled={busy}>
                     Reroll
                   </Button>
                 </fetcher.Form>
@@ -627,24 +611,16 @@ function TeamRow({
                     placeholder="tile"
                     className="h-8 w-20 px-2 py-0 text-sm"
                   />
-                  <Button
-                    size="2"
-                    variant="soft"
-                    type="submit"
-                    disabled={busy}
-                    className="cursor-pointer"
-                  >
+                  <Button type="submit" disabled={busy}>
                     Move
                   </Button>
                 </fetcher.Form>
               </>
             )}
             <Button
-              size="2"
-              variant={editing ? 'solid' : 'soft'}
+              variant={editing ? 'primary' : 'default'}
               type="button"
               disabled={busy}
-              className="cursor-pointer"
               onClick={() => setEditing(current => !current)}
             >
               {editing ? 'Close' : 'Edit'}
@@ -660,14 +636,7 @@ function TeamRow({
             >
               <input type="hidden" name="intent" value="removeteam" />
               <input type="hidden" name="team" value={standing.name} />
-              <Button
-                size="2"
-                color="red"
-                variant="soft"
-                type="submit"
-                disabled={busy}
-                className="cursor-pointer"
-              >
+              <Button variant="danger" type="submit" disabled={busy}>
                 Remove
               </Button>
             </fetcher.Form>
@@ -717,10 +686,10 @@ function TeamRow({
                 />
               </div>
               <Button
-                size="2"
+                variant="primary"
                 type="submit"
                 disabled={busy}
-                className="w-fit cursor-pointer"
+                className="w-fit"
               >
                 Save team
               </Button>
@@ -767,10 +736,10 @@ function AddTeamForm({ members }: { members: IPickerMember[] }) {
           <ActionErrors errors={actionData.errors} />
         )}
         <Button
-          size="2"
+          variant="primary"
           type="submit"
           disabled={submitting}
-          className="w-fit cursor-pointer"
+          className="w-fit"
         >
           Add team
         </Button>

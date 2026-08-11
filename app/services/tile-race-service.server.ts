@@ -21,6 +21,8 @@ export interface ITileRaceTile {
   /** TASK tiles */
   name?: string;
   description?: string;
+  /** TASK tiles: admin-picked OSRS wiki artwork */
+  imageUrl?: string;
   /** GO_BACK / GO_FORWARD tiles */
   amount?: number;
 }

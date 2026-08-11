@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Box, Button, Flex, Select, Text } from '@radix-ui/themes';
+import { Box, Flex, Select, Text } from '@radix-ui/themes';
+import { Button } from '~/components/button';
 import {
   BOARD_COLUMNS,
   BoardTileInputType,
@@ -8,6 +9,9 @@ import {
 } from '~/utils/tile-race-board';
 import { Input } from '~/components/input';
 import { Label } from '~/components/label';
+import { getTileImageUrl } from '~/utils/tile-race-images';
+import { TileArt } from '~/components/TileArt';
+import { TileImagePicker } from '~/components/TileImagePicker';
 
 /**
  * Click-to-build board editor that renders exactly like the public race page:
@@ -119,40 +123,25 @@ export function TileRaceBoardBuilder({
             </Text>
             <Flex gap="2" wrap="wrap">
               <Button
-                size="2"
-                variant="soft"
                 type="button"
-                className="cursor-pointer"
                 onClick={() => moveTile(selected, -1)}
                 disabled={selected === 0}
               >
                 ◀ Move
               </Button>
               <Button
-                size="2"
-                variant="soft"
                 type="button"
-                className="cursor-pointer"
                 onClick={() => moveTile(selected, 1)}
                 disabled={selected === tiles.length - 1}
               >
                 Move ▶
               </Button>
-              <Button
-                size="2"
-                variant="soft"
-                type="button"
-                className="cursor-pointer"
-                onClick={() => insertAfter(selected)}
-              >
+              <Button type="button" onClick={() => insertAfter(selected)}>
                 Insert after
               </Button>
               <Button
-                size="2"
-                color="red"
-                variant="soft"
+                variant="danger"
                 type="button"
-                className="cursor-pointer"
                 onClick={() => removeTile(selected)}
               >
                 Delete
@@ -208,6 +197,16 @@ export function TileRaceBoardBuilder({
                     placeholder="Any team member reaches 50 KC gained during the event"
                     className="text-base"
                     maxLength={300}
+                  />
+                </div>
+                <div className="flex min-w-64 flex-col gap-1.5">
+                  <Label className="text-base" htmlFor="tileImage">
+                    Image (optional)
+                  </Label>
+                  <TileImagePicker
+                    id="tileImage"
+                    value={selectedTile.imageUrl}
+                    onChange={imageUrl => updateTile(selected, { imageUrl })}
                   />
                 </div>
               </>
@@ -280,6 +279,10 @@ function BuilderCellView({
   }
 
   const { tile, index } = cell;
+  const imageUrl =
+    tile.type === 'TASK'
+      ? (tile.imageUrl ?? getTileImageUrl(tile.name, tile.description))
+      : null;
   const content =
     tile.type === 'GO_BACK' ? (
       <span className="text-[11px] leading-tight text-red-400">
@@ -310,10 +313,12 @@ function BuilderCellView({
           : 'border-gray-800 bg-gray-900 hover:border-gray-500'
       }`}
     >
+      {imageUrl && <TileArt src={imageUrl} />}
       <span className="absolute left-1 top-0.5 text-[10px] text-gray-600">
         {index + 1}
       </span>
-      {content}
+      {/* relative lifts the label above the absolutely-positioned artwork */}
+      <span className="relative">{content}</span>
     </button>
   );
 }

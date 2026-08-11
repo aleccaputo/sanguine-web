@@ -41,7 +41,15 @@ const innerTiles: ITileRaceTile[] = [
   task('Any barrows unique'),
   task('3000 pts in one Wintertodt game'),
   goBack(3),
-  task('Reach 6hr log', 'Screenshot the 6 hour login timer'),
+  {
+    // Exercises the admin-picked artwork path: no keyword rule matches this
+    // name, so the art can only come from the explicit imageUrl.
+    index: 0,
+    type: 'TASK',
+    name: 'Reach 6hr log',
+    description: 'Screenshot the 6 hour login timer',
+    imageUrl: 'https://oldschool.runescape.wiki/images/Watch_detail.png',
+  },
   task('Colosseum unique'),
   task('50KC @ Scurrius'),
   task('Any Moons unique'),

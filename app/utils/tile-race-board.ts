@@ -7,6 +7,8 @@ export interface IBoardTileInput {
   type: BoardTileInputType;
   name?: string;
   description?: string;
+  /** TASK tiles: admin-picked OSRS wiki artwork (wiki-hosted URLs only) */
+  imageUrl?: string;
   amount?: number;
 }
 
