@@ -52,6 +52,8 @@ export interface ITileRace {
     /** Task/movement tiles between START and FINISH */
     tileCount: number;
     tiles: ITileRaceTile[];
+    /** Admin payload only: optimistic-concurrency token for board edits */
+    version?: number;
   };
   standings: ITileRaceStanding[];
 }

@@ -171,7 +171,11 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
         await updateBoard(
-          { diceSides: Number(formData.get('diceSides') ?? 6), tiles },
+          {
+            diceSides: Number(formData.get('diceSides') ?? 6),
+            tiles,
+            version: Number(formData.get('version') ?? 0),
+          },
           user.discordId,
         );
         return json({ intent, errors: null });
@@ -791,6 +795,8 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
       <Form method="post" className="mt-2 flex flex-col gap-3">
         <input type="hidden" name="intent" value="updateboard" />
         <input type="hidden" name="board" value={JSON.stringify(tiles)} />
+        {/* Version the tiles were loaded at — a concurrent save 409s instead of clobbering */}
+        <input type="hidden" name="version" value={board.version ?? 0} />
         <div className={fieldClass}>
           <Label className="text-lg" htmlFor="editDiceSides">
             Dice sides

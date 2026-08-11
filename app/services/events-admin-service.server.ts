@@ -105,19 +105,28 @@ export const createRace = (input: ICreateRaceInput, actingUserId: string) =>
     },
   });
 
-/** Replace the board of the open race — the API rejects this once the race is ACTIVE. */
+/**
+ * Replace the board of the open race. The API rejects this once the race is
+ * ACTIVE, and 409s if the board's version moved since it was loaded (someone
+ * else saved first) rather than silently overwriting their edits.
+ */
 export const updateBoard = (
-  input: { diceSides: number; tiles: IBoardTileInput[] },
+  input: { diceSides: number; tiles: IBoardTileInput[]; version: number },
   actingUserId: string,
 ) =>
-  adminRequest<{ tileCount: number; taskCount: number; diceSides: number }>(
-    '/races/current/board',
-    {
-      method: 'PUT',
-      actingUserId,
-      body: { board: { diceSides: input.diceSides, tiles: input.tiles } },
+  adminRequest<{
+    tileCount: number;
+    taskCount: number;
+    diceSides: number;
+    version: number;
+  }>('/races/current/board', {
+    method: 'PUT',
+    actingUserId,
+    body: {
+      board: { diceSides: input.diceSides, tiles: input.tiles },
+      version: input.version,
     },
-  );
+  });
 
 /** Re-plan the race length: endDate = startDate + days (draft or running). */
 export const rescheduleRace = (days: number, actingUserId: string) =>
