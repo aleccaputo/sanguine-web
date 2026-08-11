@@ -15,12 +15,21 @@ export class EventsApiError extends Error {
   }
 }
 
-// MOCK_EMPTY_RACE=1 makes the portal show the create-race form instead of the dashboard
+// MOCK_EMPTY_RACE=1 makes the portal show the create-race form instead of the
+// dashboard; MOCK_DRAFT_RACE=1 serves the fixture as a DRAFT so the pre-start
+// surfaces (board editor, start button) render.
 export const getAdminRace = async (): Promise<IAdminTileRace | null> =>
   process.env.MOCK_EMPTY_RACE === '1'
     ? null
     : {
         ...mockAdminRaceBase,
+        event: {
+          ...mockAdminRaceBase.event,
+          status:
+            process.env.MOCK_DRAFT_RACE === '1'
+              ? 'DRAFT'
+              : mockAdminRaceBase.event.status,
+        },
         channels: {
           approvalsChannelId: '200000000000000002',
           announcementsChannelId: '200000000000000001',
@@ -30,6 +39,13 @@ export const getAdminRace = async (): Promise<IAdminTileRace | null> =>
 const ok = async <T>(value: T): Promise<T> => value;
 
 export const createRace = () => ok({ eventId: 'mock-race' });
+export const updateBoard = () => ok({ tileCount: 25, taskCount: 21, diceSides: 6 });
+export const rescheduleRace = () =>
+  ok({
+    name: 'Sanguine Tile Race',
+    startDate: mockAdminRaceBase.event.startDate,
+    endDate: mockAdminRaceBase.event.endDate,
+  });
 export const startRace = () => ok({ started: true, teamCount: 4 });
 export const endRace = async (): Promise<IAdminTileRace> => {
   const race = await getAdminRace();

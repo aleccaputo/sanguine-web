@@ -40,12 +40,12 @@ export default function AdminIndex() {
         >
           <Flex align="baseline" justify="between" gap="3" wrap="wrap">
             <Text
-              size="4"
+              size="5"
               className="text-sanguine-bright group-hover:text-white"
             >
               Tile race
             </Text>
-            <Text size="3" className="text-gray-400">
+            <Text size="4" className="text-gray-400">
               {!apiUp ? (
                 <span className="text-red-400">events API unreachable</span>
               ) : race === null ? (
@@ -66,21 +66,21 @@ export default function AdminIndex() {
               )}
             </Text>
           </Flex>
-          <Text as="p" size="3" className="mt-1 text-gray-500">
+          <Text as="p" size="4" className="mt-1 text-gray-500">
             Dice-roll board race. Build the board, manage teams, start the race,
             and fix moves when something goes sideways.
           </Text>
         </Link>
         <div className="border-b border-gray-800 py-3">
           <Flex align="baseline" justify="between" gap="3" wrap="wrap">
-            <Text size="4" className="text-gray-500">
+            <Text size="5" className="text-gray-500">
               Bingo
             </Text>
-            <Text size="3" className="text-gray-600">
+            <Text size="4" className="text-gray-600">
               planned
             </Text>
           </Flex>
-          <Text as="p" size="3" className="mt-1 text-gray-600">
+          <Text as="p" size="4" className="mt-1 text-gray-600">
             Team task boards. Not built yet.
           </Text>
         </div>

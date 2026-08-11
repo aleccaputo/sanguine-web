@@ -24,7 +24,7 @@ export default function AdminLayout() {
         className="mb-6 border-b-2 border-b-sanguine-red pb-2"
       >
         <Link to="/admin">
-          <Text size="3" className="text-osrs-orange hover:text-white">
+          <Text size="4" className="text-osrs-orange hover:text-white">
             Events admin
           </Text>
         </Link>
@@ -38,7 +38,7 @@ export default function AdminLayout() {
               className="rounded-sm"
             />
           )}
-          <Text size="3" className="text-sanguine-bright">
+          <Text size="4" className="text-sanguine-bright">
             {user.username}
           </Text>
           <Form method="post" action="/logout">

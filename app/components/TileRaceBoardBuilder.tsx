@@ -118,7 +118,7 @@ export function TileRaceBoardBuilder({
           className="border-t-2 border-t-sanguine-red bg-sanguine-red/[0.04] p-3"
         >
           <Flex align="center" justify="between" gap="3" wrap="wrap">
-            <Text size="3" className="text-osrs-orange">
+            <Text size="4" className="text-osrs-orange">
               Tile {selected + 1} of {tiles.length}
             </Text>
             <Flex gap="2" wrap="wrap">
@@ -150,7 +150,7 @@ export function TileRaceBoardBuilder({
           </Flex>
           <Flex mt="3" gap="4" wrap="wrap" align="end">
             <div className="flex flex-col gap-1.5">
-              <Label className="text-base" htmlFor="tileType">
+              <Label className="text-lg" htmlFor="tileType">
                 Type
               </Label>
               <Select.Root
@@ -170,7 +170,7 @@ export function TileRaceBoardBuilder({
             {selectedTile.type === 'TASK' ? (
               <>
                 <div className="flex min-w-64 flex-1 flex-col gap-1.5">
-                  <Label className="text-base" htmlFor="tileName">
+                  <Label className="text-lg" htmlFor="tileName">
                     Task name
                   </Label>
                   <Input
@@ -180,12 +180,12 @@ export function TileRaceBoardBuilder({
                       updateTile(selected, { name: e.target.value })
                     }
                     placeholder="50KC @ Vorkath"
-                    className="text-base"
+                    className="text-lg"
                     maxLength={100}
                   />
                 </div>
                 <div className="flex min-w-64 flex-1 flex-col gap-1.5">
-                  <Label className="text-base" htmlFor="tileDescription">
+                  <Label className="text-lg" htmlFor="tileDescription">
                     Description (optional)
                   </Label>
                   <Input
@@ -195,12 +195,12 @@ export function TileRaceBoardBuilder({
                       updateTile(selected, { description: e.target.value })
                     }
                     placeholder="Any team member reaches 50 KC gained during the event"
-                    className="text-base"
+                    className="text-lg"
                     maxLength={300}
                   />
                 </div>
                 <div className="flex min-w-64 flex-col gap-1.5">
-                  <Label className="text-base" htmlFor="tileImage">
+                  <Label className="text-lg" htmlFor="tileImage">
                     Image (optional)
                   </Label>
                   <TileImagePicker
@@ -212,7 +212,7 @@ export function TileRaceBoardBuilder({
               </>
             ) : (
               <div className="flex flex-col gap-1.5">
-                <Label className="text-base" htmlFor="tileAmount">
+                <Label className="text-lg" htmlFor="tileAmount">
                   Tiles
                 </Label>
                 <Input
@@ -226,7 +226,7 @@ export function TileRaceBoardBuilder({
                       amount: Math.max(1, Number(e.target.value) || 1),
                     })
                   }
-                  className="w-24 text-base"
+                  className="w-24 text-lg"
                 />
               </div>
             )}
@@ -258,7 +258,7 @@ function BuilderCellView({
   if (cell.kind === 'start' || cell.kind === 'finish') {
     return (
       <div className={`${CELL_BASE} border-gray-800 bg-gray-900`}>
-        <span className="text-xs text-green-400">
+        <span className="text-sm text-green-400">
           {cell.kind === 'start' ? 'START' : 'FINISH'}
         </span>
       </div>
@@ -273,7 +273,7 @@ function BuilderCellView({
         className={`${CELL_BASE} cursor-pointer border-dashed border-gray-600 bg-gray-900 hover:border-gray-400`}
         title="Add a tile"
       >
-        <span className="text-lg text-gray-400">＋</span>
+        <span className="text-xl text-gray-400">＋</span>
       </button>
     );
   }
@@ -285,19 +285,19 @@ function BuilderCellView({
       : null;
   const content =
     tile.type === 'GO_BACK' ? (
-      <span className="text-[11px] leading-tight text-red-400">
+      <span className="text-[13px] leading-tight text-red-400">
         Go back {tile.amount}
       </span>
     ) : tile.type === 'GO_FORWARD' ? (
-      <span className="text-[11px] leading-tight text-sky-400">
+      <span className="text-[13px] leading-tight text-sky-400">
         Forward {tile.amount}
       </span>
     ) : tile.name?.trim() ? (
-      <span className="text-[11px] leading-tight text-gray-200">
+      <span className="text-[13px] leading-tight text-gray-200">
         {tile.name}
       </span>
     ) : (
-      <span className="text-[11px] leading-tight text-gray-500">
+      <span className="text-[13px] leading-tight text-gray-500">
         (unnamed task)
       </span>
     );
@@ -314,7 +314,7 @@ function BuilderCellView({
       }`}
     >
       {imageUrl && <TileArt src={imageUrl} />}
-      <span className="absolute left-1 top-0.5 text-[10px] text-gray-600">
+      <span className="absolute left-1 top-0.5 text-[11px] text-gray-600">
         {index + 1}
       </span>
       {/* relative lifts the label above the absolutely-positioned artwork */}

@@ -13,6 +13,7 @@ import {
   useNavigation,
 } from '@remix-run/react';
 import { useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import { Box, Flex, Select, Table, Text } from '@radix-ui/themes';
 import { Button } from '~/components/button';
 import { requireStaff } from '~/services/auth.server';
@@ -28,8 +29,10 @@ import {
   moveTeam,
   removeTeam,
   rerollTeam,
+  rescheduleRace,
   startRace,
   endRace,
+  updateBoard,
   updateTeam,
 } from '~/services/events-admin-service.server';
 import {
@@ -37,7 +40,7 @@ import {
   IGuildTextChannel,
 } from '~/services/discord-admin-service.server';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
-import { IBoardTileInput } from '~/utils/tile-race-board';
+import { IBoardTileInput, toBoardTileInputs } from '~/utils/tile-race-board';
 import { Input } from '~/components/input';
 import { Label } from '~/components/label';
 import { IPickerMember, MemberPicker } from '~/components/MemberPicker';
@@ -151,6 +154,28 @@ export async function action({ request }: ActionFunctionArgs) {
         );
         return json({ intent, errors: null });
       }
+      case 'updateboard': {
+        let tiles: IBoardTileInput[];
+        try {
+          tiles = JSON.parse(String(formData.get('board') ?? ''));
+        } catch {
+          return json(
+            { intent, errors: ['The board payload was malformed.'] },
+            { status: 400 },
+          );
+        }
+        if (!Array.isArray(tiles) || !tiles.length) {
+          return json(
+            { intent, errors: ['Add at least one tile to the board.'] },
+            { status: 400 },
+          );
+        }
+        await updateBoard(
+          { diceSides: Number(formData.get('diceSides') ?? 6), tiles },
+          user.discordId,
+        );
+        return json({ intent, errors: null });
+      }
       case 'addteam': {
         const ids = parseMemberIds(String(formData.get('members') ?? ''));
         if (!ids?.length) {
@@ -191,6 +216,17 @@ export async function action({ request }: ActionFunctionArgs) {
       case 'removeteam':
         await removeTeam(teamName, user.discordId);
         return json({ intent, errors: null });
+      case 'reschedule': {
+        const days = Number(formData.get('days'));
+        if (!Number.isInteger(days) || days < 1 || days > 90) {
+          return json(
+            { intent, errors: ['Days must be a whole number from 1 to 90.'] },
+            { status: 400 },
+          );
+        }
+        await rescheduleRace(days, user.discordId);
+        return json({ intent, errors: null });
+      }
       case 'start':
         await startRace(user.discordId);
         return json({ intent, errors: null });
@@ -242,7 +278,7 @@ export default function AdminTileRace() {
     return (
       <Box>
         <SectionHeading title="Tile race" />
-        <Text as="p" size="3" className="mt-4 text-red-400">
+        <Text as="p" size="4" className="mt-4 text-red-400">
           {apiError}. Is the events API running?
         </Text>
       </Box>
@@ -277,7 +313,7 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
         <input type="hidden" name="intent" value="create" />
         <input type="hidden" name="board" value={JSON.stringify(tiles)} />
         <div className={fieldClass}>
-          <Label className="text-base" htmlFor="name">
+          <Label className="text-lg" htmlFor="name">
             Event name
           </Label>
           <Input
@@ -285,13 +321,13 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
             name="name"
             required
             maxLength={100}
-            className="text-base"
+            className="text-lg"
             placeholder="Sanguine Tile Race III"
           />
         </div>
         <Flex gap="4" wrap="wrap">
           <div className={fieldClass}>
-            <Label className="text-base" htmlFor="diceSides">
+            <Label className="text-lg" htmlFor="diceSides">
               Dice sides
             </Label>
             <Input
@@ -301,11 +337,11 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
               min={2}
               max={20}
               defaultValue={6}
-              className="w-24 text-base"
+              className="w-24 text-lg"
             />
           </div>
           <div className={fieldClass}>
-            <Label className="text-base" htmlFor="days">
+            <Label className="text-lg" htmlFor="days">
               Planned days
             </Label>
             <Input
@@ -315,19 +351,19 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
               min={1}
               max={90}
               defaultValue={14}
-              className="w-24 text-base"
+              className="w-24 text-lg"
             />
           </div>
         </Flex>
         <Flex gap="4" wrap="wrap">
           <div className={fieldClass}>
-            <Label className="text-base" htmlFor="approvalsChannelId">
+            <Label className="text-lg" htmlFor="approvalsChannelId">
               Approvals channel (private)
             </Label>
             <ChannelSelect name="approvalsChannelId" channels={channels} />
           </div>
           <div className={fieldClass}>
-            <Label className="text-base" htmlFor="announcementsChannelId">
+            <Label className="text-lg" htmlFor="announcementsChannelId">
               Announcements channel (public)
             </Label>
             <ChannelSelect name="announcementsChannelId" channels={channels} />
@@ -337,7 +373,7 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
           <Label>
             Board — {tiles.length} tile{tiles.length === 1 ? '' : 's'}
           </Label>
-          <Text size="1" className="text-gray-500">
+          <Text size="2" className="text-gray-500">
             Click ＋ to add a tile, click a tile to edit it. START and FINISH
             are added automatically.
           </Text>
@@ -357,7 +393,7 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
             {submitting ? 'Creating…' : 'Create race (draft)'}
           </Button>
           {!boardValid && tiles.length > 0 && (
-            <Text size="2" className="text-gray-500">
+            <Text size="3" className="text-gray-500">
               Every task tile needs a name.
             </Text>
           )}
@@ -412,7 +448,7 @@ function RaceDashboard({
           title={event.name}
           summary={`${event.status} · ${finished} of ${standings.length} finished`}
         />
-        <Text as="p" size="3" className="mt-2 text-gray-400">
+        <Text as="p" size="4" className="mt-2 text-gray-400">
           <span className="text-gray-100">{board.tileCount}</span> tiles, d
           <span className="text-gray-100">{board.diceSides}</span>. Approvals in{' '}
           <span className="text-gray-100">
@@ -429,8 +465,38 @@ function RaceDashboard({
           >
             /tile-race
           </Link>
+          . Runs through{' '}
+          <span className="text-gray-100">
+            {dayjs(event.endDate).format('MMM D, YYYY')}
+          </span>
           .
         </Text>
+        <Form method="post" className="mt-3 flex items-end gap-2">
+          <input type="hidden" name="intent" value="reschedule" />
+          <div className={fieldClass}>
+            <Label className="text-lg" htmlFor="rescheduleDays">
+              Planned days (from start)
+            </Label>
+            <Input
+              id="rescheduleDays"
+              name="days"
+              type="number"
+              min={1}
+              max={90}
+              defaultValue={dayjs(event.endDate).diff(
+                dayjs(event.startDate),
+                'day',
+              )}
+              className="w-24 text-lg"
+            />
+          </div>
+          <Button type="submit" disabled={submitting}>
+            Update length
+          </Button>
+        </Form>
+        {actionData?.intent === 'reschedule' && actionData.errors && (
+          <ActionErrors errors={actionData.errors} />
+        )}
         {event.status === 'DRAFT' && (
           <Form method="post" className="mt-3">
             <input type="hidden" name="intent" value="start" />
@@ -443,6 +509,8 @@ function RaceDashboard({
           <ActionErrors errors={actionData.errors} />
         )}
       </Box>
+
+      {event.status === 'DRAFT' && <EditBoardSection board={board} />}
 
       <Box>
         <SectionHeading title="Teams" summary={`${standings.length} teams`} />
@@ -556,28 +624,28 @@ function TeamRow({
     <>
       <Table.Row className={zebraStripeClass}>
         <Table.Cell>
-          <Text size="3" className="text-gray-100">
+          <Text size="4" className="text-gray-100">
             {standing.name}
           </Text>
           {rosterNames && (
-            <Text as="p" size="2" className="text-sanguine-bright">
+            <Text as="p" size="3" className="text-sanguine-bright">
               {rosterNames}
             </Text>
           )}
         </Table.Cell>
         <Table.Cell justify="end">
           <span className="whitespace-nowrap">
-            <Text size="3" className="text-gray-100">
+            <Text size="4" className="text-gray-100">
               {standing.tileIndex}
             </Text>
-            <Text size="2" className="text-gray-600">
+            <Text size="3" className="text-gray-600">
               {' '}
               / {standing.finishIndex}
             </Text>
           </span>
         </Table.Cell>
         <Table.Cell className="hidden md:table-cell">
-          <Text size="3" className="text-gray-400">
+          <Text size="4" className="text-gray-400">
             {standing.isFinished ? '🏁 Finished' : standing.currentTask ?? '—'}
           </Text>
         </Table.Cell>
@@ -609,7 +677,7 @@ function TeamRow({
                     max={standing.finishIndex}
                     required
                     placeholder="tile"
-                    className="h-8 w-20 px-2 py-0 text-sm"
+                    className="h-9 w-24 px-2 py-0 text-base"
                   />
                   <Button type="submit" disabled={busy}>
                     Move
@@ -657,7 +725,7 @@ function TeamRow({
               <input type="hidden" name="team" value={standing.name} />
               <div className={fieldClass}>
                 <Label
-                  className="text-base"
+                  className="text-lg"
                   htmlFor={`editName-${standing.teamId}`}
                 >
                   Team name
@@ -668,12 +736,12 @@ function TeamRow({
                   required
                   maxLength={50}
                   defaultValue={standing.name}
-                  className="text-base"
+                  className="text-lg"
                 />
               </div>
               <div className={fieldClass}>
                 <Label
-                  className="text-base"
+                  className="text-lg"
                   htmlFor={`editMembers-${standing.teamId}`}
                 >
                   Members
@@ -701,6 +769,66 @@ function TeamRow({
   );
 }
 
+// Draft races only — once the race starts, moves reference tiles by index and
+// the API refuses board edits.
+function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
+  const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const submitting = navigation.state === 'submitting';
+  const [tiles, setTiles] = useState<IBoardTileInput[]>(() =>
+    toBoardTileInputs(board.tiles),
+  );
+  const boardValid =
+    tiles.length > 0 &&
+    tiles.every(tile => tile.type !== 'TASK' || (tile.name ?? '').trim());
+
+  return (
+    <Box>
+      <SectionHeading
+        title="Board"
+        summary="editable until the race starts"
+      />
+      <Form method="post" className="mt-2 flex flex-col gap-3">
+        <input type="hidden" name="intent" value="updateboard" />
+        <input type="hidden" name="board" value={JSON.stringify(tiles)} />
+        <div className={fieldClass}>
+          <Label className="text-lg" htmlFor="editDiceSides">
+            Dice sides
+          </Label>
+          <Input
+            id="editDiceSides"
+            name="diceSides"
+            type="number"
+            min={2}
+            max={20}
+            defaultValue={board.diceSides}
+            className="w-24 text-lg"
+          />
+        </div>
+        <TileRaceBoardBuilder tiles={tiles} onChange={setTiles} />
+        {actionData?.intent === 'updateboard' && actionData.errors && (
+          <ActionErrors errors={actionData.errors} />
+        )}
+        <Flex align="center" gap="3">
+          <Button
+            variant="primary"
+            type="submit"
+            disabled={submitting || !boardValid}
+            className="w-fit"
+          >
+            {submitting ? 'Saving…' : 'Save board'}
+          </Button>
+          {!boardValid && tiles.length > 0 && (
+            <Text size="3" className="text-gray-500">
+              Every task tile needs a name.
+            </Text>
+          )}
+        </Flex>
+      </Form>
+    </Box>
+  );
+}
+
 function AddTeamForm({ members }: { members: IPickerMember[] }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -714,7 +842,7 @@ function AddTeamForm({ members }: { members: IPickerMember[] }) {
       <Form method="post" className="mt-2 flex flex-col gap-3">
         <input type="hidden" name="intent" value="addteam" />
         <div className={fieldClass}>
-          <Label className="text-base" htmlFor="teamName">
+          <Label className="text-lg" htmlFor="teamName">
             Team name
           </Label>
           <Input
@@ -722,12 +850,12 @@ function AddTeamForm({ members }: { members: IPickerMember[] }) {
             name="name"
             required
             maxLength={50}
-            className="text-base"
+            className="text-lg"
             placeholder="Blood Reapers"
           />
         </div>
         <div className={fieldClass}>
-          <Label className="text-base" htmlFor="members">
+          <Label className="text-lg" htmlFor="members">
             Members
           </Label>
           <MemberPicker id="members" members={members} inputName="members" />
@@ -752,7 +880,7 @@ function ActionErrors({ errors }: { errors: string[] }) {
   return (
     <Box mt="2">
       {errors.map(error => (
-        <Text key={error} as="p" size="3" className="text-red-400">
+        <Text key={error} as="p" size="4" className="text-red-400">
           {error}
         </Text>
       ))}

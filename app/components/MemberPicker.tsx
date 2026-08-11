@@ -111,7 +111,7 @@ export function MemberPicker({
                 className="flex items-center gap-1.5 rounded-sm border border-gray-700 bg-gray-900 py-0.5 pl-2 pr-1"
               >
                 <Text
-                  size="3"
+                  size="4"
                   className={
                     nickname ? 'text-sanguine-bright' : 'text-gray-400'
                   }
@@ -142,7 +142,7 @@ export function MemberPicker({
           onKeyDown={onKeyDown}
           onBlur={() => setQuery('')}
           placeholder={placeholder}
-          className="text-base"
+          className="text-lg"
           autoComplete="off"
           role="combobox"
           aria-expanded={suggestions.length > 0}
@@ -167,7 +167,7 @@ export function MemberPicker({
                     pick(suggestion.discordId);
                   }}
                   onMouseEnter={() => setActiveIndex(index)}
-                  className={`w-full cursor-pointer px-2 py-1.5 text-left text-base ${
+                  className={`w-full cursor-pointer px-2 py-1.5 text-left text-lg ${
                     index === activeIndex
                       ? 'bg-sanguine-red/10 text-white'
                       : 'text-sanguine-bright'
