@@ -1,9 +1,9 @@
 import type { IAdminTileRace } from '../services/events-admin-service.server';
-import { getCurrentTileRace } from './tile-race-service.server';
+import { mockAdminRaceBase } from './tile-race-service.server';
 
-// MOCK_MODE stand-in for the sanguine-events admin API: serves the public mock
-// race with admin channel config bolted on; mutations succeed without doing
-// anything (the fixture is static).
+// MOCK_MODE stand-in for the sanguine-events admin API: serves the shared fixture with
+// admin channel config bolted on; mutations succeed without doing anything (the fixture
+// is static).
 
 export class EventsApiError extends Error {
   constructor(
@@ -15,18 +15,13 @@ export class EventsApiError extends Error {
   }
 }
 
-export const getAdminRace = async (): Promise<IAdminTileRace | null> => {
-  const race = await getCurrentTileRace();
-  return race
-    ? {
-        ...race,
-        channels: {
-          approvalsChannelId: '200000000000000002',
-          announcementsChannelId: '200000000000000001',
-        },
-      }
-    : null;
-};
+export const getAdminRace = async (): Promise<IAdminTileRace | null> => ({
+  ...mockAdminRaceBase,
+  channels: {
+    approvalsChannelId: '200000000000000002',
+    announcementsChannelId: '200000000000000001',
+  },
+});
 
 const ok = async <T>(value: T): Promise<T> => value;
 

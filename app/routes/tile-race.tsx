@@ -6,6 +6,7 @@ import {
   ITileRaceStanding,
   ITileRaceTile,
 } from '~/services/tile-race-service.server';
+import { getAdminRace } from '~/services/events-admin-service.server';
 import { getNicknameMapByDiscordIds } from '~/services/sanguine-service.server';
 import { PageHeader } from '~/components/PageHeader';
 import { SectionHeading } from '~/components/SectionHeading';
@@ -24,14 +25,44 @@ export const meta: MetaFunction = () => {
 };
 
 export async function loader() {
-  const race = await getCurrentTileRace().catch(() => null);
+  // Prefer the authed admin read — it carries member rosters, which the public API
+  // payload deliberately omits. Rosters resolve to nicknames server-side; raw Discord
+  // ids never reach the browser. Falls back to the public payload (roster-less) so the
+  // page still renders if the service token is missing.
+  const adminRace = await getAdminRace().catch(() => null);
+  const race = adminRace ?? (await getCurrentTileRace().catch(() => null));
   if (!race) {
-    return json({ race: null, nameByDiscordId: {} as Record<string, string> });
+    return json({ race: null });
   }
-  const nameByDiscordId = await getNicknameMapByDiscordIds(
-    race.standings.flatMap(standing => standing.memberDiscordIds),
+  const memberIdsByTeamId = new Map(
+    (adminRace?.standings ?? []).map(s => [s.teamId, s.memberDiscordIds]),
   );
-  return json({ race, nameByDiscordId });
+  const nameByDiscordId = await getNicknameMapByDiscordIds(
+    [...memberIdsByTeamId.values()].flat(),
+  );
+  return json({
+    race: {
+      event: race.event,
+      board: race.board,
+      standings: race.standings.map(standing => ({
+        teamId: standing.teamId,
+        name: standing.name,
+        place: standing.place,
+        tileIndex: standing.tileIndex,
+        finishIndex: standing.finishIndex,
+        currentTask: standing.currentTask,
+        moveStatus: standing.moveStatus,
+        isFinished: standing.isFinished,
+        memberNames: (memberIdsByTeamId.get(standing.teamId) ?? []).map(
+          id => nameByDiscordId[id] ?? 'Unknown',
+        ),
+      })),
+    },
+  });
+}
+
+interface IStandingView extends ITileRaceStanding {
+  memberNames: string[];
 }
 
 // Stable per-team marker colors (never sanguine red — that means members/links).
@@ -81,7 +112,7 @@ function TileCell({
   colorByTeamId,
 }: {
   tile: ITileRaceTile | null;
-  teamsHere: ITileRaceStanding[];
+  teamsHere: IStandingView[];
   colorByTeamId: Record<string, string>;
 }) {
   if (!tile) {
@@ -163,7 +194,7 @@ const ordinal = (n: number): string => {
 };
 
 export default function TileRace() {
-  const { race, nameByDiscordId } = useLoaderData<typeof loader>();
+  const { race } = useLoaderData<typeof loader>();
 
   if (!race) {
     return (
@@ -187,7 +218,7 @@ export default function TileRace() {
       ]),
   );
   const rows = buildBoardRows(board.tiles);
-  const teamsByTile = standings.reduce<Record<number, ITileRaceStanding[]>>(
+  const teamsByTile = standings.reduce<Record<number, IStandingView[]>>(
     (acc, standing) => ({
       ...acc,
       [standing.tileIndex]: [...(acc[standing.tileIndex] ?? []), standing],
@@ -196,6 +227,7 @@ export default function TileRace() {
   );
   const leader = standings.find(s => !s.isFinished);
   const winner = standings.find(s => s.place === 1);
+  const hasRosters = standings.some(s => s.memberNames.length > 0);
 
   return (
     <Container size="4" mt="3" pb="6" px="4">
@@ -231,9 +263,11 @@ export default function TileRace() {
                   <Table.ColumnHeaderCell className="text-osrs-orange">
                     Team
                   </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
-                    Members
-                  </Table.ColumnHeaderCell>
+                  {hasRosters && (
+                    <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
+                      Members
+                    </Table.ColumnHeaderCell>
+                  )}
                   <Table.ColumnHeaderCell justify="end" className="text-osrs-orange">
                     Tile
                   </Table.ColumnHeaderCell>
@@ -261,13 +295,13 @@ export default function TileRace() {
                         </Text>
                       </Flex>
                     </Table.Cell>
-                    <Table.Cell className="hidden sm:table-cell">
-                      <Text size="2" className="text-sanguine-bright">
-                        {standing.memberDiscordIds
-                          .map(id => nameByDiscordId[id] ?? 'Unknown')
-                          .join(', ')}
-                      </Text>
-                    </Table.Cell>
+                    {hasRosters && (
+                      <Table.Cell className="hidden sm:table-cell">
+                        <Text size="2" className="text-sanguine-bright">
+                          {standing.memberNames.join(', ')}
+                        </Text>
+                      </Table.Cell>
+                    )}
                     <Table.Cell justify="end">
                       <span className="whitespace-nowrap">
                         <Text size="2" className="text-gray-100">

@@ -16,14 +16,24 @@ export interface ISessionUser {
   isStaff: boolean;
 }
 
+// Same posture as the events API's token check: refuse to boot in production rather
+// than sign staff sessions with a publicly known constant anyone could forge.
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret && process.env.NODE_ENV === 'production') {
+  throw new Error('SESSION_SECRET must be set in production');
+}
+
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: '__sanguine_admin',
     httpOnly: true,
     path: '/',
     sameSite: 'lax',
-    secrets: [process.env.SESSION_SECRET ?? 'dev-only-insecure-secret'],
+    secrets: [sessionSecret ?? 'dev-only-insecure-secret'],
     secure: process.env.NODE_ENV === 'production',
+    // Also bounds how long a revoked staff role keeps portal access, since isStaff is
+    // stamped into the session at login.
+    maxAge: 60 * 60 * 24 * 7,
   },
 });
 

@@ -1,7 +1,9 @@
 import type {
   ITileRace,
+  ITileRaceStanding,
   ITileRaceTile,
 } from '../services/tile-race-service.server';
+import type { IAdminTileRace } from '../services/events-admin-service.server';
 import { MOCK_USERS } from '~/mocks/fixtures.server';
 
 const roster = (from: number, to: number) =>
@@ -68,7 +70,11 @@ const tiles: ITileRaceTile[] = [
 
 const finishIndex = tiles.length - 1;
 
-const race: ITileRace = {
+// The fixture is admin-shaped (rosters included); the public mock strips the ids,
+// mirroring what the real API's public serializer does.
+type MockAdminRace = Omit<IAdminTileRace, 'channels'>;
+
+export const mockAdminRaceBase: MockAdminRace = {
   event: {
     id: 'mock-tile-race',
     name: 'Sanguine Tile Race',
@@ -129,4 +135,20 @@ const race: ITileRace = {
   ],
 };
 
-export const getCurrentTileRace = async (): Promise<ITileRace | null> => race;
+const toPublicStanding = (
+  standing: MockAdminRace['standings'][number],
+): ITileRaceStanding => ({
+  teamId: standing.teamId,
+  name: standing.name,
+  place: standing.place,
+  tileIndex: standing.tileIndex,
+  finishIndex: standing.finishIndex,
+  currentTask: standing.currentTask,
+  moveStatus: standing.moveStatus,
+  isFinished: standing.isFinished,
+});
+
+export const getCurrentTileRace = async (): Promise<ITileRace | null> => ({
+  ...mockAdminRaceBase,
+  standings: mockAdminRaceBase.standings.map(toPublicStanding),
+});

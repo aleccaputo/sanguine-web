@@ -46,9 +46,9 @@ import { zebraStripeClass } from '~/utils/styles';
 export const meta: MetaFunction = () => [{ title: 'Events Admin — Tile Race' }];
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await requireStaff(request);
+  await requireStaff(request);
   try {
-    const race = await getAdminRace(user.discordId);
+    const race = await getAdminRace();
     // Channels feed the create form's pickers and name the dashboard's channel refs;
     // a Discord API hiccup degrades to raw ids rather than failing the page.
     const channels = await getGuildTextChannels().catch(
@@ -166,6 +166,17 @@ export async function action({ request }: ActionFunctionArgs) {
   } catch (e) {
     if (e instanceof EventsApiError) {
       return json({ intent, errors: [e.message] }, { status: e.status });
+    }
+    // fetch-level failures (timeout, connection refused) never produce a Response —
+    // surface them inline like API errors instead of crashing to the error boundary
+    if (
+      e instanceof TypeError ||
+      (e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError'))
+    ) {
+      return json(
+        { intent, errors: ['The events API is unreachable — try again shortly.'] },
+        { status: 503 },
+      );
     }
     throw e;
   }

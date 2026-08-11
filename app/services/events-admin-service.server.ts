@@ -1,5 +1,8 @@
 import * as process from 'process';
-import type { ITileRace } from '~/services/tile-race-service.server';
+import type {
+  ITileRace,
+  ITileRaceStanding,
+} from '~/services/tile-race-service.server';
 
 /**
  * Client for the sanguine-events admin API (bearer service token). Every call
@@ -10,7 +13,13 @@ const EVENTS_API_URL = process.env.EVENTS_API_URL ?? 'http://localhost:8080';
 const EVENTS_API_TOKEN = process.env.EVENTS_API_TOKEN ?? '';
 const EVENTS_API_TIMEOUT_MS = 10_000;
 
-export interface IAdminTileRace extends ITileRace {
+/** Admin standings carry member rosters; the public payload deliberately doesn't. */
+export interface IAdminStanding extends ITileRaceStanding {
+  memberDiscordIds: string[];
+}
+
+export interface IAdminTileRace extends Omit<ITileRace, 'standings'> {
+  standings: IAdminStanding[];
   channels: {
     approvalsChannelId: string;
     announcementsChannelId: string;
@@ -46,14 +55,13 @@ export class EventsApiError extends Error {
 
 const adminRequest = async <T>(
   path: string,
-  actingUserId: string,
-  init?: { method?: string; body?: unknown },
+  init?: { method?: string; body?: unknown; actingUserId?: string },
 ): Promise<T> => {
   const response = await fetch(`${EVENTS_API_URL}/admin${path}`, {
     method: init?.method ?? 'POST',
     headers: {
       Authorization: `Bearer ${EVENTS_API_TOKEN}`,
-      'x-acting-user': actingUserId,
+      ...(init?.actingUserId ? { 'x-acting-user': init.actingUserId } : {}),
       ...(init?.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
@@ -71,12 +79,14 @@ const adminRequest = async <T>(
   return (await response.json()) as T;
 };
 
-/** The open race with admin-only config, or null when there isn't one. */
-export const getAdminRace = async (
-  actingUserId: string,
-): Promise<IAdminTileRace | null> => {
+/**
+ * The open race with rosters and admin-only config, or null when there isn't one.
+ * Reads need no acting user — the public /tile-race page also uses this server-side
+ * to resolve rosters, since the public API payload deliberately omits Discord ids.
+ */
+export const getAdminRace = async (): Promise<IAdminTileRace | null> => {
   try {
-    return await adminRequest<IAdminTileRace>('/races/current', actingUserId, {
+    return await adminRequest<IAdminTileRace>('/races/current', {
       method: 'GET',
     });
   } catch (e) {
@@ -88,7 +98,8 @@ export const getAdminRace = async (
 };
 
 export const createRace = (input: ICreateRaceInput, actingUserId: string) =>
-  adminRequest<{ eventId: string }>('/races', actingUserId, {
+  adminRequest<{ eventId: string }>('/races', {
+    actingUserId,
     body: {
       name: input.name,
       board: { diceSides: input.diceSides, tiles: input.tiles },
@@ -101,48 +112,47 @@ export const createRace = (input: ICreateRaceInput, actingUserId: string) =>
 export const startRace = (actingUserId: string) =>
   adminRequest<{ started: boolean; teamCount: number }>(
     '/races/current/start',
-    actingUserId,
+    { actingUserId },
   );
 
 export const endRace = (actingUserId: string) =>
-  adminRequest<IAdminTileRace>('/races/current/end', actingUserId);
+  adminRequest<IAdminTileRace>('/races/current/end', { actingUserId });
 
 export const cancelRace = (actingUserId: string) =>
-  adminRequest<{ cancelled: boolean }>('/races/current/cancel', actingUserId);
+  adminRequest<{ cancelled: boolean }>('/races/current/cancel', {
+    actingUserId,
+  });
 
 export const addTeam = (
   name: string,
   memberDiscordIds: string[],
   actingUserId: string,
 ) =>
-  adminRequest<{ teamId: string; name: string }>(
-    '/races/current/teams',
+  adminRequest<{ teamId: string; name: string }>('/races/current/teams', {
     actingUserId,
-    { body: { name, memberDiscordIds } },
-  );
+    body: { name, memberDiscordIds },
+  });
 
 export const removeTeam = (name: string, actingUserId: string) =>
   adminRequest<{ removed: boolean }>(
     `/races/current/teams/${encodeURIComponent(name)}`,
-    actingUserId,
-    { method: 'DELETE' },
+    { method: 'DELETE', actingUserId },
   );
 
 export const moveTeam = (name: string, tile: number, actingUserId: string) =>
   adminRequest<{ tileIndex: number }>(
     `/races/current/teams/${encodeURIComponent(name)}/move`,
-    actingUserId,
-    { body: { tile } },
+    { actingUserId, body: { tile } },
   );
 
 export const completeTeamTask = (name: string, actingUserId: string) =>
   adminRequest<{ tileIndex: number }>(
     `/races/current/teams/${encodeURIComponent(name)}/complete`,
-    actingUserId,
+    { actingUserId },
   );
 
 export const rerollTeam = (name: string, actingUserId: string) =>
   adminRequest<{ tileIndex: number }>(
     `/races/current/teams/${encodeURIComponent(name)}/reroll`,
-    actingUserId,
+    { actingUserId },
   );

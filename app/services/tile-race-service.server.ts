@@ -28,7 +28,6 @@ export interface ITileRaceTile {
 export interface ITileRaceStanding {
   teamId: string;
   name: string;
-  memberDiscordIds: string[];
   /** 1-based finishing place, null while still racing */
   place: number | null;
   tileIndex: number;
