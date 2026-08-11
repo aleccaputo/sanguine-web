@@ -12,6 +12,7 @@ import {
   useLoaderData,
   useNavigation,
 } from '@remix-run/react';
+import { useState } from 'react';
 import { Box, Button, Flex, Select, Table, Text } from '@radix-ui/themes';
 import { requireStaff } from '~/services/auth.server';
 import {
@@ -33,12 +34,10 @@ import {
   IGuildTextChannel,
 } from '~/services/discord-admin-service.server';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
-import {
-  BOARD_SCRIPT_PLACEHOLDER,
-  parseBoardScript,
-} from '~/utils/tile-race-board';
+import { IBoardTileInput } from '~/utils/tile-race-board';
 import { Input } from '~/components/input';
 import { Label } from '~/components/label';
+import { TileRaceBoardBuilder } from '~/components/TileRaceBoardBuilder';
 import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
 import { zebraStripeClass } from '~/utils/styles';
@@ -104,15 +103,20 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     switch (intent) {
       case 'create': {
-        const board = parseBoardScript(String(formData.get('board') ?? ''));
-        if (!board.ok) {
-          return json({ intent, errors: board.errors }, { status: 400 });
+        let tiles: IBoardTileInput[];
+        try {
+          tiles = JSON.parse(String(formData.get('board') ?? ''));
+        } catch {
+          return json({ intent, errors: ['The board payload was malformed.'] }, { status: 400 });
+        }
+        if (!Array.isArray(tiles) || !tiles.length) {
+          return json({ intent, errors: ['Add at least one tile to the board.'] }, { status: 400 });
         }
         await createRace(
           {
             name: String(formData.get('name') ?? '').trim(),
             diceSides: Number(formData.get('diceSides') ?? 6),
-            tiles: board.tiles,
+            tiles,
             approvalsChannelId: String(formData.get('approvalsChannelId') ?? ''),
             announcementsChannelId: String(
               formData.get('announcementsChannelId') ?? '',
@@ -209,12 +213,17 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submitting = navigation.state === 'submitting';
+  const [tiles, setTiles] = useState<IBoardTileInput[]>([]);
+  const boardValid =
+    tiles.length > 0 &&
+    tiles.every(tile => tile.type !== 'TASK' || (tile.name ?? '').trim());
 
   return (
-    <Box className="max-w-2xl">
+    <Box>
       <SectionHeading title="New tile race" summary="no race is currently open" />
       <Form method="post" className="mt-4 flex flex-col gap-4">
         <input type="hidden" name="intent" value="create" />
+        <input type="hidden" name="board" value={JSON.stringify(tiles)} />
         <div className={fieldClass}>
           <Label htmlFor="name">Event name</Label>
           <Input id="name" name="name" required maxLength={100} placeholder="Sanguine Tile Race III" />
@@ -256,28 +265,33 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
           </div>
         </Flex>
         <div className={fieldClass}>
-          <Label htmlFor="board">Board</Label>
-          <textarea
-            id="board"
-            name="board"
-            required
-            rows={14}
-            placeholder={BOARD_SCRIPT_PLACEHOLDER}
-            className="rounded-sm border border-gray-700 bg-gray-900 p-2 text-sm text-gray-100 placeholder:text-gray-600"
-          />
+          <Label>
+            Board — {tiles.length} tile{tiles.length === 1 ? '' : 's'}
+          </Label>
           <Text size="1" className="text-gray-500">
-            One tile per line: <span className="text-gray-300">TASK name | description</span>,{' '}
-            <span className="text-sky-400">FWD n</span>,{' '}
-            <span className="text-red-400">BACK n</span>. Lines starting with # are
-            ignored. START and FINISH are added automatically.
+            Click ＋ to add a tile, click a tile to edit it. START and FINISH are
+            added automatically.
           </Text>
+          <TileRaceBoardBuilder tiles={tiles} onChange={setTiles} />
         </div>
         {actionData?.intent === 'create' && actionData.errors && (
           <ActionErrors errors={actionData.errors} />
         )}
-        <Button size="3" type="submit" disabled={submitting} className="w-fit cursor-pointer">
-          {submitting ? 'Creating…' : 'Create race (draft)'}
-        </Button>
+        <Flex align="center" gap="3">
+          <Button
+            size="3"
+            type="submit"
+            disabled={submitting || !boardValid}
+            className="w-fit cursor-pointer"
+          >
+            {submitting ? 'Creating…' : 'Create race (draft)'}
+          </Button>
+          {!boardValid && tiles.length > 0 && (
+            <Text size="2" className="text-gray-500">
+              Every task tile needs a name.
+            </Text>
+          )}
+        </Flex>
       </Form>
     </Box>
   );

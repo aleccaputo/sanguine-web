@@ -15,13 +15,17 @@ export class EventsApiError extends Error {
   }
 }
 
-export const getAdminRace = async (): Promise<IAdminTileRace | null> => ({
-  ...mockAdminRaceBase,
-  channels: {
-    approvalsChannelId: '200000000000000002',
-    announcementsChannelId: '200000000000000001',
-  },
-});
+// MOCK_EMPTY_RACE=1 makes the portal show the create-race form instead of the dashboard
+export const getAdminRace = async (): Promise<IAdminTileRace | null> =>
+  process.env.MOCK_EMPTY_RACE === '1'
+    ? null
+    : {
+        ...mockAdminRaceBase,
+        channels: {
+          approvalsChannelId: '200000000000000002',
+          announcementsChannelId: '200000000000000001',
+        },
+      };
 
 const ok = async <T>(value: T): Promise<T> => value;
 

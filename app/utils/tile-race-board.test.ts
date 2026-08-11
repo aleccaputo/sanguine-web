@@ -1,62 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { parseBoardScript } from './tile-race-board';
+import { chunkIntoSnakeRows } from './tile-race-board';
 
-describe('parseBoardScript', () => {
-  it('parses tasks, movement tiles, comments, and blank lines', () => {
-    const result = parseBoardScript(
-      [
-        '# the opening stretch',
-        'TASK 60KC @ Barrows | Any member reaches 60 KC',
-        '',
-        'BACK 3',
-        'fwd 2',
-        'TASK Any GWD unique',
-      ].join('\n'),
-    );
-
-    expect(result).toEqual({
-      ok: true,
-      tiles: [
-        {
-          type: 'TASK',
-          name: '60KC @ Barrows',
-          description: 'Any member reaches 60 KC',
-        },
-        { type: 'GO_BACK', amount: 3 },
-        { type: 'GO_FORWARD', amount: 2 },
-        { type: 'TASK', name: 'Any GWD unique' },
-      ],
-    });
+describe('chunkIntoSnakeRows', () => {
+  it('reverses every other row so the path snakes', () => {
+    const rows = chunkIntoSnakeRows([1, 2, 3, 4, 5, 6], 3);
+    expect(rows).toEqual([
+      [1, 2, 3],
+      [6, 5, 4],
+    ]);
   });
 
-  it('keeps pipes after the first as part of the description', () => {
-    const result = parseBoardScript('TASK Solo CoX | no deaths | under 30 min');
-    expect(result).toEqual({
-      ok: true,
-      tiles: [
-        {
-          type: 'TASK',
-          name: 'Solo CoX',
-          description: 'no deaths | under 30 min',
-        },
-      ],
-    });
+  it('pads short rows on the side the path travels from', () => {
+    // row 1 travels right-to-left, so its tiles hug the right edge
+    expect(chunkIntoSnakeRows([1, 2, 3, 4], 3)).toEqual([
+      [1, 2, 3],
+      [null, null, 4],
+    ]);
+    // row 2 travels left-to-right again, so padding falls at the end
+    expect(chunkIntoSnakeRows([1, 2, 3, 4, 5, 6, 7], 3)).toEqual([
+      [1, 2, 3],
+      [6, 5, 4],
+      [7, null, null],
+    ]);
   });
 
-  it('reports every bad line with its line number', () => {
-    const result = parseBoardScript(
-      ['TASK ok', 'TELEPORT 3', 'BACK zero'].join('\n'),
-    );
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.errors).toHaveLength(2);
-      expect(result.errors[0]).toContain('Line 2');
-      expect(result.errors[1]).toContain('Line 3');
-    }
-  });
-
-  it('rejects an empty board', () => {
-    const result = parseBoardScript('# nothing but comments\n\n');
-    expect(result.ok).toBe(false);
+  it('handles an empty list', () => {
+    expect(chunkIntoSnakeRows([], 3)).toEqual([]);
   });
 });

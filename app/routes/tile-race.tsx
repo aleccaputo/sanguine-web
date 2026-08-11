@@ -12,6 +12,7 @@ import { PageHeader } from '~/components/PageHeader';
 import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
 import { zebraStripeClass } from '~/utils/styles';
+import { chunkIntoSnakeRows } from '~/utils/tile-race-board';
 
 export const meta: MetaFunction = () => {
   return [
@@ -74,20 +75,6 @@ const TEAM_COLORS = [
   '#D66BA0',
   '#C98A45',
 ];
-
-const COLUMNS = 10;
-
-// Chutes-and-ladders reading order: rows alternate direction, and short rows keep
-// their tiles on the side the path travels from (nulls fill the dead cells).
-const buildBoardRows = (tiles: ITileRaceTile[]): (ITileRaceTile | null)[][] =>
-  Array.from({ length: Math.ceil(tiles.length / COLUMNS) }, (_, row) => {
-    const slice = tiles.slice(row * COLUMNS, (row + 1) * COLUMNS);
-    const padded: (ITileRaceTile | null)[] = [
-      ...slice,
-      ...Array<null>(COLUMNS - slice.length).fill(null),
-    ];
-    return row % 2 === 1 ? [...padded].reverse() : padded;
-  });
 
 const tileTitle = (tile: ITileRaceTile): string => {
   switch (tile.type) {
@@ -217,7 +204,7 @@ export default function TileRace() {
         TEAM_COLORS[i % TEAM_COLORS.length],
       ]),
   );
-  const rows = buildBoardRows(board.tiles);
+  const rows = chunkIntoSnakeRows(board.tiles);
   const teamsByTile = standings.reduce<Record<number, IStandingView[]>>(
     (acc, standing) => ({
       ...acc,

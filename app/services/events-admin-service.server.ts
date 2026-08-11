@@ -3,6 +3,7 @@ import type {
   ITileRace,
   ITileRaceStanding,
 } from '~/services/tile-race-service.server';
+import type { IBoardTileInput } from '~/utils/tile-race-board';
 
 /**
  * Client for the sanguine-events admin API (bearer service token). Every call
@@ -24,13 +25,6 @@ export interface IAdminTileRace extends Omit<ITileRace, 'standings'> {
     approvalsChannelId: string;
     announcementsChannelId: string;
   };
-}
-
-export interface IBoardTileInput {
-  type: 'TASK' | 'GO_BACK' | 'GO_FORWARD';
-  name?: string;
-  description?: string;
-  amount?: number;
 }
 
 export interface ICreateRaceInput {
