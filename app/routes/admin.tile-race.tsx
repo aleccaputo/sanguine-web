@@ -13,6 +13,7 @@ import {
   useNavigation,
 } from '@remix-run/react';
 import { useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import { Box, Flex, Select, Table, Text } from '@radix-ui/themes';
 import { Button } from '~/components/button';
 import { requireStaff } from '~/services/auth.server';
@@ -28,6 +29,7 @@ import {
   moveTeam,
   removeTeam,
   rerollTeam,
+  rescheduleRace,
   startRace,
   endRace,
   updateBoard,
@@ -214,6 +216,17 @@ export async function action({ request }: ActionFunctionArgs) {
       case 'removeteam':
         await removeTeam(teamName, user.discordId);
         return json({ intent, errors: null });
+      case 'reschedule': {
+        const days = Number(formData.get('days'));
+        if (!Number.isInteger(days) || days < 1 || days > 90) {
+          return json(
+            { intent, errors: ['Days must be a whole number from 1 to 90.'] },
+            { status: 400 },
+          );
+        }
+        await rescheduleRace(days, user.discordId);
+        return json({ intent, errors: null });
+      }
       case 'start':
         await startRace(user.discordId);
         return json({ intent, errors: null });
@@ -452,8 +465,38 @@ function RaceDashboard({
           >
             /tile-race
           </Link>
+          . Runs through{' '}
+          <span className="text-gray-100">
+            {dayjs(event.endDate).format('MMM D, YYYY')}
+          </span>
           .
         </Text>
+        <Form method="post" className="mt-3 flex items-end gap-2">
+          <input type="hidden" name="intent" value="reschedule" />
+          <div className={fieldClass}>
+            <Label className="text-base" htmlFor="rescheduleDays">
+              Planned days (from start)
+            </Label>
+            <Input
+              id="rescheduleDays"
+              name="days"
+              type="number"
+              min={1}
+              max={90}
+              defaultValue={dayjs(event.endDate).diff(
+                dayjs(event.startDate),
+                'day',
+              )}
+              className="w-24 text-base"
+            />
+          </div>
+          <Button type="submit" disabled={submitting}>
+            Update length
+          </Button>
+        </Form>
+        {actionData?.intent === 'reschedule' && actionData.errors && (
+          <ActionErrors errors={actionData.errors} />
+        )}
         {event.status === 'DRAFT' && (
           <Form method="post" className="mt-3">
             <input type="hidden" name="intent" value="start" />

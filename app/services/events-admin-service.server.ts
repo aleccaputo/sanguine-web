@@ -119,6 +119,13 @@ export const updateBoard = (
     },
   );
 
+/** Re-plan the race length: endDate = startDate + days (draft or running). */
+export const rescheduleRace = (days: number, actingUserId: string) =>
+  adminRequest<{ name: string; startDate: string; endDate: string }>(
+    '/races/current',
+    { method: 'PATCH', actingUserId, body: { days } },
+  );
+
 export const startRace = (actingUserId: string) =>
   adminRequest<{ started: boolean; teamCount: number }>(
     '/races/current/start',

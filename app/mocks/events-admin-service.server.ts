@@ -40,6 +40,12 @@ const ok = async <T>(value: T): Promise<T> => value;
 
 export const createRace = () => ok({ eventId: 'mock-race' });
 export const updateBoard = () => ok({ tileCount: 25, taskCount: 21, diceSides: 6 });
+export const rescheduleRace = () =>
+  ok({
+    name: 'Sanguine Tile Race',
+    startDate: mockAdminRaceBase.event.startDate,
+    endDate: mockAdminRaceBase.event.endDate,
+  });
 export const startRace = () => ok({ started: true, teamCount: 4 });
 export const endRace = async (): Promise<IAdminTileRace> => {
   const race = await getAdminRace();
