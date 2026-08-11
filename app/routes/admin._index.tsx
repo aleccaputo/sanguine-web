@@ -49,16 +49,16 @@ export default function AdminIndex() {
               {!apiUp ? (
                 <span className="text-red-400">events API unreachable</span>
               ) : race === null ? (
-                'no open race — create one'
+                'no open race, create one'
               ) : race.status === 'DRAFT' ? (
                 <>
-                  {race.name} — draft,{' '}
+                  {race.name}: draft,{' '}
                   <span className="text-gray-100">{race.teamCount}</span> team
                   {race.teamCount === 1 ? '' : 's'}
                 </>
               ) : (
                 <>
-                  {race.name} — active,{' '}
+                  {race.name}: active,{' '}
                   <span className="text-gray-100">{race.finishedCount}</span> of{' '}
                   <span className="text-gray-100">{race.teamCount}</span>{' '}
                   finished

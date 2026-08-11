@@ -9,7 +9,7 @@ import {
 } from '~/services/auth.server';
 import { PageHeader } from '~/components/PageHeader';
 
-export const meta: MetaFunction = () => [{ title: 'Events Admin — Login' }];
+export const meta: MetaFunction = () => [{ title: 'Login | Events Admin' }];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getSessionUser(request);

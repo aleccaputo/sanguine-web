@@ -43,7 +43,7 @@ const innerTiles: ITileRaceTile[] = [
     index: 0,
     type: 'TASK',
     name: '10 KBD heads',
-    description: 'One head per approved submission — ten clear the tile',
+    description: 'One head per approved submission, ten clear the tile',
     quantity: 10,
   },
   task('3000 pts in one Wintertodt game'),

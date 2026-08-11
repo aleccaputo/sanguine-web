@@ -22,7 +22,7 @@ export const meta: MetaFunction = () => {
     {
       name: 'description',
       content:
-        'The Sanguine tile race: teams roll their way across a board of PvM tasks — live positions, current tasks, and the board itself.',
+        'The Sanguine tile race: teams roll their way across a board of PvM tasks, with live positions, current tasks, and the board itself.',
     },
   ];
 };
@@ -90,7 +90,7 @@ const tileTitle = (tile: ITileRaceTile): string => {
       return `Go forward ${tile.amount} tiles`;
     case 'TASK': {
       const base = tile.description
-        ? `${tile.name} — ${tile.description}`
+        ? `${tile.name}: ${tile.description}`
         : (tile.name ?? 'Task');
       return (tile.quantity ?? 1) > 1
         ? `${base} (${tile.quantity} approved drops to complete)`
@@ -250,7 +250,7 @@ export default function TileRace() {
           `${leader.name} leads from tile ${leader.tileIndex}.`}
         {event.status === 'COMPLETED' &&
           winner &&
-          `The race is over — ${winner.name} took 1st.`}
+          `The race is over. ${winner.name} took 1st.`}
       </PageHeader>
 
       <Flex direction="column" gap="6">
