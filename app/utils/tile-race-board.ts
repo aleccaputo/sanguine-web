@@ -14,6 +14,41 @@ export interface IBoardTileInput {
 
 export const BOARD_COLUMNS = 10;
 
+/** A board tile as any race payload serves it (superset of the input shape). */
+export interface IBoardTileLike {
+  type: 'START' | 'FINISH' | BoardTileInputType;
+  name?: string;
+  description?: string;
+  imageUrl?: string;
+  amount?: number;
+}
+
+/**
+ * A served board back into builder inputs: START/FINISH drop (the API re-adds
+ * them), and each tile keeps only the fields its type submits.
+ */
+export const toBoardTileInputs = (
+  tiles: IBoardTileLike[],
+): IBoardTileInput[] =>
+  tiles.flatMap((tile): IBoardTileInput[] => {
+    switch (tile.type) {
+      case 'TASK':
+        return [
+          {
+            type: tile.type,
+            name: tile.name ?? '',
+            description: tile.description,
+            imageUrl: tile.imageUrl,
+          },
+        ];
+      case 'GO_BACK':
+      case 'GO_FORWARD':
+        return [{ type: tile.type, amount: tile.amount ?? 1 }];
+      default:
+        return [];
+    }
+  });
+
 /**
  * Chutes-and-ladders reading order: rows alternate direction, and short rows keep
  * their items on the side the path travels from (nulls fill the dead cells).

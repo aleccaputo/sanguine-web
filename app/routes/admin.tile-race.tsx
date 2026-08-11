@@ -30,6 +30,7 @@ import {
   rerollTeam,
   startRace,
   endRace,
+  updateBoard,
   updateTeam,
 } from '~/services/events-admin-service.server';
 import {
@@ -37,7 +38,7 @@ import {
   IGuildTextChannel,
 } from '~/services/discord-admin-service.server';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
-import { IBoardTileInput } from '~/utils/tile-race-board';
+import { IBoardTileInput, toBoardTileInputs } from '~/utils/tile-race-board';
 import { Input } from '~/components/input';
 import { Label } from '~/components/label';
 import { IPickerMember, MemberPicker } from '~/components/MemberPicker';
@@ -147,6 +148,28 @@ export async function action({ request }: ActionFunctionArgs) {
             ),
             days: Number(formData.get('days') ?? 14),
           },
+          user.discordId,
+        );
+        return json({ intent, errors: null });
+      }
+      case 'updateboard': {
+        let tiles: IBoardTileInput[];
+        try {
+          tiles = JSON.parse(String(formData.get('board') ?? ''));
+        } catch {
+          return json(
+            { intent, errors: ['The board payload was malformed.'] },
+            { status: 400 },
+          );
+        }
+        if (!Array.isArray(tiles) || !tiles.length) {
+          return json(
+            { intent, errors: ['Add at least one tile to the board.'] },
+            { status: 400 },
+          );
+        }
+        await updateBoard(
+          { diceSides: Number(formData.get('diceSides') ?? 6), tiles },
           user.discordId,
         );
         return json({ intent, errors: null });
@@ -444,6 +467,8 @@ function RaceDashboard({
         )}
       </Box>
 
+      {event.status === 'DRAFT' && <EditBoardSection board={board} />}
+
       <Box>
         <SectionHeading title="Teams" summary={`${standings.length} teams`} />
         {standings.length === 0 ? (
@@ -698,6 +723,66 @@ function TeamRow({
         </Table.Row>
       )}
     </>
+  );
+}
+
+// Draft races only — once the race starts, moves reference tiles by index and
+// the API refuses board edits.
+function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
+  const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
+  const submitting = navigation.state === 'submitting';
+  const [tiles, setTiles] = useState<IBoardTileInput[]>(() =>
+    toBoardTileInputs(board.tiles),
+  );
+  const boardValid =
+    tiles.length > 0 &&
+    tiles.every(tile => tile.type !== 'TASK' || (tile.name ?? '').trim());
+
+  return (
+    <Box>
+      <SectionHeading
+        title="Board"
+        summary="editable until the race starts"
+      />
+      <Form method="post" className="mt-2 flex flex-col gap-3">
+        <input type="hidden" name="intent" value="updateboard" />
+        <input type="hidden" name="board" value={JSON.stringify(tiles)} />
+        <div className={fieldClass}>
+          <Label className="text-base" htmlFor="editDiceSides">
+            Dice sides
+          </Label>
+          <Input
+            id="editDiceSides"
+            name="diceSides"
+            type="number"
+            min={2}
+            max={20}
+            defaultValue={board.diceSides}
+            className="w-24 text-base"
+          />
+        </div>
+        <TileRaceBoardBuilder tiles={tiles} onChange={setTiles} />
+        {actionData?.intent === 'updateboard' && actionData.errors && (
+          <ActionErrors errors={actionData.errors} />
+        )}
+        <Flex align="center" gap="3">
+          <Button
+            variant="primary"
+            type="submit"
+            disabled={submitting || !boardValid}
+            className="w-fit"
+          >
+            {submitting ? 'Saving…' : 'Save board'}
+          </Button>
+          {!boardValid && tiles.length > 0 && (
+            <Text size="2" className="text-gray-500">
+              Every task tile needs a name.
+            </Text>
+          )}
+        </Flex>
+      </Form>
+    </Box>
   );
 }
 

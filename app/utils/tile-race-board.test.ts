@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { chunkIntoSnakeRows } from './tile-race-board';
+import {
+  chunkIntoSnakeRows,
+  IBoardTileLike,
+  toBoardTileInputs,
+} from './tile-race-board';
 
 describe('chunkIntoSnakeRows', () => {
   it('reverses every other row so the path snakes', () => {
@@ -26,5 +30,31 @@ describe('chunkIntoSnakeRows', () => {
 
   it('handles an empty list', () => {
     expect(chunkIntoSnakeRows([], 3)).toEqual([]);
+  });
+});
+
+describe('toBoardTileInputs', () => {
+  it('drops START/FINISH and keeps only each type’s own fields', () => {
+    const served: IBoardTileLike[] = [
+      { type: 'START', name: 'Start' },
+      {
+        type: 'TASK',
+        name: 'Punch Vorkath to death',
+        imageUrl: 'https://oldschool.runescape.wiki/images/Vorkath.png',
+        // a stray amount from a hand-edited payload must not survive on a TASK
+        amount: 3,
+      },
+      { type: 'GO_BACK', amount: 2, name: 'ignored' },
+      { type: 'FINISH', name: 'Finish' },
+    ];
+    expect(toBoardTileInputs(served)).toEqual([
+      {
+        type: 'TASK',
+        name: 'Punch Vorkath to death',
+        description: undefined,
+        imageUrl: 'https://oldschool.runescape.wiki/images/Vorkath.png',
+      },
+      { type: 'GO_BACK', amount: 2 },
+    ]);
   });
 });
