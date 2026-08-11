@@ -3,6 +3,7 @@ import { createCookieSessionStorage, redirect } from '@remix-run/node';
 import { Authenticator } from 'remix-auth';
 import { DiscordStrategy } from 'remix-auth-discord';
 import { getGuildMember } from '~/services/discord-admin-service.server';
+import { audit } from '~/services/audit.server';
 
 /**
  * Discord OAuth for the admin portal. Anyone can complete the login; authorization
@@ -59,10 +60,12 @@ authenticator.use(
         const member = await getGuildMember(profile.id);
         const isStaff =
           !!member && member.roles.some(role => staffRoleIds.includes(role));
+        const username = member?.nick ?? profile.displayName;
         const avatarHash = profile.__json.avatar;
+        audit('auth.login', { discordId: profile.id, username, isStaff });
         return {
           discordId: profile.id,
-          username: member?.nick ?? profile.displayName,
+          username,
           avatarUrl: avatarHash
             ? `https://cdn.discordapp.com/avatars/${profile.id}/${avatarHash}.png?size=64`
             : null,
@@ -71,7 +74,10 @@ authenticator.use(
       } catch (error) {
         // remix-auth turns this into a failureRedirect; make sure the real cause
         // also lands in the server log.
-        console.error('Discord auth verify failed:', error);
+        audit('auth.login_failed', {
+          discordId: profile.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
         throw error;
       }
     },
@@ -85,6 +91,13 @@ export const requireStaff = async (request: Request): Promise<ISessionUser> => {
     throw redirect('/login');
   }
   if (!user.isStaff) {
+    // A signed-in non-staff account reaching for /admin is worth an audit line;
+    // anonymous visitors bounced to /login are just traffic.
+    audit('auth.denied', {
+      discordId: user.discordId,
+      username: user.username,
+      path: new URL(request.url).pathname,
+    });
     throw redirect('/login?denied=1');
   }
   return user;
