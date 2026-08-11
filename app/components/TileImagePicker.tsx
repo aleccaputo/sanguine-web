@@ -80,7 +80,7 @@ export function TileImagePicker({ value, onChange, id }: ITileImagePickerProps) 
           className="h-6 w-6 object-contain"
           loading="lazy"
         />
-        <Text size="3" className="text-gray-100">
+        <Text size="4" className="text-gray-100">
           {labelFromUrl(value)}
         </Text>
         <button
@@ -107,7 +107,7 @@ export function TileImagePicker({ value, onChange, id }: ITileImagePickerProps) 
         onKeyDown={onKeyDown}
         onBlur={() => setQuery('')}
         placeholder="Search a boss or item…"
-        className="text-base"
+        className="text-lg"
         autoComplete="off"
         role="combobox"
         aria-expanded={suggestions.length > 0}
@@ -132,7 +132,7 @@ export function TileImagePicker({ value, onChange, id }: ITileImagePickerProps) 
                   pick(suggestion);
                 }}
                 onMouseEnter={() => setActiveIndex(index)}
-                className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-base ${
+                className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-lg ${
                   index === activeIndex
                     ? 'bg-sanguine-red/10 text-white'
                     : 'text-gray-200'
