@@ -8,6 +8,7 @@ type SubLink = { to: string; label: string };
 const eventsLinks: SubLink[] = [
   { to: '/events', label: 'Events' },
   { to: '/bingo', label: 'Bingo' },
+  { to: '/tile-race', label: 'Tile Race' },
   { to: '/monthly-winners', label: 'Monthly Winners' },
 ];
 

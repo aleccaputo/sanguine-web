@@ -35,6 +35,10 @@ const mockAliases = mockMode
         '~/data/monthly-winners',
         './app/mocks/monthly-winners/index.ts',
       ),
+      mockAlias(
+        '~/services/tile-race-service.server',
+        './app/mocks/tile-race-service.server.ts',
+      ),
     ]
   : [];
 
