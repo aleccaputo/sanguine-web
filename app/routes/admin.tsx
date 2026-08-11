@@ -1,5 +1,5 @@
 import { json, LoaderFunctionArgs } from '@remix-run/node';
-import { Form, Outlet, useLoaderData } from '@remix-run/react';
+import { Form, Link, Outlet, useLoaderData } from '@remix-run/react';
 import { Box, Button, Container, Flex, Text } from '@radix-ui/themes';
 import { requireStaff } from '~/services/auth.server';
 
@@ -22,9 +22,11 @@ export default function AdminLayout() {
         gap="3"
         className="mb-6 border-b-2 border-b-sanguine-red pb-2"
       >
-        <Text size="3" className="text-osrs-orange">
-          Events admin
-        </Text>
+        <Link to="/admin">
+          <Text size="3" className="text-osrs-orange hover:text-white">
+            Events admin
+          </Text>
+        </Link>
         <Flex align="center" gap="3">
           {user.avatarUrl && (
             <img
