@@ -100,7 +100,7 @@ export function TileRaceBoardBuilder({ tiles, onChange }: ITileRaceBoardBuilderP
       </Box>
 
       {selectedTile && selected !== null && (
-        <Box mt="3" className="rounded-sm border border-gray-700 p-3">
+        <Box mt="3" className="border-t-2 border-t-sanguine-red bg-sanguine-red/[0.04] p-3">
           <Flex align="center" justify="between" gap="3" wrap="wrap">
             <Text size="2" className="text-osrs-orange">
               Tile {selected + 1} of {tiles.length}
