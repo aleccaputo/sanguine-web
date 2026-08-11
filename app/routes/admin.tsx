@@ -1,6 +1,7 @@
 import { json, LoaderFunctionArgs } from '@remix-run/node';
 import { Form, Link, Outlet, useLoaderData } from '@remix-run/react';
-import { Box, Button, Container, Flex, Text } from '@radix-ui/themes';
+import { Box, Container, Flex, Text } from '@radix-ui/themes';
+import { Button } from '~/components/button';
 import { requireStaff } from '~/services/auth.server';
 
 // Layout gate for every /admin screen: requireStaff redirects anonymous visitors
@@ -41,14 +42,7 @@ export default function AdminLayout() {
             {user.username}
           </Text>
           <Form method="post" action="/logout">
-            <Button
-              size="2"
-              variant="soft"
-              type="submit"
-              className="cursor-pointer"
-            >
-              Log out
-            </Button>
+            <Button type="submit">Log out</Button>
           </Form>
         </Flex>
       </Flex>

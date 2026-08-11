@@ -1,6 +1,7 @@
 import { json, LoaderFunctionArgs, MetaFunction, redirect } from '@remix-run/node';
 import { Form, useLoaderData } from '@remix-run/react';
-import { Button, Container, Text } from '@radix-ui/themes';
+import { Container, Text } from '@radix-ui/themes';
+import { Button } from '~/components/button';
 import {
   authenticator,
   getSessionUser,
@@ -49,7 +50,7 @@ export default function Login() {
         </Text>
       )}
       <Form method="post" action="/auth/discord">
-        <Button size="3" type="submit" className="cursor-pointer">
+        <Button variant="primary" size="md" type="submit">
           Sign in with Discord
         </Button>
       </Form>
