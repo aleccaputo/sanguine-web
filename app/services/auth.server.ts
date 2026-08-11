@@ -55,18 +55,25 @@ authenticator.use(
       scope: ['identify'],
     },
     async ({ profile }): Promise<ISessionUser> => {
-      const member = await getGuildMember(profile.id);
-      const isStaff =
-        !!member && member.roles.some(role => staffRoleIds.includes(role));
-      const avatarHash = profile.__json.avatar;
-      return {
-        discordId: profile.id,
-        username: member?.nick ?? profile.displayName,
-        avatarUrl: avatarHash
-          ? `https://cdn.discordapp.com/avatars/${profile.id}/${avatarHash}.png?size=64`
-          : null,
-        isStaff,
-      };
+      try {
+        const member = await getGuildMember(profile.id);
+        const isStaff =
+          !!member && member.roles.some(role => staffRoleIds.includes(role));
+        const avatarHash = profile.__json.avatar;
+        return {
+          discordId: profile.id,
+          username: member?.nick ?? profile.displayName,
+          avatarUrl: avatarHash
+            ? `https://cdn.discordapp.com/avatars/${profile.id}/${avatarHash}.png?size=64`
+            : null,
+          isStaff,
+        };
+      } catch (error) {
+        // remix-auth turns this into a failureRedirect; make sure the real cause
+        // also lands in the server log.
+        console.error('Discord auth verify failed:', error);
+        throw error;
+      }
     },
   ),
 );

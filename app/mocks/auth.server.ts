@@ -15,6 +15,7 @@ export const requireStaff = async (): Promise<ISessionUser> => mockUser;
 export const getSessionUser = async (): Promise<ISessionUser | null> => mockUser;
 
 export const authenticator = {
+  sessionErrorKey: 'auth:error',
   authenticate: async (): Promise<never> => {
     throw redirect('/admin');
   },
@@ -22,4 +23,9 @@ export const authenticator = {
   logout: async (): Promise<never> => {
     throw redirect('/');
   },
+};
+
+export const sessionStorage = {
+  getSession: async () => ({ get: (): undefined => undefined }),
+  commitSession: async () => '',
 };
