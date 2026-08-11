@@ -38,8 +38,11 @@ export const sessionStorage = createCookieSessionStorage({
   },
 });
 
+// Any of these roles counts as event staff; unset vars are ignored.
 const staffRoleIds = [
   process.env.ADMIN_ROLE_ID,
+  process.env.MOD_ROLE_ID,
+  process.env.OWNER_ROLE_ID,
   process.env.EVENT_TEAM_ROLE_ID,
 ].filter((id): id is string => !!id);
 
