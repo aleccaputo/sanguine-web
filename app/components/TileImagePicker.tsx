@@ -47,6 +47,7 @@ export function TileImagePicker({ value, onChange, id }: ITileImagePickerProps) 
   }, [trimmed]);
 
   const suggestions = trimmed.length < 2 ? [] : (fetcher.data?.results ?? []);
+  const searching = trimmed.length >= 2 && fetcher.state !== 'idle';
 
   const pick = (option: ITileImageOption) => {
     onChange(option.imageUrl);
@@ -113,6 +114,12 @@ export function TileImagePicker({ value, onChange, id }: ITileImagePickerProps) 
         aria-expanded={suggestions.length > 0}
         aria-autocomplete="list"
       />
+      {searching && (
+        <span
+          aria-hidden
+          className="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin rounded-full border-2 border-gray-500 border-t-transparent"
+        />
+      )}
       {suggestions.length > 0 && (
         <ul
           role="listbox"

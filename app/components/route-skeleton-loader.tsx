@@ -5,7 +5,10 @@ import { useEffect } from 'react';
 
 function RouteSkeletonLoader() {
   const transition = useNavigation();
-  const busy = transition.state === 'loading';
+  // GET navigations only: after a form POST the same 'loading' state fires for
+  // the revalidation, and blanking the page there would stomp on the in-place
+  // pending UI (button spinners) the submitting screen is already showing.
+  const busy = transition.state === 'loading' && !transition.formData;
   const delayedPending = useSpinDelay(busy, {
     delay: 200,
     minDuration: 400,
@@ -89,6 +92,11 @@ function RouteSkeletonLoader() {
     // About page
     if (targetPath === '/about') {
       return <AboutSkeleton />;
+    }
+
+    // Events admin pages (/admin, /admin/tile-race)
+    if (targetPath.startsWith('/admin')) {
+      return <AdminSkeleton />;
     }
 
     // Home page
@@ -946,6 +954,61 @@ function AboutSkeleton() {
           ))}
         </Box>
       </div>
+    </Container>
+  );
+}
+
+// Admin Skeleton — mirrors the events admin layout: the brand/user chrome row
+// over the committed red rule, then a section heading with a prose line and
+// zebra rows carrying button-sized ghosts.
+function AdminSkeleton() {
+  return (
+    <Container size="4" className="min-h-full px-4 pt-3">
+      {/* Layout chrome: "Events admin" left; avatar, name, logout right */}
+      <Flex
+        align="center"
+        justify="between"
+        gap="3"
+        className="mb-6 border-b-2 border-b-sanguine-red pb-2"
+      >
+        <div className="h-5 w-28 animate-pulse rounded-sm bg-gray-800/50"></div>
+        <Flex align="center" gap="3">
+          <div className="h-6 w-6 animate-pulse rounded-sm bg-gray-800/50"></div>
+          <div className="h-4 w-24 animate-pulse rounded-sm bg-gray-800/50"></div>
+          <div className="h-8 w-20 animate-pulse rounded-sm border border-gray-800 bg-gray-900"></div>
+        </Flex>
+      </Flex>
+
+      {/* Section heading + right-aligned summary */}
+      <div className="flex items-baseline justify-between border-b border-gray-700 pb-1">
+        <div className="h-6 w-44 animate-pulse rounded-sm bg-gray-800/50"></div>
+        <div className="h-4 w-40 animate-pulse rounded-sm bg-gray-800/40"></div>
+      </div>
+
+      {/* Prose lede */}
+      <div className="mt-3 space-y-2.5">
+        <div className="h-4 w-full max-w-2xl animate-pulse rounded-sm bg-gray-800/50"></div>
+        <div className="h-4 w-3/4 max-w-xl animate-pulse rounded-sm bg-gray-800/50"></div>
+      </div>
+
+      {/* Rows with trailing button-sized ghosts */}
+      <Box className="mt-6">
+        {[...Array(5)].map((_, idx) => (
+          <Flex
+            key={idx}
+            align="center"
+            gap="3"
+            className={`border-b border-gray-800 px-2 py-3 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+          >
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="h-4 w-40 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="h-3 w-56 max-w-full animate-pulse rounded-sm bg-gray-800/40"></div>
+            </div>
+            <div className="hidden h-8 w-24 animate-pulse rounded-sm border border-gray-800 bg-gray-900 sm:block"></div>
+            <div className="h-8 w-20 animate-pulse rounded-sm border border-gray-800 bg-gray-900"></div>
+          </Flex>
+        ))}
+      </Box>
     </Container>
   );
 }

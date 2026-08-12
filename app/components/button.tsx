@@ -25,10 +25,23 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof VARIANT_CLASSES;
   size?: keyof typeof SIZE_CLASSES;
+  /** Marks this button's action as in flight: disables it and shows a spinner. */
+  loading?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'default', size = 'sm', ...props }, ref) => (
+  (
+    {
+      className,
+      variant = 'default',
+      size = 'sm',
+      loading = false,
+      disabled,
+      children,
+      ...props
+    },
+    ref,
+  ) => (
     <button
       className={cn(
         'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-sm border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-400 disabled:cursor-not-allowed disabled:opacity-50',
@@ -37,8 +50,18 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className,
       )}
       ref={ref}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
       {...props}
-    />
+    >
+      {loading && (
+        <span
+          aria-hidden
+          className="mr-2 inline-block h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+        />
+      )}
+      {children}
+    </button>
   ),
 );
 Button.displayName = 'Button';
