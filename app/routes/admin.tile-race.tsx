@@ -78,14 +78,14 @@ const getRoster = async (): Promise<IPickerMember[]> => {
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireStaff(request);
   try {
-    const race = await getAdminRace();
     // Channels feed the create form's pickers and name the dashboard's channel refs;
     // a Discord API hiccup degrades to raw ids rather than failing the page. Same
     // spirit for the roster: no roster just means the typeahead only takes raw ids.
-    const channels = await getGuildTextChannels().catch(
-      () => [] as IGuildTextChannel[],
-    );
-    const members = await getRoster().catch(() => [] as IPickerMember[]);
+    const [race, channels, members] = await Promise.all([
+      getAdminRace(),
+      getGuildTextChannels().catch(() => [] as IGuildTextChannel[]),
+      getRoster().catch(() => [] as IPickerMember[]),
+    ]);
     return json({ race, channels, members, apiError: null as string | null });
   } catch (e) {
     const message =
@@ -335,6 +335,18 @@ export default function AdminTileRace() {
 
 const fieldClass = 'flex flex-col gap-1.5';
 
+// Which page-level form action is in flight, if any. Covers the whole round
+// trip — action POST *and* the loader revalidation after it — so buttons stay
+// busy until the fresh data is actually on screen (navigation.state ===
+// 'submitting' alone re-enables them while the page is still refetching).
+// Per-row fetcher actions track their own fetcher instead.
+const usePendingIntent = (): string | null => {
+  const navigation = useNavigation();
+  return navigation.state !== 'idle' && navigation.formData
+    ? String(navigation.formData.get('intent') ?? '') || null
+    : null;
+};
+
 const classicBoardValid = (tiles: IBoardTileInput[]): boolean =>
   tiles.length > 0 &&
   tiles.every(tile => tile.type !== 'TASK' || (tile.name ?? '').trim());
@@ -364,8 +376,7 @@ function RaceModeSelect({
 
 function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
   const actionData = useActionData<typeof action>();
-  const navigation = useNavigation();
-  const submitting = navigation.state === 'submitting';
+  const submitting = usePendingIntent() === 'create';
   const [mode, setMode] = useState<RaceMode>('CLASSIC');
   const [tiles, setTiles] = useState<IBoardTileInput[]>([]);
   const [tiers, setTiers] = useState<IBoardTileInput[][]>([]);
@@ -484,7 +495,8 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
             variant="primary"
             size="md"
             type="submit"
-            disabled={submitting || !boardValid}
+            loading={submitting}
+            disabled={!boardValid}
             className="w-fit"
           >
             {submitting ? 'Creating…' : 'Create race (draft)'}
@@ -533,8 +545,8 @@ function RaceDashboard({
   members: IPickerMember[];
 }) {
   const actionData = useActionData<typeof action>();
-  const navigation = useNavigation();
-  const submitting = navigation.state === 'submitting';
+  const pendingIntent = usePendingIntent();
+  const submitting = pendingIntent !== null;
   const { event, board, standings } = race;
   const finished = standings.filter(s => s.isFinished).length;
   const channelName = (id: string) =>
@@ -603,7 +615,11 @@ function RaceDashboard({
               className="w-24 text-lg"
             />
           </div>
-          <Button type="submit" disabled={submitting}>
+          <Button
+            type="submit"
+            disabled={submitting}
+            loading={pendingIntent === 'reschedule'}
+          >
             Update length
           </Button>
         </Form>
@@ -613,8 +629,15 @@ function RaceDashboard({
         {event.status === 'DRAFT' && (
           <Form method="post" className="mt-3">
             <input type="hidden" name="intent" value="start" />
-            <Button variant="primary" type="submit" disabled={submitting}>
-              Start race and roll first tasks
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={submitting}
+              loading={pendingIntent === 'start'}
+            >
+              {pendingIntent === 'start'
+                ? 'Starting race…'
+                : 'Start race and roll first tasks'}
             </Button>
           </Form>
         )}
@@ -676,8 +699,13 @@ function RaceDashboard({
             }}
           >
             <input type="hidden" name="intent" value="end" />
-            <Button variant="gold" type="submit">
-              End race
+            <Button
+              variant="gold"
+              type="submit"
+              disabled={submitting}
+              loading={pendingIntent === 'end'}
+            >
+              {pendingIntent === 'end' ? 'Ending…' : 'End race'}
             </Button>
           </Form>
           <Form
@@ -692,8 +720,13 @@ function RaceDashboard({
             }}
           >
             <input type="hidden" name="intent" value="cancel" />
-            <Button variant="danger" type="submit">
-              Cancel race
+            <Button
+              variant="danger"
+              type="submit"
+              disabled={submitting}
+              loading={pendingIntent === 'cancel'}
+            >
+              {pendingIntent === 'cancel' ? 'Cancelling…' : 'Cancel race'}
             </Button>
           </Form>
         </Flex>
@@ -715,6 +748,11 @@ function TeamRow({
 }) {
   const fetcher = useFetcher<typeof action>();
   const busy = fetcher.state !== 'idle';
+  // Which of this row's actions is in flight — the clicked button gets the
+  // spinner while its siblings just disable.
+  const rowIntent = busy
+    ? String(fetcher.formData?.get('intent') ?? '') || null
+    : null;
   const raceRunning = raceStatus === 'ACTIVE';
   const [editing, setEditing] = useState(false);
 
@@ -772,14 +810,22 @@ function TeamRow({
                 <fetcher.Form method="post">
                   <input type="hidden" name="intent" value="complete" />
                   <input type="hidden" name="team" value={standing.name} />
-                  <Button type="submit" disabled={busy}>
+                  <Button
+                    type="submit"
+                    disabled={busy}
+                    loading={rowIntent === 'complete'}
+                  >
                     Complete task
                   </Button>
                 </fetcher.Form>
                 <fetcher.Form method="post">
                   <input type="hidden" name="intent" value="reroll" />
                   <input type="hidden" name="team" value={standing.name} />
-                  <Button type="submit" disabled={busy}>
+                  <Button
+                    type="submit"
+                    disabled={busy}
+                    loading={rowIntent === 'reroll'}
+                  >
                     Reroll
                   </Button>
                 </fetcher.Form>
@@ -800,7 +846,11 @@ function TeamRow({
                     }
                     className="h-9 w-24 px-2 py-0 text-base"
                   />
-                  <Button type="submit" disabled={busy}>
+                  <Button
+                    type="submit"
+                    disabled={busy}
+                    loading={rowIntent === 'move'}
+                  >
                     Move
                   </Button>
                 </fetcher.Form>
@@ -825,7 +875,12 @@ function TeamRow({
             >
               <input type="hidden" name="intent" value="removeteam" />
               <input type="hidden" name="team" value={standing.name} />
-              <Button variant="danger" type="submit" disabled={busy}>
+              <Button
+                variant="danger"
+                type="submit"
+                disabled={busy}
+                loading={rowIntent === 'removeteam'}
+              >
                 Remove
               </Button>
             </fetcher.Form>
@@ -878,9 +933,10 @@ function TeamRow({
                 variant="primary"
                 type="submit"
                 disabled={busy}
+                loading={rowIntent === 'editteam'}
                 className="w-fit"
               >
-                Save team
+                {rowIntent === 'editteam' ? 'Saving…' : 'Save team'}
               </Button>
             </fetcher.Form>
           </Table.Cell>
@@ -894,8 +950,7 @@ function TeamRow({
 // the API refuses board edits.
 function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
   const actionData = useActionData<typeof action>();
-  const navigation = useNavigation();
-  const submitting = navigation.state === 'submitting';
+  const submitting = usePendingIntent() === 'updateboard';
   const [mode, setMode] = useState<RaceMode>(
     board.mode === 'TIERED' ? 'TIERED' : 'CLASSIC',
   );
@@ -962,7 +1017,8 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
           <Button
             variant="primary"
             type="submit"
-            disabled={submitting || !boardValid}
+            loading={submitting}
+            disabled={!boardValid}
             className="w-fit"
           >
             {submitting ? 'Saving…' : 'Save board'}
@@ -982,8 +1038,7 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
 
 function AddTeamForm({ members }: { members: IPickerMember[] }) {
   const actionData = useActionData<typeof action>();
-  const navigation = useNavigation();
-  const submitting = navigation.state === 'submitting';
+  const submitting = usePendingIntent() === 'addteam';
 
   return (
     <Box mt="4" className="max-w-xl">
@@ -1017,10 +1072,10 @@ function AddTeamForm({ members }: { members: IPickerMember[] }) {
         <Button
           variant="primary"
           type="submit"
-          disabled={submitting}
+          loading={submitting}
           className="w-fit"
         >
-          Add team
+          {submitting ? 'Adding…' : 'Add team'}
         </Button>
       </Form>
     </Box>
