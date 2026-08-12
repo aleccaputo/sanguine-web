@@ -9,6 +9,8 @@ export interface IBoardTileInput {
   description?: string;
   /** TASK tiles: admin-picked OSRS wiki artwork (wiki-hosted URLs only) */
   imageUrl?: string;
+  /** TASK tiles: approved submissions required to complete the tile (1 = ordinary) */
+  quantity?: number;
   amount?: number;
 }
 
@@ -20,6 +22,7 @@ export interface IBoardTileLike {
   name?: string;
   description?: string;
   imageUrl?: string;
+  quantity?: number;
   amount?: number;
 }
 
@@ -39,6 +42,7 @@ export const toBoardTileInputs = (
             name: tile.name ?? '',
             description: tile.description,
             imageUrl: tile.imageUrl,
+            quantity: tile.quantity,
           },
         ];
       case 'GO_BACK':

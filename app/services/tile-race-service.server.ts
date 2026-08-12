@@ -23,6 +23,8 @@ export interface ITileRaceTile {
   description?: string;
   /** TASK tiles: admin-picked OSRS wiki artwork */
   imageUrl?: string;
+  /** TASK tiles: approved submissions required to complete the tile (absent = 1) */
+  quantity?: number;
   /** GO_BACK / GO_FORWARD tiles */
   amount?: number;
 }
@@ -52,6 +54,8 @@ export interface ITileRace {
     /** Task/movement tiles between START and FINISH */
     tileCount: number;
     tiles: ITileRaceTile[];
+    /** Admin payload only: optimistic-concurrency token for board edits */
+    version?: number;
   };
   standings: ITileRaceStanding[];
 }

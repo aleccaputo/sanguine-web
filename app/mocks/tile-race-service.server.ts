@@ -38,7 +38,14 @@ const innerTiles: ITileRaceTile[] = [
   task('Melee fight cave', 'Complete the Fight Caves using only melee'),
   goForward(3),
   task('100KC @ Vorkath'),
-  task('Any barrows unique'),
+  {
+    // Counted tile: each approved drop ticks progress, 10 complete it
+    index: 0,
+    type: 'TASK',
+    name: '10 KBD heads',
+    description: 'One head per approved submission, ten clear the tile',
+    quantity: 10,
+  },
   task('3000 pts in one Wintertodt game'),
   goBack(3),
   {

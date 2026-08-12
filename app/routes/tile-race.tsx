@@ -22,7 +22,7 @@ export const meta: MetaFunction = () => {
     {
       name: 'description',
       content:
-        'The Sanguine tile race: teams roll their way across a board of PvM tasks — live positions, current tasks, and the board itself.',
+        'The Sanguine tile race: teams roll their way across a board of PvM tasks, with live positions, current tasks, and the board itself.',
     },
   ];
 };
@@ -88,10 +88,14 @@ const tileTitle = (tile: ITileRaceTile): string => {
       return `Go back ${tile.amount} tiles`;
     case 'GO_FORWARD':
       return `Go forward ${tile.amount} tiles`;
-    case 'TASK':
-      return tile.description
-        ? `${tile.name} — ${tile.description}`
+    case 'TASK': {
+      const base = tile.description
+        ? `${tile.name}: ${tile.description}`
         : (tile.name ?? 'Task');
+      return (tile.quantity ?? 1) > 1
+        ? `${base} (${tile.quantity} approved drops to complete)`
+        : base;
+    }
   }
 };
 
@@ -151,6 +155,11 @@ function TileCell({
       <span className="absolute left-1 top-0.5 text-[9px] text-gray-600">
         {tile.index}
       </span>
+      {tile.type === 'TASK' && (tile.quantity ?? 1) > 1 && (
+        <span className="absolute right-1 top-0.5 text-[9px] text-osrs-gold">
+          ×{tile.quantity}
+        </span>
+      )}
       {/* relative lifts the label above the absolutely-positioned artwork */}
       <span className="relative">{content}</span>
       {teamsHere.length > 0 && (
@@ -241,7 +250,7 @@ export default function TileRace() {
           `${leader.name} leads from tile ${leader.tileIndex}.`}
         {event.status === 'COMPLETED' &&
           winner &&
-          `The race is over — ${winner.name} took 1st.`}
+          `The race is over. ${winner.name} took 1st.`}
       </PageHeader>
 
       <Flex direction="column" gap="6">

@@ -49,7 +49,7 @@ import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
 import { zebraStripeClass } from '~/utils/styles';
 
-export const meta: MetaFunction = () => [{ title: 'Events Admin — Tile Race' }];
+export const meta: MetaFunction = () => [{ title: 'Tile Race | Events Admin' }];
 
 // The clan roster feeding the member typeahead — same source the rest of the
 // site uses for nickname resolution.
@@ -171,7 +171,11 @@ export async function action({ request }: ActionFunctionArgs) {
           );
         }
         await updateBoard(
-          { diceSides: Number(formData.get('diceSides') ?? 6), tiles },
+          {
+            diceSides: Number(formData.get('diceSides') ?? 6),
+            tiles,
+            version: Number(formData.get('version') ?? 0),
+          },
           user.discordId,
         );
         return json({ intent, errors: null });
@@ -262,7 +266,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return json(
         {
           intent,
-          errors: ['The events API is unreachable — try again shortly.'],
+          errors: ['The events API is unreachable. Try again shortly.'],
         },
         { status: 503 },
       );
@@ -371,7 +375,7 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
         </Flex>
         <div className={fieldClass}>
           <Label>
-            Board — {tiles.length} tile{tiles.length === 1 ? '' : 's'}
+            Board: {tiles.length} tile{tiles.length === 1 ? '' : 's'}
           </Label>
           <Text size="2" className="text-gray-500">
             Click ＋ to add a tile, click a tile to edit it. START and FINISH
@@ -501,7 +505,7 @@ function RaceDashboard({
           <Form method="post" className="mt-3">
             <input type="hidden" name="intent" value="start" />
             <Button variant="primary" type="submit" disabled={submitting}>
-              Start race — roll first tasks
+              Start race and roll first tasks
             </Button>
           </Form>
         )}
@@ -515,7 +519,7 @@ function RaceDashboard({
       <Box>
         <SectionHeading title="Teams" summary={`${standings.length} teams`} />
         {standings.length === 0 ? (
-          <EmptyState>No teams yet — add the first one below.</EmptyState>
+          <EmptyState>No teams yet. Add the first one below.</EmptyState>
         ) : (
           <Table.Root size="3" mt="2">
             <Table.Header>
@@ -791,6 +795,8 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
       <Form method="post" className="mt-2 flex flex-col gap-3">
         <input type="hidden" name="intent" value="updateboard" />
         <input type="hidden" name="board" value={JSON.stringify(tiles)} />
+        {/* Version the tiles were loaded at — a concurrent save 409s instead of clobbering */}
+        <input type="hidden" name="version" value={board.version ?? 0} />
         <div className={fieldClass}>
           <Label className="text-lg" htmlFor="editDiceSides">
             Dice sides
