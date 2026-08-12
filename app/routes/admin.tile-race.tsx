@@ -48,6 +48,7 @@ import {
   toTierInputs,
 } from '~/utils/tile-race-board';
 import type { RaceMode } from '~/services/tile-race-service.server';
+import { getTileImageUrl } from '~/utils/tile-race-images';
 import { Input } from '~/components/input';
 import { Label } from '~/components/label';
 import { IPickerMember, MemberPicker } from '~/components/MemberPicker';
@@ -98,6 +99,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
+// A TASK tile the admin left imageless gets the keyword-guessed artwork
+// persisted at save time — the Discord bot only renders explicit images, and
+// readers of the saved board shouldn't have to re-run the matcher.
+const withGuessedImage = (tile: IBoardTileInput): IBoardTileInput =>
+  tile.type === 'TASK' && !tile.imageUrl
+    ? {
+        ...tile,
+        imageUrl: getTileImageUrl(tile.name, tile.description) ?? undefined,
+      }
+    : tile;
+
 // The board builder submits its tiles (classic: flat list; tiered: nested tier
 // lists) as JSON in a hidden input, with the mode alongside. Structural checks
 // live here; board legality is the events API's call.
@@ -118,7 +130,13 @@ const parseBoardInput = (
     ) {
       return { errors: ['Every tier needs at least one tile.'] };
     }
-    return { board: { tiers: parsed as IBoardTileInput[][] } };
+    return {
+      board: {
+        tiers: (parsed as IBoardTileInput[][]).map(tier =>
+          tier.map(withGuessedImage),
+        ),
+      },
+    };
   }
   if (!Array.isArray(parsed) || !parsed.length) {
     return { errors: ['Add at least one tile to the board.'] };
@@ -126,7 +144,7 @@ const parseBoardInput = (
   return {
     board: {
       diceSides: Number(formData.get('diceSides') ?? 6),
-      tiles: parsed as IBoardTileInput[],
+      tiles: (parsed as IBoardTileInput[]).map(withGuessedImage),
     },
   };
 };
