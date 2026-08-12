@@ -15,6 +15,14 @@ export type TileType = 'START' | 'FINISH' | 'TASK' | 'GO_BACK' | 'GO_FORWARD';
 
 export type MoveStatus = 'PENDING_SUBMISSION' | 'PENDING_APPROVAL' | 'COMPLETED';
 
+/**
+ * TIERED races split the board into tiers of TASK tiles: each roll uses a die
+ * sized to the team's next tier and picks that tier's task directly, one task
+ * per tier. CLASSIC is the linear dice race. Optional for rollout safety —
+ * absent means CLASSIC.
+ */
+export type RaceMode = 'CLASSIC' | 'TIERED';
+
 export interface ITileRaceTile {
   index: number;
   type: TileType;
@@ -27,6 +35,8 @@ export interface ITileRaceTile {
   quantity?: number;
   /** GO_BACK / GO_FORWARD tiles */
   amount?: number;
+  /** Tiered boards: 1-based tier this tile belongs to (0 = START) */
+  tier?: number;
 }
 
 export interface ITileRaceStanding {
@@ -36,6 +46,9 @@ export interface ITileRaceStanding {
   place: number | null;
   tileIndex: number;
   finishIndex: number;
+  /** Tiered races: the team's current tier / total tiers; null on classic */
+  tier?: number | null;
+  tierCount?: number | null;
   currentTask: string | null;
   moveStatus: MoveStatus | null;
   isFinished: boolean;
@@ -50,9 +63,12 @@ export interface ITileRace {
     endDate: string;
   };
   board: {
+    mode?: RaceMode;
     diceSides: number;
     /** Task/movement tiles between START and FINISH */
     tileCount: number;
+    /** Tiered boards: task-tile count per tier, in board order; null on classic */
+    tierSizes?: number[] | null;
     tiles: ITileRaceTile[];
     /** Admin payload only: optimistic-concurrency token for board edits */
     version?: number;

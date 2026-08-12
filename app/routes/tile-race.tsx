@@ -12,7 +12,10 @@ import { PageHeader } from '~/components/PageHeader';
 import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
 import { zebraStripeClass } from '~/utils/styles';
-import { chunkIntoSnakeRows } from '~/utils/tile-race-board';
+import {
+  chunkIntoSnakeRows,
+  groupTilesIntoTiers,
+} from '~/utils/tile-race-board';
 import { getTileImageUrl } from '~/utils/tile-race-images';
 import { TileArt } from '~/components/TileArt';
 
@@ -53,6 +56,8 @@ export async function loader() {
         place: standing.place,
         tileIndex: standing.tileIndex,
         finishIndex: standing.finishIndex,
+        tier: standing.tier ?? null,
+        tierCount: standing.tierCount ?? null,
         currentTask: standing.currentTask,
         moveStatus: standing.moveStatus,
         isFinished: standing.isFinished,
@@ -214,6 +219,8 @@ export default function TileRace() {
   }
 
   const { event, board, standings } = race;
+  const tiered = board.mode === 'TIERED';
+  const tierSizes = board.tierSizes ?? [];
   const colorByTeamId = Object.fromEntries(
     [...standings]
       .sort((a, b) => a.teamId.localeCompare(b.teamId))
@@ -237,9 +244,22 @@ export default function TileRace() {
   return (
     <Container size="4" mt="3" pb="6" px="4">
       <PageHeader title={event.name} iconSrc="/sanguine_icon_small.png">
-        <span className="text-gray-100">{standings.length}</span> teams race
-        across <span className="text-gray-100">{board.tileCount}</span> tiles
-        with a d<span className="text-gray-100">{board.diceSides}</span>.{' '}
+        {tiered ? (
+          <>
+            <span className="text-gray-100">{standings.length}</span> teams
+            race through{' '}
+            <span className="text-gray-100">{tierSizes.length}</span> tiers of
+            tasks, one task per tier: each roll picks from the tiles of the
+            next tier.{' '}
+          </>
+        ) : (
+          <>
+            <span className="text-gray-100">{standings.length}</span> teams
+            race across <span className="text-gray-100">{board.tileCount}</span>{' '}
+            tiles with a d
+            <span className="text-gray-100">{board.diceSides}</span>.{' '}
+          </>
+        )}
         {event.status === 'DRAFT' && 'The race has not started yet.'}
         {event.status === 'ACTIVE' &&
           winner &&
@@ -247,7 +267,9 @@ export default function TileRace() {
         {event.status === 'ACTIVE' &&
           !winner &&
           leader &&
-          `${leader.name} leads from tile ${leader.tileIndex}.`}
+          (tiered
+            ? `${leader.name} leads from tier ${leader.tier ?? 0}.`
+            : `${leader.name} leads from tile ${leader.tileIndex}.`)}
         {event.status === 'COMPLETED' &&
           winner &&
           `The race is over. ${winner.name} took 1st.`}
@@ -274,7 +296,7 @@ export default function TileRace() {
                     </Table.ColumnHeaderCell>
                   )}
                   <Table.ColumnHeaderCell justify="end" className="text-osrs-orange">
-                    Tile
+                    {tiered ? 'Tier' : 'Tile'}
                   </Table.ColumnHeaderCell>
                   <Table.ColumnHeaderCell className="hidden text-osrs-orange md:table-cell">
                     Current task
@@ -310,11 +332,14 @@ export default function TileRace() {
                     <Table.Cell justify="end">
                       <span className="whitespace-nowrap">
                         <Text size="2" className="text-gray-100">
-                          {standing.tileIndex}
+                          {tiered
+                            ? // A finished team derives as tierCount + 1 (FINISH) — show the last tier
+                              Math.min(standing.tier ?? 0, tierSizes.length)
+                            : standing.tileIndex}
                         </Text>
                         <Text size="1" className="text-gray-600">
                           {' '}
-                          / {standing.finishIndex}
+                          / {tiered ? tierSizes.length : standing.finishIndex}
                         </Text>
                       </span>
                     </Table.Cell>
@@ -348,25 +373,62 @@ export default function TileRace() {
           <SectionHeading
             title="The board"
             summary={
-              <span>
-                <span className="text-sky-400">forward</span> ·{' '}
-                <span className="text-red-400">back</span> · hover a tile for
-                its full task
-              </span>
+              tiered ? (
+                <span>hover a tile for its full task</span>
+              ) : (
+                <span>
+                  <span className="text-sky-400">forward</span> ·{' '}
+                  <span className="text-red-400">back</span> · hover a tile for
+                  its full task
+                </span>
+              )
             }
           />
-          <Box mt="2" className="overflow-x-auto">
-            <div className="grid min-w-[40rem] grid-cols-10 gap-1">
-              {rows.flat().map((tile, i) => (
-                <TileCell
-                  key={tile ? tile.index : `empty-${i}`}
-                  tile={tile}
-                  teamsHere={tile ? (teamsByTile[tile.index] ?? []) : []}
-                  colorByTeamId={colorByTeamId}
-                />
+          {tiered ? (
+            <Flex direction="column" gap="3" mt="2">
+              {[
+                board.tiles.slice(0, 1),
+                ...groupTilesIntoTiers(board.tiles, tierSizes),
+                board.tiles.slice(-1),
+              ].map((tierTiles, tierIndex) => (
+                <Box key={tierIndex}>
+                  {tierIndex > 0 && tierIndex <= tierSizes.length && (
+                    <Text as="p" size="3" className="text-osrs-orange">
+                      Tier {tierIndex}{' '}
+                      <span className="text-gray-500">
+                        · rolls a d{tierTiles.length}
+                      </span>
+                    </Text>
+                  )}
+                  <Box className="overflow-x-auto">
+                    <div className="mt-1 grid min-w-[40rem] grid-cols-10 gap-1">
+                      {tierTiles.map(tile => (
+                        <TileCell
+                          key={tile.index}
+                          tile={tile}
+                          teamsHere={teamsByTile[tile.index] ?? []}
+                          colorByTeamId={colorByTeamId}
+                        />
+                      ))}
+                    </div>
+                  </Box>
+                </Box>
               ))}
-            </div>
-          </Box>
+            </Flex>
+          ) : (
+            <Box mt="2" className="overflow-x-auto">
+              <div className="grid min-w-[40rem] grid-cols-10 gap-1">
+                {rows.flat().map((tile, i) => (
+                  <TileCell
+                    key={tile ? tile.index : `empty-${i}`}
+                    tile={tile}
+                    teamsHere={tile ? (teamsByTile[tile.index] ?? []) : []}
+                    colorByTeamId={colorByTeamId}
+                  />
+                ))}
+              </div>
+            </Box>
+          )}
         </Box>
       </Flex>
     </Container>

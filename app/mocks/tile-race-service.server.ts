@@ -150,6 +150,124 @@ export const mockAdminRaceBase: MockAdminRace = {
   ],
 };
 
+// Tiered fixture (MOCK_TIERED_RACE=1): four tiers of varying size, one task per
+// tier — exercises the per-tier board rows, tier standings, and d{size} labels.
+const tierBlueprints: ITileRaceTile[][] = [
+  [
+    task('60KC @ Barrows', 'Any team member reaches 60 Barrows KC gained during the event'),
+    task('Full graceful piece'),
+    task('Champion scroll'),
+  ],
+  [
+    {
+      index: 0,
+      type: 'TASK',
+      name: '10 KBD heads',
+      description: 'One head per approved submission, ten clear the tile',
+      quantity: 10,
+    },
+    task('Punch Vorkath to death', 'Final blow must be an unarmed punch'),
+    {
+      index: 0,
+      type: 'TASK',
+      name: 'Reach 6hr log',
+      description: 'Screenshot the 6 hour login timer',
+      imageUrl: 'https://oldschool.runescape.wiki/images/Watch_detail.png',
+    },
+    task('Any Zulrah unique'),
+    task('Melee fight cave', 'Complete the Fight Caves using only melee'),
+  ],
+  [task('Any GWD unique'), task('3000 pts in one Wintertodt game')],
+  [task('Any raid unique', 'Any unique from CoX, ToB, or ToA')],
+];
+
+const tierSizes = tierBlueprints.map(tier => tier.length);
+
+const tieredTiles: ITileRaceTile[] = [
+  boardEnds.start,
+  ...tierBlueprints.flat(),
+  boardEnds.finish,
+].map((tile, index) => ({ ...tile, index }));
+
+const tieredFinishIndex = tieredTiles.length - 1;
+const tierOf = (tileIndex: number): number =>
+  tierSizes.findIndex(
+    (_, tier) =>
+      tileIndex <= tierSizes.slice(0, tier + 1).reduce((a, b) => a + b, 0),
+  ) + 1;
+
+export const mockTieredAdminRaceBase: MockAdminRace = {
+  event: {
+    id: 'mock-tiered-race',
+    name: 'Sanguine Tier Race',
+    status: 'ACTIVE',
+    startDate: '2026-08-01T00:00:00.000Z',
+    endDate: '2026-08-15T00:00:00.000Z',
+  },
+  board: {
+    mode: 'TIERED',
+    diceSides: 6,
+    tileCount: tieredTiles.length - 2,
+    tierSizes,
+    tiles: tieredTiles.map(tile => ({
+      ...tile,
+      tier:
+        tile.type === 'START'
+          ? 0
+          : tile.type === 'FINISH'
+            ? tierSizes.length + 1
+            : tierOf(tile.index),
+    })),
+  },
+  standings: [
+    {
+      teamId: 'team-1',
+      name: 'Blood Reapers',
+      memberDiscordIds: roster(0, 3),
+      place: 1,
+      tileIndex: tieredFinishIndex,
+      finishIndex: tieredFinishIndex,
+      tier: tierSizes.length + 1,
+      tierCount: tierSizes.length,
+      currentTask: null,
+      moveStatus: 'COMPLETED',
+      isFinished: true,
+    },
+    {
+      teamId: 'team-2',
+      name: 'Scythe Squad',
+      memberDiscordIds: roster(3, 6),
+      place: null,
+      tileIndex: 4,
+      finishIndex: tieredFinishIndex,
+      tier: 2,
+      tierCount: tierSizes.length,
+      currentTask: '10 KBD heads (3/10)',
+      moveStatus: 'PENDING_APPROVAL',
+      isFinished: false,
+    },
+    {
+      teamId: 'team-3',
+      name: 'Gob Squad',
+      memberDiscordIds: roster(6, 8),
+      place: null,
+      tileIndex: 2,
+      finishIndex: tieredFinishIndex,
+      tier: 1,
+      tierCount: tierSizes.length,
+      currentTask: 'Full graceful piece',
+      moveStatus: 'PENDING_SUBMISSION',
+      isFinished: false,
+    },
+  ],
+};
+
+/** The fixture the mocks serve: tiered under MOCK_TIERED_RACE=1, else classic. */
+export const getMockAdminRaceBase = (): MockAdminRace =>
+  process.env.MOCK_TIERED_RACE === '1'
+    ? mockTieredAdminRaceBase
+    : mockAdminRaceBase;
+
 const toPublicStanding = (
   standing: MockAdminRace['standings'][number],
 ): ITileRaceStanding => ({
@@ -158,12 +276,14 @@ const toPublicStanding = (
   place: standing.place,
   tileIndex: standing.tileIndex,
   finishIndex: standing.finishIndex,
+  tier: standing.tier ?? null,
+  tierCount: standing.tierCount ?? null,
   currentTask: standing.currentTask,
   moveStatus: standing.moveStatus,
   isFinished: standing.isFinished,
 });
 
-export const getCurrentTileRace = async (): Promise<ITileRace | null> => ({
-  ...mockAdminRaceBase,
-  standings: mockAdminRaceBase.standings.map(toPublicStanding),
-});
+export const getCurrentTileRace = async (): Promise<ITileRace | null> => {
+  const base = getMockAdminRaceBase();
+  return { ...base, standings: base.standings.map(toPublicStanding) };
+};

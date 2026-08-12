@@ -27,10 +27,18 @@ export interface IAdminTileRace extends Omit<ITileRace, 'standings'> {
   };
 }
 
+/**
+ * A board definition as the events API accepts it: classic boards submit
+ * diceSides + a flat tile list; tiered boards submit nested tiers of TASK
+ * tiles (the die is derived from each tier's size, so no diceSides).
+ */
+export type IBoardDefinitionInput =
+  | { diceSides: number; tiles: IBoardTileInput[] }
+  | { tiers: IBoardTileInput[][] };
+
 export interface ICreateRaceInput {
   name: string;
-  diceSides: number;
-  tiles: IBoardTileInput[];
+  board: IBoardDefinitionInput;
   approvalsChannelId: string;
   announcementsChannelId: string;
   days: number;
@@ -98,7 +106,7 @@ export const createRace = (input: ICreateRaceInput, actingUserId: string) =>
     actingUserId,
     body: {
       name: input.name,
-      board: { diceSides: input.diceSides, tiles: input.tiles },
+      board: input.board,
       approvalsChannelId: input.approvalsChannelId,
       announcementsChannelId: input.announcementsChannelId,
       days: input.days,
@@ -111,7 +119,7 @@ export const createRace = (input: ICreateRaceInput, actingUserId: string) =>
  * else saved first) rather than silently overwriting their edits.
  */
 export const updateBoard = (
-  input: { diceSides: number; tiles: IBoardTileInput[]; version: number },
+  input: { board: IBoardDefinitionInput; version: number },
   actingUserId: string,
 ) =>
   adminRequest<{
@@ -123,7 +131,7 @@ export const updateBoard = (
     method: 'PUT',
     actingUserId,
     body: {
-      board: { diceSides: input.diceSides, tiles: input.tiles },
+      board: input.board,
       version: input.version,
     },
   });
