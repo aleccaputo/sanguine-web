@@ -54,6 +54,50 @@ export const toBoardTileInputs = (
   });
 
 /**
+ * A served tiered board back into builder inputs: START/FINISH drop and the
+ * flat tile list splits back into its tiers.
+ */
+export const toTierInputs = (
+  tiles: IBoardTileLike[],
+  tierSizes: number[],
+): IBoardTileInput[][] => {
+  const tasks = toBoardTileInputs(tiles);
+  return tierSizes.map((size, tier) => {
+    const start = tierSizes
+      .slice(0, tier)
+      .reduce((sum, tierSize) => sum + tierSize, 0);
+    return tasks.slice(start, start + size);
+  });
+};
+
+/**
+ * A served tiered board's tiles grouped per tier (START and FINISH dropped) —
+ * how the public page renders a tiered board, one row of tiles per tier.
+ */
+export const groupTilesIntoTiers = <T,>(
+  tiles: T[],
+  tierSizes: number[],
+): T[][] => {
+  const tasks = tiles.slice(1, -1);
+  return tierSizes.map((size, tier) => {
+    const start = tierSizes
+      .slice(0, tier)
+      .reduce((sum, tierSize) => sum + tierSize, 0);
+    return tasks.slice(start, start + size);
+  });
+};
+
+/** Client-side mirror of the API's tiered board rules, gating the submit button. */
+export const isTierBoardValid = (tiers: IBoardTileInput[][]): boolean =>
+  tiers.length > 0 &&
+  tiers.every(
+    tier =>
+      tier.length > 0 &&
+      tier.length <= 20 &&
+      tier.every(tile => tile.type === 'TASK' && (tile.name ?? '').trim()),
+  );
+
+/**
  * Chutes-and-ladders reading order: rows alternate direction, and short rows keep
  * their items on the side the path travels from (nulls fill the dead cells).
  */

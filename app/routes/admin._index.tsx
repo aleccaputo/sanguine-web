@@ -67,8 +67,8 @@ export default function AdminIndex() {
             </Text>
           </Flex>
           <Text as="p" size="4" className="mt-1 text-gray-500">
-            Dice-roll board race. Build the board, manage teams, start the race,
-            and fix moves when something goes sideways.
+            Board race, classic dice or tiered. Build the board, manage teams,
+            start the race, and fix moves when something goes sideways.
           </Text>
         </Link>
         <div className="border-b border-gray-800 py-3">

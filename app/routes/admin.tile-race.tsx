@@ -26,6 +26,7 @@ import {
   EventsApiError,
   getAdminRace,
   IAdminTileRace,
+  IBoardDefinitionInput,
   moveTeam,
   removeTeam,
   rerollTeam,
@@ -40,11 +41,20 @@ import {
   IGuildTextChannel,
 } from '~/services/discord-admin-service.server';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
-import { IBoardTileInput, toBoardTileInputs } from '~/utils/tile-race-board';
+import {
+  IBoardTileInput,
+  isTierBoardValid,
+  toBoardTileInputs,
+  toTierInputs,
+} from '~/utils/tile-race-board';
+import type { RaceMode } from '~/services/tile-race-service.server';
 import { Input } from '~/components/input';
 import { Label } from '~/components/label';
 import { IPickerMember, MemberPicker } from '~/components/MemberPicker';
-import { TileRaceBoardBuilder } from '~/components/TileRaceBoardBuilder';
+import {
+  TileRaceBoardBuilder,
+  TileRaceTierBoardBuilder,
+} from '~/components/TileRaceBoardBuilder';
 import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
 import { zebraStripeClass } from '~/utils/styles';
@@ -88,6 +98,39 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
+// The board builder submits its tiles (classic: flat list; tiered: nested tier
+// lists) as JSON in a hidden input, with the mode alongside. Structural checks
+// live here; board legality is the events API's call.
+const parseBoardInput = (
+  formData: FormData,
+): { board: IBoardDefinitionInput } | { errors: string[] } => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(String(formData.get('board') ?? ''));
+  } catch {
+    return { errors: ['The board payload was malformed.'] };
+  }
+  if (String(formData.get('boardMode')) === 'TIERED') {
+    if (
+      !Array.isArray(parsed) ||
+      !parsed.length ||
+      !parsed.every(tier => Array.isArray(tier) && tier.length)
+    ) {
+      return { errors: ['Every tier needs at least one tile.'] };
+    }
+    return { board: { tiers: parsed as IBoardTileInput[][] } };
+  }
+  if (!Array.isArray(parsed) || !parsed.length) {
+    return { errors: ['Add at least one tile to the board.'] };
+  }
+  return {
+    board: {
+      diceSides: Number(formData.get('diceSides') ?? 6),
+      tiles: parsed as IBoardTileInput[],
+    },
+  };
+};
+
 // The MemberPicker submits its selection as a JSON array of Discord ids.
 const parseMemberIds = (raw: string): string[] | null => {
   try {
@@ -122,26 +165,14 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     switch (intent) {
       case 'create': {
-        let tiles: IBoardTileInput[];
-        try {
-          tiles = JSON.parse(String(formData.get('board') ?? ''));
-        } catch {
-          return json(
-            { intent, errors: ['The board payload was malformed.'] },
-            { status: 400 },
-          );
-        }
-        if (!Array.isArray(tiles) || !tiles.length) {
-          return json(
-            { intent, errors: ['Add at least one tile to the board.'] },
-            { status: 400 },
-          );
+        const parsed = parseBoardInput(formData);
+        if ('errors' in parsed) {
+          return json({ intent, errors: parsed.errors }, { status: 400 });
         }
         await createRace(
           {
             name: String(formData.get('name') ?? '').trim(),
-            diceSides: Number(formData.get('diceSides') ?? 6),
-            tiles,
+            board: parsed.board,
             approvalsChannelId: String(
               formData.get('approvalsChannelId') ?? '',
             ),
@@ -155,25 +186,13 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ intent, errors: null });
       }
       case 'updateboard': {
-        let tiles: IBoardTileInput[];
-        try {
-          tiles = JSON.parse(String(formData.get('board') ?? ''));
-        } catch {
-          return json(
-            { intent, errors: ['The board payload was malformed.'] },
-            { status: 400 },
-          );
-        }
-        if (!Array.isArray(tiles) || !tiles.length) {
-          return json(
-            { intent, errors: ['Add at least one tile to the board.'] },
-            { status: 400 },
-          );
+        const parsed = parseBoardInput(formData);
+        if ('errors' in parsed) {
+          return json({ intent, errors: parsed.errors }, { status: 400 });
         }
         await updateBoard(
           {
-            diceSides: Number(formData.get('diceSides') ?? 6),
-            tiles,
+            board: parsed.board,
             version: Number(formData.get('version') ?? 0),
           },
           user.discordId,
@@ -298,14 +317,45 @@ export default function AdminTileRace() {
 
 const fieldClass = 'flex flex-col gap-1.5';
 
+const classicBoardValid = (tiles: IBoardTileInput[]): boolean =>
+  tiles.length > 0 &&
+  tiles.every(tile => tile.type !== 'TASK' || (tile.name ?? '').trim());
+
+function RaceModeSelect({
+  mode,
+  onChange,
+}: {
+  mode: RaceMode;
+  onChange: (mode: RaceMode) => void;
+}) {
+  return (
+    <div className={fieldClass}>
+      <Label className="text-lg" htmlFor="boardMode">
+        Race style
+      </Label>
+      <Select.Root value={mode} onValueChange={v => onChange(v as RaceMode)}>
+        <Select.Trigger id="boardMode" className="min-w-56" />
+        <Select.Content>
+          <Select.Item value="CLASSIC">Classic (linear dice race)</Select.Item>
+          <Select.Item value="TIERED">Tiered (one task per tier)</Select.Item>
+        </Select.Content>
+      </Select.Root>
+    </div>
+  );
+}
+
 function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submitting = navigation.state === 'submitting';
+  const [mode, setMode] = useState<RaceMode>('CLASSIC');
   const [tiles, setTiles] = useState<IBoardTileInput[]>([]);
-  const boardValid =
-    tiles.length > 0 &&
-    tiles.every(tile => tile.type !== 'TASK' || (tile.name ?? '').trim());
+  const [tiers, setTiers] = useState<IBoardTileInput[][]>([]);
+  const tiered = mode === 'TIERED';
+  const boardValid = tiered
+    ? isTierBoardValid(tiers)
+    : classicBoardValid(tiles);
+  const boardStarted = tiered ? tiers.length > 0 : tiles.length > 0;
 
   return (
     <Box>
@@ -315,7 +365,12 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
       />
       <Form method="post" className="mt-4 flex flex-col gap-4">
         <input type="hidden" name="intent" value="create" />
-        <input type="hidden" name="board" value={JSON.stringify(tiles)} />
+        <input type="hidden" name="boardMode" value={mode} />
+        <input
+          type="hidden"
+          name="board"
+          value={JSON.stringify(tiered ? tiers : tiles)}
+        />
         <div className={fieldClass}>
           <Label className="text-lg" htmlFor="name">
             Event name
@@ -330,20 +385,23 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
           />
         </div>
         <Flex gap="4" wrap="wrap">
-          <div className={fieldClass}>
-            <Label className="text-lg" htmlFor="diceSides">
-              Dice sides
-            </Label>
-            <Input
-              id="diceSides"
-              name="diceSides"
-              type="number"
-              min={2}
-              max={20}
-              defaultValue={6}
-              className="w-24 text-lg"
-            />
-          </div>
+          <RaceModeSelect mode={mode} onChange={setMode} />
+          {!tiered && (
+            <div className={fieldClass}>
+              <Label className="text-lg" htmlFor="diceSides">
+                Dice sides
+              </Label>
+              <Input
+                id="diceSides"
+                name="diceSides"
+                type="number"
+                min={2}
+                max={20}
+                defaultValue={6}
+                className="w-24 text-lg"
+              />
+            </div>
+          )}
           <div className={fieldClass}>
             <Label className="text-lg" htmlFor="days">
               Planned days
@@ -374,14 +432,31 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
           </div>
         </Flex>
         <div className={fieldClass}>
-          <Label>
-            Board: {tiles.length} tile{tiles.length === 1 ? '' : 's'}
-          </Label>
-          <Text size="2" className="text-gray-500">
-            Click ＋ to add a tile, click a tile to edit it. START and FINISH
-            are added automatically.
-          </Text>
-          <TileRaceBoardBuilder tiles={tiles} onChange={setTiles} />
+          {tiered ? (
+            <>
+              <Label>
+                Board: {tiers.length} tier{tiers.length === 1 ? '' : 's'},{' '}
+                {tiers.reduce((sum, tier) => sum + tier.length, 0)} tasks
+              </Label>
+              <Text size="2" className="text-gray-500">
+                Each team rolls a die sized to its current tier and completes
+                the task it lands on, one task per tier. Click ＋ to add a
+                task, click a task to edit it.
+              </Text>
+              <TileRaceTierBoardBuilder tiers={tiers} onChange={setTiers} />
+            </>
+          ) : (
+            <>
+              <Label>
+                Board: {tiles.length} tile{tiles.length === 1 ? '' : 's'}
+              </Label>
+              <Text size="2" className="text-gray-500">
+                Click ＋ to add a tile, click a tile to edit it. START and
+                FINISH are added automatically.
+              </Text>
+              <TileRaceBoardBuilder tiles={tiles} onChange={setTiles} />
+            </>
+          )}
         </div>
         {actionData?.intent === 'create' && actionData.errors && (
           <ActionErrors errors={actionData.errors} />
@@ -396,9 +471,11 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
           >
             {submitting ? 'Creating…' : 'Create race (draft)'}
           </Button>
-          {!boardValid && tiles.length > 0 && (
+          {!boardValid && boardStarted && (
             <Text size="3" className="text-gray-500">
-              Every task tile needs a name.
+              {tiered
+                ? 'Every tier needs 1-20 named tasks.'
+                : 'Every task tile needs a name.'}
             </Text>
           )}
         </Flex>
@@ -453,8 +530,22 @@ function RaceDashboard({
           summary={`${event.status} · ${finished} of ${standings.length} finished`}
         />
         <Text as="p" size="4" className="mt-2 text-gray-400">
-          <span className="text-gray-100">{board.tileCount}</span> tiles, d
-          <span className="text-gray-100">{board.diceSides}</span>. Approvals in{' '}
+          {board.mode === 'TIERED' ? (
+            <>
+              <span className="text-gray-100">{board.tileCount}</span> tasks
+              across{' '}
+              <span className="text-gray-100">
+                {board.tierSizes?.length ?? 0}
+              </span>{' '}
+              tiers
+            </>
+          ) : (
+            <>
+              <span className="text-gray-100">{board.tileCount}</span> tiles,
+              d<span className="text-gray-100">{board.diceSides}</span>
+            </>
+          )}
+          . Approvals in{' '}
           <span className="text-gray-100">
             {channelName(race.channels.approvalsChannelId)}
           </span>
@@ -531,7 +622,7 @@ function RaceDashboard({
                   justify="end"
                   className="text-osrs-orange"
                 >
-                  Tile
+                  {board.mode === 'TIERED' ? 'Tier' : 'Tile'}
                 </Table.ColumnHeaderCell>
                 <Table.ColumnHeaderCell className="hidden text-osrs-orange md:table-cell">
                   Current task
@@ -640,11 +731,14 @@ function TeamRow({
         <Table.Cell justify="end">
           <span className="whitespace-nowrap">
             <Text size="4" className="text-gray-100">
-              {standing.tileIndex}
+              {standing.tierCount != null
+                ? // A finished team derives as tierCount + 1 (FINISH) — show the last tier
+                  Math.min(standing.tier ?? 0, standing.tierCount)
+                : standing.tileIndex}
             </Text>
             <Text size="3" className="text-gray-600">
               {' '}
-              / {standing.finishIndex}
+              / {standing.tierCount ?? standing.finishIndex}
             </Text>
           </span>
         </Table.Cell>
@@ -681,6 +775,11 @@ function TeamRow({
                     max={standing.finishIndex}
                     required
                     placeholder="tile"
+                    title={
+                      standing.tierCount != null
+                        ? "Absolute tile number — tiles run through the tiers in order; the team joins that tile's tier"
+                        : undefined
+                    }
                     className="h-9 w-24 px-2 py-0 text-base"
                   />
                   <Button type="submit" disabled={busy}>
@@ -779,12 +878,24 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const submitting = navigation.state === 'submitting';
+  const [mode, setMode] = useState<RaceMode>(
+    board.mode === 'TIERED' ? 'TIERED' : 'CLASSIC',
+  );
+  // Seeded flat for both modes — switching a tiered draft to classic keeps its
+  // tasks as a flat board instead of starting over.
   const [tiles, setTiles] = useState<IBoardTileInput[]>(() =>
     toBoardTileInputs(board.tiles),
   );
-  const boardValid =
-    tiles.length > 0 &&
-    tiles.every(tile => tile.type !== 'TASK' || (tile.name ?? '').trim());
+  const [tiers, setTiers] = useState<IBoardTileInput[][]>(() =>
+    board.mode === 'TIERED' && board.tierSizes?.length
+      ? toTierInputs(board.tiles, board.tierSizes)
+      : [],
+  );
+  const tiered = mode === 'TIERED';
+  const boardValid = tiered
+    ? isTierBoardValid(tiers)
+    : classicBoardValid(tiles);
+  const boardStarted = tiered ? tiers.length > 0 : tiles.length > 0;
 
   return (
     <Box>
@@ -794,24 +905,38 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
       />
       <Form method="post" className="mt-2 flex flex-col gap-3">
         <input type="hidden" name="intent" value="updateboard" />
-        <input type="hidden" name="board" value={JSON.stringify(tiles)} />
+        <input type="hidden" name="boardMode" value={mode} />
+        <input
+          type="hidden"
+          name="board"
+          value={JSON.stringify(tiered ? tiers : tiles)}
+        />
         {/* Version the tiles were loaded at — a concurrent save 409s instead of clobbering */}
         <input type="hidden" name="version" value={board.version ?? 0} />
-        <div className={fieldClass}>
-          <Label className="text-lg" htmlFor="editDiceSides">
-            Dice sides
-          </Label>
-          <Input
-            id="editDiceSides"
-            name="diceSides"
-            type="number"
-            min={2}
-            max={20}
-            defaultValue={board.diceSides}
-            className="w-24 text-lg"
-          />
-        </div>
-        <TileRaceBoardBuilder tiles={tiles} onChange={setTiles} />
+        <Flex gap="4" wrap="wrap">
+          <RaceModeSelect mode={mode} onChange={setMode} />
+          {!tiered && (
+            <div className={fieldClass}>
+              <Label className="text-lg" htmlFor="editDiceSides">
+                Dice sides
+              </Label>
+              <Input
+                id="editDiceSides"
+                name="diceSides"
+                type="number"
+                min={2}
+                max={20}
+                defaultValue={board.diceSides}
+                className="w-24 text-lg"
+              />
+            </div>
+          )}
+        </Flex>
+        {tiered ? (
+          <TileRaceTierBoardBuilder tiers={tiers} onChange={setTiers} />
+        ) : (
+          <TileRaceBoardBuilder tiles={tiles} onChange={setTiles} />
+        )}
         {actionData?.intent === 'updateboard' && actionData.errors && (
           <ActionErrors errors={actionData.errors} />
         )}
@@ -824,9 +949,11 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
           >
             {submitting ? 'Saving…' : 'Save board'}
           </Button>
-          {!boardValid && tiles.length > 0 && (
+          {!boardValid && boardStarted && (
             <Text size="3" className="text-gray-500">
-              Every task tile needs a name.
+              {tiered
+                ? 'Every tier needs 1-20 named tasks.'
+                : 'Every task tile needs a name.'}
             </Text>
           )}
         </Flex>

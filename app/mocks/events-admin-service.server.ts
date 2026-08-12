@@ -1,5 +1,8 @@
 import type { IAdminTileRace } from '../services/events-admin-service.server';
-import { mockAdminRaceBase } from './tile-race-service.server';
+import {
+  getMockAdminRaceBase,
+  mockAdminRaceBase,
+} from './tile-race-service.server';
 
 // MOCK_MODE stand-in for the sanguine-events admin API: serves the shared fixture with
 // admin channel config bolted on; mutations succeed without doing anything (the fixture
@@ -17,24 +20,26 @@ export class EventsApiError extends Error {
 
 // MOCK_EMPTY_RACE=1 makes the portal show the create-race form instead of the
 // dashboard; MOCK_DRAFT_RACE=1 serves the fixture as a DRAFT so the pre-start
-// surfaces (board editor, start button) render.
-export const getAdminRace = async (): Promise<IAdminTileRace | null> =>
-  process.env.MOCK_EMPTY_RACE === '1'
-    ? null
-    : {
-        ...mockAdminRaceBase,
-        event: {
-          ...mockAdminRaceBase.event,
-          status:
-            process.env.MOCK_DRAFT_RACE === '1'
-              ? 'DRAFT'
-              : mockAdminRaceBase.event.status,
-        },
-        channels: {
-          approvalsChannelId: '200000000000000002',
-          announcementsChannelId: '200000000000000001',
-        },
-      };
+// surfaces (board editor, start button) render; MOCK_TIERED_RACE=1 swaps in
+// the tiered fixture (combines with MOCK_DRAFT_RACE for the tier editor).
+export const getAdminRace = async (): Promise<IAdminTileRace | null> => {
+  if (process.env.MOCK_EMPTY_RACE === '1') {
+    return null;
+  }
+  const base = getMockAdminRaceBase();
+  return {
+    ...base,
+    event: {
+      ...base.event,
+      status:
+        process.env.MOCK_DRAFT_RACE === '1' ? 'DRAFT' : base.event.status,
+    },
+    channels: {
+      approvalsChannelId: '200000000000000002',
+      announcementsChannelId: '200000000000000001',
+    },
+  };
+};
 
 const ok = async <T>(value: T): Promise<T> => value;
 

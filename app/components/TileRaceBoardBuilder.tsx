@@ -168,68 +168,10 @@ export function TileRaceBoardBuilder({
               </Select.Root>
             </div>
             {selectedTile.type === 'TASK' ? (
-              <>
-                <div className="flex min-w-64 flex-1 flex-col gap-1.5">
-                  <Label className="text-lg" htmlFor="tileName">
-                    Task name
-                  </Label>
-                  <Input
-                    id="tileName"
-                    value={selectedTile.name ?? ''}
-                    onChange={e =>
-                      updateTile(selected, { name: e.target.value })
-                    }
-                    placeholder="50KC @ Vorkath"
-                    className="text-lg"
-                    maxLength={100}
-                  />
-                </div>
-                <div className="flex min-w-64 flex-1 flex-col gap-1.5">
-                  <Label className="text-lg" htmlFor="tileDescription">
-                    Description (optional)
-                  </Label>
-                  <Input
-                    id="tileDescription"
-                    value={selectedTile.description ?? ''}
-                    onChange={e =>
-                      updateTile(selected, { description: e.target.value })
-                    }
-                    placeholder="Any team member reaches 50 KC gained during the event"
-                    className="text-lg"
-                    maxLength={300}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-lg" htmlFor="tileQuantity">
-                    Drops needed
-                  </Label>
-                  <Input
-                    id="tileQuantity"
-                    type="number"
-                    min={1}
-                    max={1000}
-                    value={selectedTile.quantity ?? 1}
-                    onChange={e => {
-                      const quantity = Math.max(1, Number(e.target.value) || 1);
-                      // 1 is an ordinary tile — keep the payload clean
-                      updateTile(selected, {
-                        quantity: quantity > 1 ? quantity : undefined,
-                      });
-                    }}
-                    className="w-24 text-lg"
-                  />
-                </div>
-                <div className="flex min-w-64 flex-col gap-1.5">
-                  <Label className="text-lg" htmlFor="tileImage">
-                    Image (optional)
-                  </Label>
-                  <TileImagePicker
-                    id="tileImage"
-                    value={selectedTile.imageUrl}
-                    onChange={imageUrl => updateTile(selected, { imageUrl })}
-                  />
-                </div>
-              </>
+              <TaskTileFields
+                tile={selectedTile}
+                onPatch={patch => updateTile(selected, patch)}
+              />
             ) : (
               <div className="flex flex-col gap-1.5">
                 <Label className="text-lg" htmlFor="tileAmount">
@@ -250,6 +192,293 @@ export function TileRaceBoardBuilder({
                 />
               </div>
             )}
+          </Flex>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+// The shared TASK editor fields — same inputs whether the tile lives on a
+// classic board or inside a tier.
+function TaskTileFields({
+  tile,
+  onPatch,
+}: {
+  tile: IBoardTileInput;
+  onPatch: (patch: Partial<IBoardTileInput>) => void;
+}) {
+  return (
+    <>
+      <div className="flex min-w-64 flex-1 flex-col gap-1.5">
+        <Label className="text-lg" htmlFor="tileName">
+          Task name
+        </Label>
+        <Input
+          id="tileName"
+          value={tile.name ?? ''}
+          onChange={e => onPatch({ name: e.target.value })}
+          placeholder="50KC @ Vorkath"
+          className="text-lg"
+          maxLength={100}
+        />
+      </div>
+      <div className="flex min-w-64 flex-1 flex-col gap-1.5">
+        <Label className="text-lg" htmlFor="tileDescription">
+          Description (optional)
+        </Label>
+        <Input
+          id="tileDescription"
+          value={tile.description ?? ''}
+          onChange={e => onPatch({ description: e.target.value })}
+          placeholder="Any team member reaches 50 KC gained during the event"
+          className="text-lg"
+          maxLength={300}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-lg" htmlFor="tileQuantity">
+          Drops needed
+        </Label>
+        <Input
+          id="tileQuantity"
+          type="number"
+          min={1}
+          max={1000}
+          value={tile.quantity ?? 1}
+          onChange={e => {
+            const quantity = Math.max(1, Number(e.target.value) || 1);
+            // 1 is an ordinary tile — keep the payload clean
+            onPatch({ quantity: quantity > 1 ? quantity : undefined });
+          }}
+          className="w-24 text-lg"
+        />
+      </div>
+      <div className="flex min-w-64 flex-col gap-1.5">
+        <Label className="text-lg" htmlFor="tileImage">
+          Image (optional)
+        </Label>
+        <TileImagePicker
+          id="tileImage"
+          value={tile.imageUrl}
+          onChange={imageUrl => onPatch({ imageUrl })}
+        />
+      </div>
+    </>
+  );
+}
+
+/**
+ * Tier-by-tier variant of the board builder: one row of tiles per tier, TASK
+ * tiles only. Each tier's die matches its tile count, so the row header shows
+ * the die a team will roll when it reaches that tier.
+ */
+interface ITileRaceTierBoardBuilderProps {
+  tiers: IBoardTileInput[][];
+  onChange: (tiers: IBoardTileInput[][]) => void;
+}
+
+const MAX_TIER_SIZE = 20;
+
+export function TileRaceTierBoardBuilder({
+  tiers,
+  onChange,
+}: ITileRaceTierBoardBuilderProps) {
+  const [selected, setSelected] = useState<{
+    tier: number;
+    tile: number;
+  } | null>(null);
+
+  const updateTier = (tierIndex: number, next: IBoardTileInput[]) =>
+    onChange(tiers.map((tier, i) => (i === tierIndex ? next : tier)));
+
+  const updateTile = (
+    tierIndex: number,
+    tileIndex: number,
+    patch: Partial<IBoardTileInput>,
+  ) =>
+    updateTier(
+      tierIndex,
+      tiers[tierIndex].map((tile, i) =>
+        i === tileIndex ? { ...tile, ...patch } : tile,
+      ),
+    );
+
+  const appendTile = (tierIndex: number) => {
+    if (tiers[tierIndex].length >= MAX_TIER_SIZE) {
+      return;
+    }
+    updateTier(tierIndex, [...tiers[tierIndex], NEW_TILE]);
+    setSelected({ tier: tierIndex, tile: tiers[tierIndex].length });
+  };
+
+  const removeTile = (tierIndex: number, tileIndex: number) => {
+    updateTier(
+      tierIndex,
+      tiers[tierIndex].filter((_, i) => i !== tileIndex),
+    );
+    setSelected(null);
+  };
+
+  const moveTile = (tierIndex: number, tileIndex: number, delta: -1 | 1) => {
+    const tier = tiers[tierIndex];
+    const target = tileIndex + delta;
+    if (target < 0 || target >= tier.length) {
+      return;
+    }
+    updateTier(
+      tierIndex,
+      tier.map((tile, i) =>
+        i === tileIndex ? tier[target] : i === target ? tier[tileIndex] : tile,
+      ),
+    );
+    setSelected({ tier: tierIndex, tile: target });
+  };
+
+  const addTier = () => {
+    onChange([...tiers, [NEW_TILE]]);
+    setSelected({ tier: tiers.length, tile: 0 });
+  };
+
+  const removeTier = (tierIndex: number) => {
+    onChange(tiers.filter((_, i) => i !== tierIndex));
+    setSelected(null);
+  };
+
+  const moveTier = (tierIndex: number, delta: -1 | 1) => {
+    const target = tierIndex + delta;
+    if (target < 0 || target >= tiers.length) {
+      return;
+    }
+    onChange(
+      tiers.map((tier, i) =>
+        i === tierIndex ? tiers[target] : i === target ? tiers[tierIndex] : tier,
+      ),
+    );
+    setSelected(null);
+  };
+
+  const selectedTile =
+    selected !== null ? tiers[selected.tier]?.[selected.tile] : null;
+
+  return (
+    <Box>
+      <Flex direction="column" gap="3">
+        {tiers.map((tier, tierIndex) => (
+          <Box key={tierIndex}>
+            <Flex align="center" justify="between" gap="3" wrap="wrap">
+              <Text size="3" className="text-osrs-orange">
+                Tier {tierIndex + 1}{' '}
+                <span className="text-gray-500">
+                  · {tier.length} tile{tier.length === 1 ? '' : 's'} · rolls a
+                  d{tier.length}
+                </span>
+              </Text>
+              <Flex gap="2">
+                <Button
+                  type="button"
+                  onClick={() => moveTier(tierIndex, -1)}
+                  disabled={tierIndex === 0}
+                >
+                  ▲
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => moveTier(tierIndex, 1)}
+                  disabled={tierIndex === tiers.length - 1}
+                >
+                  ▼
+                </Button>
+                <Button
+                  variant="danger"
+                  type="button"
+                  onClick={() => removeTier(tierIndex)}
+                >
+                  Remove tier
+                </Button>
+              </Flex>
+            </Flex>
+            <Box mt="1" className="overflow-x-auto">
+              <div className="grid min-w-[40rem] grid-cols-10 gap-1">
+                {tier.map((tile, tileIndex) => (
+                  <BuilderCellView
+                    key={tileIndex}
+                    cell={{ kind: 'tile', tile, index: tileIndex }}
+                    selected={
+                      selected?.tier === tierIndex &&
+                      selected.tile === tileIndex
+                    }
+                    onAppend={() => appendTile(tierIndex)}
+                    onSelect={tileIndex =>
+                      setSelected(current =>
+                        current?.tier === tierIndex &&
+                        current.tile === tileIndex
+                          ? null
+                          : { tier: tierIndex, tile: tileIndex },
+                      )
+                    }
+                  />
+                ))}
+                {tier.length < MAX_TIER_SIZE && (
+                  <BuilderCellView
+                    cell={{ kind: 'add' }}
+                    selected={false}
+                    onAppend={() => appendTile(tierIndex)}
+                    onSelect={() => {}}
+                  />
+                )}
+              </div>
+            </Box>
+          </Box>
+        ))}
+      </Flex>
+      <Box mt="3">
+        <Button type="button" onClick={addTier}>
+          ＋ Add tier
+        </Button>
+      </Box>
+
+      {selectedTile && selected !== null && (
+        <Box
+          mt="3"
+          className="border-t-2 border-t-sanguine-red bg-sanguine-red/[0.04] p-3"
+        >
+          <Flex align="center" justify="between" gap="3" wrap="wrap">
+            <Text size="4" className="text-osrs-orange">
+              Tier {selected.tier + 1}, tile {selected.tile + 1} of{' '}
+              {tiers[selected.tier].length}
+            </Text>
+            <Flex gap="2" wrap="wrap">
+              <Button
+                type="button"
+                onClick={() => moveTile(selected.tier, selected.tile, -1)}
+                disabled={selected.tile === 0}
+              >
+                ◀ Move
+              </Button>
+              <Button
+                type="button"
+                onClick={() => moveTile(selected.tier, selected.tile, 1)}
+                disabled={selected.tile === tiers[selected.tier].length - 1}
+              >
+                Move ▶
+              </Button>
+              <Button
+                variant="danger"
+                type="button"
+                onClick={() => removeTile(selected.tier, selected.tile)}
+              >
+                Delete
+              </Button>
+            </Flex>
+          </Flex>
+          <Flex mt="3" gap="4" wrap="wrap" align="end">
+            <TaskTileFields
+              tile={selectedTile}
+              onPatch={patch =>
+                updateTile(selected.tier, selected.tile, patch)
+              }
+            />
           </Flex>
         </Box>
       )}
