@@ -5,6 +5,7 @@ import { Button } from '~/components/button';
 import {
   authenticator,
   getSessionUser,
+  NOT_STAFF_MESSAGE,
   sessionStorage,
 } from '~/services/auth.server';
 import { PageHeader } from '~/components/PageHeader';
@@ -16,15 +17,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (user?.isStaff) {
     throw redirect('/admin');
   }
-  const denied = new URL(request.url).searchParams.has('denied');
   // remix-auth flashes the failure reason into the session on failureRedirect —
-  // surface it instead of silently looping back to the sign-in button.
+  // surface it instead of silently looping back to the sign-in button. Non-staff
+  // logins throw the NOT_STAFF_MESSAGE sentinel (no session is minted for them),
+  // which renders as the denied copy rather than a generic OAuth failure.
   const session = await sessionStorage.getSession(request.headers.get('Cookie'));
   const flashed = session.get(authenticator.sessionErrorKey) as
     | { message?: string }
     | undefined;
+  const denied =
+    new URL(request.url).searchParams.has('denied') ||
+    flashed?.message === NOT_STAFF_MESSAGE;
+  const authError =
+    flashed?.message && flashed.message !== NOT_STAFF_MESSAGE
+      ? flashed.message
+      : null;
   return json(
-    { denied, authError: flashed?.message ?? null },
+    { denied, authError },
     { headers: { 'Set-Cookie': await sessionStorage.commitSession(session) } },
   );
 }

@@ -3,6 +3,9 @@ import type { ISessionUser } from '../services/auth.server';
 
 // MOCK_MODE stand-in for Discord OAuth: every visitor is a logged-in staff member.
 
+// Keep the exported surface in sync with the real module (login.tsx imports this).
+export const NOT_STAFF_MESSAGE = 'not-staff';
+
 const mockUser: ISessionUser = {
   discordId: '111111111111111111',
   username: 'MockAdmin',
