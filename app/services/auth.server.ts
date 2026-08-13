@@ -6,9 +6,12 @@ import { getGuildMember } from '~/services/discord-admin-service.server';
 import { audit } from '~/services/audit.server';
 
 /**
- * Discord OAuth for the admin portal. Anyone can complete the login; authorization
- * is the staff-role check (the same roles the events bot honors), stamped into the
- * session at login time. requireStaff gates every /admin loader and action.
+ * Discord OAuth for the admin portal. Anyone can complete Discord's side of the
+ * dance (OAuth providers don't know about guild roles), but the verify callback
+ * refuses to mint a session for non-staff — the staff-role check (the same roles
+ * the events bot honors) throws NOT_STAFF_MESSAGE, remix-auth bounces to the
+ * failureRedirect, and no cookie is ever written. requireStaff still gates every
+ * /admin loader and action as defense in depth.
  */
 export interface ISessionUser {
   discordId: string;
@@ -46,6 +49,10 @@ const staffRoleIds = [
   process.env.EVENT_TEAM_ROLE_ID,
 ].filter((id): id is string => !!id);
 
+// Sentinel carried through remix-auth's error flash so /login can tell "wrong
+// role" apart from a genuinely failed OAuth exchange.
+export const NOT_STAFF_MESSAGE = 'not-staff';
+
 export const authenticator = new Authenticator<ISessionUser>(sessionStorage);
 
 authenticator.use(
@@ -66,6 +73,9 @@ authenticator.use(
         const username = member?.nick ?? profile.displayName;
         const avatarHash = profile.__json.avatar;
         audit('auth.login', { discordId: profile.id, username, isStaff });
+        if (!isStaff) {
+          throw new Error(NOT_STAFF_MESSAGE);
+        }
         return {
           discordId: profile.id,
           username,
@@ -75,6 +85,10 @@ authenticator.use(
           isStaff,
         };
       } catch (error) {
+        // The denied path is already audited above as auth.login with isStaff:false.
+        if (error instanceof Error && error.message === NOT_STAFF_MESSAGE) {
+          throw error;
+        }
         // remix-auth turns this into a failureRedirect; make sure the real cause
         // also lands in the server log.
         audit('auth.login_failed', {
@@ -87,7 +101,12 @@ authenticator.use(
   ),
 );
 
-/** The logged-in staff member, or a redirect to /login (with ?denied for non-staff). */
+/**
+ * The logged-in staff member, or a redirect to /login (with ?denied for non-staff).
+ * Non-staff sessions are no longer minted at login, so the isStaff branch is
+ * defense in depth: it covers sessions issued before that change and any future
+ * regression in the verify callback.
+ */
 export const requireStaff = async (request: Request): Promise<ISessionUser> => {
   const user = await authenticator.isAuthenticated(request);
   if (!user) {
