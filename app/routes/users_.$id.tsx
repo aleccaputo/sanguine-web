@@ -70,10 +70,7 @@ import {
 import { fetchRankImage, rankLabel } from '~/utils/clan-ranks';
 import { matchesAccountName } from '~/utils/account-matching';
 import { getRaidCompletionsForDiscordId } from '~/data/raid-completions';
-import {
-  isClanPointAudit,
-  isLegacyCompetitionAudit,
-} from '~/utils/point-types';
+import { isClanPointAudit } from '~/utils/point-types';
 import { getSlayerRecordForDiscordId } from '~/services/slayer-service.server';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
@@ -119,11 +116,14 @@ export async function loader({ params }: LoaderFunctionArgs) {
   // charted below.
   const dropAuditData = userAuditData.filter(x => !isClanPointAudit(x));
 
-  // Pre-cutover COMPETITION awards count as clan points retroactively (while staying in the
-  // drop-point history above) — the stored clanPoints total never included them.
-  const legacyCompetitionPoints = userAuditData
-    .filter(isLegacyCompetitionAudit)
-    .reduce((sum, x) => sum + x.pointsGiven, 0);
+  // Skip purchases spend the stored clanPoints balance. The article shows LIFETIME EARNED
+  // (a record never shrinks because its subject went shopping), so add the spend back and
+  // surface the current spendable balance separately.
+  const skipPointsSpent = Math.abs(
+    userAuditData
+      .filter(x => x.type === 'BOSS_WHEEL_SKIP_PURCHASE')
+      .reduce((sum, x) => sum + x.pointsGiven, 0),
+  );
 
   // Clan Points tab sections. Competitions span the cutover (every COMPETITION award counts as
   // clan points now); GROUP_RAID audits aren't listed — the richer RaidCompletions rows below
@@ -303,7 +303,9 @@ export async function loader({ params }: LoaderFunctionArgs) {
   ).flat();
 
   return json({
-    user: { ...user, clanPoints: user.clanPoints + legacyCompetitionPoints },
+    user: { ...user, clanPoints: user.clanPoints + skipPointsSpent },
+    spendableClanPoints: user.clanPoints,
+    skipPointsSpent,
     auditData: dropAuditData,
     allItemsLogged: itemsWithData,
     womRoles,
@@ -336,6 +338,8 @@ const ALL_ACCOUNTS = 'all';
 export default function UserById() {
   const {
     user,
+    spendableClanPoints,
+    skipPointsSpent,
     auditData,
     allItemsLogged,
     womRoles,
@@ -714,6 +718,11 @@ export default function UserById() {
             </InfoboxRow>
             <InfoboxRow label="Clan points" valueClassName="text-osrs-gold">
               {user.clanPoints.toLocaleString()}
+              {skipPointsSpent > 0 && (
+                <span className="block text-sm text-gray-500">
+                  {spendableClanPoints.toLocaleString()} spendable
+                </span>
+              )}
             </InfoboxRow>
             {allItemsLogged.length > 0 && (
               <InfoboxRow label="Drops logged">
@@ -1202,6 +1211,15 @@ export default function UserById() {
                       {user.clanPoints.toLocaleString()}
                     </span>{' '}
                     clan points
+                    {skipPointsSpent > 0 && (
+                      <>
+                        {' '}
+                        · <span className="text-gray-400">
+                          {skipPointsSpent.toLocaleString()}
+                        </span>{' '}
+                        spent on skips
+                      </>
+                    )}
                   </Text>
                 }
               />

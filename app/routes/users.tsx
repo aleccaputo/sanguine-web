@@ -13,7 +13,7 @@ import {
   getClanFromWom,
   type MembershipWithPlayer,
 } from '~/services/wom-api-service.server';
-import { getLegacyCompetitionPointsByDiscordId } from '~/data/points-audit';
+import { getSkipPurchaseSpendByDiscordId } from '~/data/points-audit';
 import {
   fetchRankImage,
   getRankSortIndex,
@@ -43,21 +43,18 @@ export const meta: MetaFunction = () => {
 };
 
 export async function loader() {
-  const [users, sanguineWomMembers, legacyCompetitionPoints] =
-    await Promise.all([
-      getUsersWithNicknames(),
-      getClanFromWom(),
-      getLegacyCompetitionPointsByDiscordId(),
-    ]);
-  // Pre-cutover COMPETITION awards count as clan points retroactively but were only ever added
-  // to the drop bucket on the user record — credit them here so cards and sorting agree with
-  // the profile page.
+  const [users, sanguineWomMembers, skipPurchaseSpend] = await Promise.all([
+    getUsersWithNicknames(),
+    getClanFromWom(),
+    getSkipPurchaseSpendByDiscordId(),
+  ]);
+  // The roster and leaderboard rank by LIFETIME EARNED clan points: skip purchases spend the
+  // stored balance, so add the spend back — buying skips never drops anyone down the board.
   const filteredUsers = users
     .filter(x => x.nickname)
     .map(user => ({
       ...user,
-      clanPoints:
-        user.clanPoints + (legacyCompetitionPoints[user.discordId] ?? 0),
+      clanPoints: user.clanPoints + (skipPurchaseSpend[user.discordId] ?? 0),
     }));
   return defer(
     {
