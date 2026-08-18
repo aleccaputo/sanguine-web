@@ -1,14 +1,15 @@
 import { MOCK_DROPS } from '~/mocks/fixtures.server';
-import { isLegacyCompetitionAudit } from '~/utils/point-types';
 
-export const getLegacyCompetitionPointsByDiscordId = async (): Promise<
+export const getSkipPurchaseSpendByDiscordId = async (): Promise<
   Record<string, number>
 > =>
-  MOCK_DROPS.filter(isLegacyCompetitionAudit).reduce<Record<string, number>>(
+  MOCK_DROPS.filter(d => d.type === 'BOSS_WHEEL_SKIP_PURCHASE').reduce<
+    Record<string, number>
+  >(
     (acc, d) => ({
       ...acc,
       [d.destinationDiscordId]:
-        (acc[d.destinationDiscordId] ?? 0) + d.pointsGiven,
+        (acc[d.destinationDiscordId] ?? 0) + Math.abs(d.pointsGiven),
     }),
     {},
   );

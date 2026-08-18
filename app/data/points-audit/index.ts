@@ -1,22 +1,21 @@
 import { prisma } from '~/utils/db.server';
-import { COMPETITION_CLAN_POINTS_CUTOVER } from '~/utils/point-types';
 
-// Pre-cutover COMPETITION awards paid into the drop-points bucket on the user record, but
-// retroactively count as clan points too. Sums them per member so displays can credit them on
-// top of the stored clanPoints total.
-export const getLegacyCompetitionPointsByDiscordId = async (): Promise<
+// Skip purchases subtract from the stored clanPoints balance. Sums the (negative) purchase
+// audits per member so displays can add the spend back — the roster and leaderboard show
+// lifetime earned clan points, not the current balance.
+export const getSkipPurchaseSpendByDiscordId = async (): Promise<
   Record<string, number>
 > => {
   const rows = await prisma.pointAudit.groupBy({
     by: ['destinationDiscordId'],
-    where: {
-      type: 'COMPETITION',
-      createdAt: { lt: COMPETITION_CLAN_POINTS_CUTOVER },
-    },
+    where: { type: 'BOSS_WHEEL_SKIP_PURCHASE' },
     _sum: { pointsGiven: true },
   });
   return Object.fromEntries(
-    rows.map(row => [row.destinationDiscordId, row._sum.pointsGiven ?? 0]),
+    rows.map(row => [
+      row.destinationDiscordId,
+      Math.abs(row._sum.pointsGiven ?? 0),
+    ]),
   );
 };
 
