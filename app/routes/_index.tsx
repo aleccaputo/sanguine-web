@@ -48,6 +48,15 @@ export const meta: MetaFunction = () => {
   ];
 };
 
+// Deferred sections must settle before entry.server's 10s stream abort, or the
+// client rejects them with "Server timeout" and the page falls to the root
+// error boundary. Race slow upstreams to a fallback comfortably under that.
+const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T) =>
+  Promise.race([
+    promise.catch(() => fallback),
+    new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms)),
+  ]);
+
 // Prose speaks like a player: "95.5b gp", not eleven digits. Tables keep
 // full numbers.
 const formatGp = (gp: number) => {
@@ -148,35 +157,40 @@ export async function loader() {
     return { latestDrops, champions };
   });
 
-  // WOM can be slow on a cold cache — its section streams in on its own.
+  // WOM can be slow on a cold cache — its section streams in on its own, and
+  // times out to an empty list rather than outliving the stream abort.
   // Special comps (bingos, inter-clan events) live outside the group list.
-  const competitionsPromise = Promise.all([
-    getCompetitions(),
-    ...SPECIAL_COMPETITION_IDS.map(id => getCompetitionById(id)),
-  ]).then(([womComps, ...specials]) => {
-    const now = Date.now();
-    const seen = new Set<number>();
-    return [...specials, ...(womComps ?? [])]
-      .filter(comp => {
-        if (!comp || seen.has(comp.id)) return false;
-        seen.add(comp.id);
-        return (
-          new Date(comp.startsAt).getTime() <= now &&
-          now <= new Date(comp.endsAt).getTime()
-        );
-      })
-      .sort(
-        (a, b) => new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime(),
-      )
-      .slice(0, 4)
-      .map(comp => ({
-        id: comp.id,
-        title: comp.title,
-        metric: comp.metric,
-        endsAt: comp.endsAt,
-        participantCount: comp.participantCount,
-      }));
-  });
+  const competitionsPromise = withTimeout(
+    Promise.all([
+      getCompetitions(),
+      ...SPECIAL_COMPETITION_IDS.map(id => getCompetitionById(id)),
+    ]).then(([womComps, ...specials]) => {
+      const now = Date.now();
+      const seen = new Set<number>();
+      return [...specials, ...(womComps ?? [])]
+        .filter(comp => {
+          if (!comp || seen.has(comp.id)) return false;
+          seen.add(comp.id);
+          return (
+            new Date(comp.startsAt).getTime() <= now &&
+            now <= new Date(comp.endsAt).getTime()
+          );
+        })
+        .sort(
+          (a, b) => new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime(),
+        )
+        .slice(0, 4)
+        .map(comp => ({
+          id: comp.id,
+          title: comp.title,
+          metric: comp.metric,
+          endsAt: comp.endsAt,
+          participantCount: comp.participantCount,
+        }));
+    }),
+    8_000,
+    [],
+  );
 
   return defer(
     {
@@ -339,7 +353,7 @@ export default function Index() {
           <strong className="font-medium text-white">Sanguine</strong> is an
           OSRS PvM and social clan
           <Suspense fallback={<>.</>}>
-            <Await resolve={stats}>
+            <Await resolve={stats} errorElement={<>.</>}>
               {({ memberCount, totalDrops, totalGP }) => (
                 <>
                   ,{' '}
@@ -400,7 +414,7 @@ export default function Index() {
             }
           />
           <Suspense fallback={<RowsSkeleton rows={5} />}>
-            <Await resolve={activity}>
+            <Await resolve={activity} errorElement={<EmptyState />}>
               {({ latestDrops }) =>
                 latestDrops.length > 0 ? (
                   <LiveDropFeed drops={latestDrops} />
@@ -423,7 +437,7 @@ export default function Index() {
               }
             />
             <Suspense fallback={<RowsSkeleton rows={3} />}>
-              <Await resolve={competitions}>
+              <Await resolve={competitions} errorElement={<EmptyState />}>
                 {comps =>
                   comps.length > 0 ? (
                     <Box mt="2">
@@ -475,7 +489,7 @@ export default function Index() {
               }
             />
             <Suspense fallback={<RowsSkeleton rows={3} />}>
-              <Await resolve={activity}>
+              <Await resolve={activity} errorElement={<EmptyState />}>
                 {({ champions }) =>
                   champions.length > 0 ? (
                     <Box mt="2">
