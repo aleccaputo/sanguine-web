@@ -153,4 +153,7 @@ export const untradeableItems: Record<number, string> = {
 
   33634: 'elder venator fang',
   33631: 'crimson kisten',
+
+  // Inferno reward (untradeable)
+  21295: 'infernal cape',
 };
