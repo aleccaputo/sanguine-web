@@ -175,7 +175,36 @@ const buildClanAudits = (): MockDrop[] =>
     ),
   );
 
-export const MOCK_DROPS: MockDrop[] = [...buildDrops(), ...buildClanAudits()];
+// Negative skip-purchase audits (the bot debits clan points when a member buys task skips)
+// so the profile's Purchases ledger and the roster's spend-added-back math have rows to show.
+// sourceDiscordId = the buyer, mirroring the bot's audit shape.
+const buildSkipPurchases = (): MockDrop[] =>
+  MOCK_USERS.slice(0, 6).flatMap(user =>
+    Array.from(
+      { length: faker.number.int({ min: 1, max: 3 }) },
+      (): MockDrop => ({
+        id: faker.string.hexadecimal({ length: 24, casing: 'lower' }).slice(2),
+        v: 0,
+        createdAt: faker.date
+          .between({ from: '2026-05-01', to: '2026-08-01' })
+          .toISOString(),
+        destinationDiscordId: user.discordId,
+        sourceDiscordId: user.discordId,
+        messageId: faker.string.numeric(18),
+        pointsGiven: -3 * faker.number.int({ min: 1, max: 2 }),
+        type: 'BOSS_WHEEL_SKIP_PURCHASE',
+        itemId: null,
+        bossName: null,
+        osrsName: null,
+      }),
+    ),
+  );
+
+export const MOCK_DROPS: MockDrop[] = [
+  ...buildDrops(),
+  ...buildClanAudits(),
+  ...buildSkipPurchases(),
+];
 
 export type MockMonthlyWinner = {
   eventId: string;

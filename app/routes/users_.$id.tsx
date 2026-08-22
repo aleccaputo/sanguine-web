@@ -118,11 +118,15 @@ export async function loader({ params }: LoaderFunctionArgs) {
 
   // Skip purchases spend the stored clanPoints balance. The article shows LIFETIME EARNED
   // (a record never shrinks because its subject went shopping), so add the spend back and
-  // surface the current spendable balance separately.
+  // surface the current spendable balance separately. The rows double as the purchase
+  // ledger on the Clan points tab — the audit records only the points debited, not the
+  // skip count (the price is retunable live, so it can't be derived back).
+  const skipPurchases = userAuditData
+    .filter(x => x.type === 'BOSS_WHEEL_SKIP_PURCHASE')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(({ id, createdAt, pointsGiven }) => ({ id, createdAt, pointsGiven }));
   const skipPointsSpent = Math.abs(
-    userAuditData
-      .filter(x => x.type === 'BOSS_WHEEL_SKIP_PURCHASE')
-      .reduce((sum, x) => sum + x.pointsGiven, 0),
+    skipPurchases.reduce((sum, x) => sum + x.pointsGiven, 0),
   );
 
   // Clan Points tab sections. Competitions span the cutover (every COMPETITION award counts as
@@ -306,6 +310,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
     user: { ...user, clanPoints: user.clanPoints + skipPointsSpent },
     spendableClanPoints: user.clanPoints,
     skipPointsSpent,
+    skipPurchases,
     auditData: dropAuditData,
     allItemsLogged: itemsWithData,
     womRoles,
@@ -340,6 +345,7 @@ export default function UserById() {
     user,
     spendableClanPoints,
     skipPointsSpent,
+    skipPurchases,
     auditData,
     allItemsLogged,
     womRoles,
@@ -448,10 +454,11 @@ export default function UserById() {
     clogPagination.reset();
   };
 
-  // Raids and slayer tasks paginate independently of drops — they ignore the account
-  // switcher, so their pages never need resetting.
+  // Raids, slayer tasks, and purchases paginate independently of drops — they ignore the
+  // account switcher, so their pages never need resetting.
   const raidsPagination = usePagination(raids, itemsPerPage);
   const slayerPagination = usePagination(slayer.completions, itemsPerPage);
+  const purchasesPagination = usePagination(skipPurchases, itemsPerPage);
 
   const totalGP = filteredItems.reduce(
     (sum, item) => sum + (item.osrsData?.price || 0),
@@ -480,10 +487,12 @@ export default function UserById() {
     (historicalCompetitions?.points ?? 0);
   const hasSlayerHistory = slayer.completions.length > 0;
   const slayerPointsTotal = slayer.taskClanPoints + slayer.prizePoints;
+  const hasSpendHistory = skipPurchases.length > 0;
   const hasClanPointHistory =
     raids.length > 0 ||
     hasCompetitionHistory ||
     hasSlayerHistory ||
+    hasSpendHistory ||
     otherAwards !== null;
   // Subsection headers exist to divide multiple point sources (their totals reconcile
   // the section figure). With a single source they'd just repeat the h2 total — skip them.
@@ -491,6 +500,7 @@ export default function UserById() {
     raids.length > 0,
     hasCompetitionHistory,
     hasSlayerHistory,
+    hasSpendHistory,
     otherAwards !== null,
   ].filter(Boolean).length;
 
@@ -534,6 +544,9 @@ export default function UserById() {
                       : []),
                     ...(hasSlayerHistory
                       ? [{ id: 'slayer', title: 'Slayer' }]
+                      : []),
+                    ...(hasSpendHistory
+                      ? [{ id: 'purchases', title: 'Purchases' }]
                       : []),
                     ...(otherAwards
                       ? [{ id: 'other-awards', title: 'Other' }]
@@ -1653,6 +1666,86 @@ export default function UserById() {
                       totalPages={slayerPagination.totalPages}
                       onPrev={slayerPagination.onPrev}
                       onNext={slayerPagination.onNext}
+                    />
+                  </Box>
+                )}
+
+                {/* Purchases — clan points spent at the Slayer Master. The audit records
+                    only the points debited, never the skip count (the price is retunable
+                    live), so rows read as spend rather than quantity. Debits are red,
+                    never gold — spend must not share the earned color. */}
+                {hasSpendHistory && (
+                  <Box id="purchases" className="scroll-mt-20">
+                    {clanPointSources > 1 && (
+                      <SubsectionHeading
+                        title="Purchases"
+                        hint="task skips bought with clan points"
+                        summary={
+                          <Text
+                            size="2"
+                            className="whitespace-nowrap text-gray-500"
+                          >
+                            <span className="font-medium text-red-400">
+                              -{skipPointsSpent.toLocaleString()}
+                            </span>{' '}
+                            clan points
+                          </Text>
+                        }
+                      />
+                    )}
+                    <div className="overflow-x-auto">
+                      <Table.Root size="2">
+                        <Table.Header>
+                          <Table.Row>
+                            <Table.ColumnHeaderCell className="text-osrs-orange">
+                              Purchase
+                            </Table.ColumnHeaderCell>
+                            <Table.ColumnHeaderCell className="text-osrs-orange">
+                              Date
+                            </Table.ColumnHeaderCell>
+                            <Table.ColumnHeaderCell
+                              className="whitespace-nowrap text-osrs-orange"
+                              align="right"
+                            >
+                              Clan pts
+                            </Table.ColumnHeaderCell>
+                          </Table.Row>
+                        </Table.Header>
+                        <Table.Body>
+                          {purchasesPagination.pageItems.map(purchase => (
+                            <Table.Row
+                              key={purchase.id}
+                              className={zebraRowClass}
+                            >
+                              <Table.Cell>
+                                <Text size="2" className="text-white">
+                                  Task skips
+                                </Text>
+                              </Table.Cell>
+                              <Table.Cell className="text-gray-400">
+                                <span className="whitespace-nowrap">
+                                  {dayjs(purchase.createdAt).format('MMM D,')}
+                                </span>{' '}
+                                <span className="whitespace-nowrap">
+                                  {dayjs(purchase.createdAt).format('YYYY')}
+                                </span>
+                              </Table.Cell>
+                              <Table.Cell
+                                align="right"
+                                className="whitespace-nowrap font-medium text-red-400"
+                              >
+                                {purchase.pointsGiven}
+                              </Table.Cell>
+                            </Table.Row>
+                          ))}
+                        </Table.Body>
+                      </Table.Root>
+                    </div>
+                    <Pagination
+                      page={purchasesPagination.page}
+                      totalPages={purchasesPagination.totalPages}
+                      onPrev={purchasesPagination.onPrev}
+                      onNext={purchasesPagination.onNext}
                     />
                   </Box>
                 )}
