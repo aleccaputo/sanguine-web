@@ -37,7 +37,9 @@ export async function loader() {
   // page still renders if the service token is missing.
   const adminRace = await getAdminRace().catch(() => null);
   const race = adminRace ?? (await getCurrentTileRace().catch(() => null));
-  if (!race) {
+  // Drafts are staff-only work in progress — the public page only shows a race
+  // once it has been started (or has finished).
+  if (!race || race.event.status === 'DRAFT') {
     return json({ race: null });
   }
   const memberIdsByTeamId = new Map(
@@ -260,7 +262,6 @@ export default function TileRace() {
             <span className="text-gray-100">{board.diceSides}</span>.{' '}
           </>
         )}
-        {event.status === 'DRAFT' && 'The race has not started yet.'}
         {event.status === 'ACTIVE' &&
           winner &&
           `${winner.name} has already crossed the line.`}
