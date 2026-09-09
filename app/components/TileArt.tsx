@@ -20,7 +20,7 @@ export function TileArt({ src }: { src: string }) {
       aria-hidden
       loading="lazy"
       onError={() => setFailed(true)}
-      className="pointer-events-none absolute inset-0 m-auto max-h-[70%] max-w-[75%] object-contain opacity-35"
+      className="pointer-events-none absolute inset-0 m-auto max-h-[75%] max-w-[80%] object-contain opacity-45"
     />
   );
 }

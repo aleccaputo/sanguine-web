@@ -1,8 +1,18 @@
+import { useEffect, useState } from 'react';
 import { json, MetaFunction } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
-import { Box, Container, Flex, Table, Text } from '@radix-ui/themes';
+import {
+  Box,
+  Container,
+  Dialog,
+  Flex,
+  Popover,
+  Table,
+  Text,
+} from '@radix-ui/themes';
 import {
   getCurrentTileRace,
+  ITileRaceHistoryEntry,
   ITileRaceStanding,
   ITileRaceTile,
 } from '~/services/tile-race-service.server';
@@ -45,9 +55,16 @@ export async function loader() {
   const memberIdsByTeamId = new Map(
     (adminRace?.standings ?? []).map(s => [s.teamId, s.memberDiscordIds]),
   );
-  const nameByDiscordId = await getNicknameMapByDiscordIds(
-    [...memberIdsByTeamId.values()].flat(),
+  // One nickname lookup covers rosters and history submitters alike.
+  const submitterIds = race.standings.flatMap(s =>
+    (s.history ?? []).flatMap(entry =>
+      entry.submittedByDiscordId ? [entry.submittedByDiscordId] : [],
+    ),
   );
+  const nameByDiscordId = await getNicknameMapByDiscordIds([
+    ...[...memberIdsByTeamId.values()].flat(),
+    ...submitterIds,
+  ]);
   return json({
     race: {
       event: race.event,
@@ -61,29 +78,58 @@ export async function loader() {
         tier: standing.tier ?? null,
         tierCount: standing.tierCount ?? null,
         currentTask: standing.currentTask,
+        taskProgress: standing.taskProgress ?? null,
         moveStatus: standing.moveStatus,
         isFinished: standing.isFinished,
         memberNames: (memberIdsByTeamId.get(standing.teamId) ?? []).map(
           id => nameByDiscordId[id] ?? 'Unknown',
+        ),
+        // Submitter ids resolve to nicknames server-side, like rosters do.
+        history: (standing.history ?? []).map(
+          ({ submittedByDiscordId, ...entry }) => ({
+            ...entry,
+            submittedBy: submittedByDiscordId
+              ? nameByDiscordId[submittedByDiscordId] ?? null
+              : null,
+          }),
         ),
       })),
     },
   });
 }
 
-interface IStandingView extends ITileRaceStanding {
-  memberNames: string[];
+interface IHistoryEntryView
+  extends Omit<ITileRaceHistoryEntry, 'submittedByDiscordId'> {
+  /** Submitter's clan nickname, resolved server-side (admin payload only) */
+  submittedBy: string | null;
 }
 
-// Stable per-team marker colors (never sanguine red — that means members/links).
-const TEAM_COLORS = [
-  '#D9A13C',
-  '#4FB4D8',
-  '#6BBF59',
-  '#A97BD6',
-  '#D66BA0',
-  '#C98A45',
+interface IStandingView extends Omit<ITileRaceStanding, 'history'> {
+  memberNames: string[];
+  history: IHistoryEntryView[];
+}
+
+// The public board renders wider tiles than the admin builder's 10-column grid —
+// consumers read the board, admins pack it.
+const BOARD_VIEW_COLUMNS = 8;
+
+// Stable per-team identities: an OSRS god symbol (from /public/god-symbols)
+// paired with the accent color matching its canonical palette. The accent drives
+// borders/rails/legend; the symbol is the pawn. Never sanguine red — that means
+// members/links.
+const TEAM_IDENTITIES = [
+  { color: '#D9A13C', god: 'saradomin' },
+  { color: '#4FB4D8', god: 'armadyl' },
+  { color: '#6BBF59', god: 'guthix' },
+  { color: '#A97BD6', god: 'zaros' },
+  { color: '#D66BA0', god: 'zamorak' },
+  { color: '#C98A45', god: 'bandos' },
 ];
+
+const TEAM_COLORS = TEAM_IDENTITIES.map(identity => identity.color);
+const GOD_BY_COLOR = Object.fromEntries(
+  TEAM_IDENTITIES.map(identity => [identity.color, identity.god]),
+);
 
 const tileTitle = (tile: ITileRaceTile): string => {
   switch (tile.type) {
@@ -98,94 +144,13 @@ const tileTitle = (tile: ITileRaceTile): string => {
     case 'TASK': {
       const base = tile.description
         ? `${tile.name}: ${tile.description}`
-        : (tile.name ?? 'Task');
+        : tile.name ?? 'Task';
       return (tile.quantity ?? 1) > 1
         ? `${base} (${tile.quantity} approved drops to complete)`
         : base;
     }
   }
 };
-
-function TileCell({
-  tile,
-  teamsHere,
-  colorByTeamId,
-}: {
-  tile: ITileRaceTile | null;
-  teamsHere: IStandingView[];
-  colorByTeamId: Record<string, string>;
-}) {
-  if (!tile) {
-    return <div aria-hidden />;
-  }
-
-  const imageUrl =
-    tile.type === 'TASK'
-      ? (tile.imageUrl ?? getTileImageUrl(tile.name, tile.description))
-      : null;
-
-  const content = (() => {
-    switch (tile.type) {
-      case 'START':
-        return <span className="text-[11px] text-green-400">START</span>;
-      case 'FINISH':
-        return <span className="text-[11px] text-green-400">FINISH</span>;
-      case 'GO_BACK':
-        return (
-          <span className="text-[10px] leading-tight text-red-400">
-            Go back {tile.amount}
-          </span>
-        );
-      case 'GO_FORWARD':
-        return (
-          <span className="text-[10px] leading-tight text-sky-400">
-            Forward {tile.amount}
-          </span>
-        );
-      case 'TASK':
-        return (
-          <span className="text-[10px] leading-tight text-gray-200">
-            {tile.name}
-          </span>
-        );
-    }
-  })();
-
-  return (
-    <div
-      title={tileTitle(tile)}
-      className={`relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-sm border bg-gray-900 p-1 text-center ${
-        teamsHere.length ? 'border-gray-500' : 'border-gray-800'
-      }`}
-    >
-      {imageUrl && <TileArt src={imageUrl} />}
-      <span className="absolute left-1 top-0.5 text-[9px] text-gray-600">
-        {tile.index}
-      </span>
-      {tile.type === 'TASK' && (tile.quantity ?? 1) > 1 && (
-        <span className="absolute right-1 top-0.5 text-[9px] text-osrs-gold">
-          ×{tile.quantity}
-        </span>
-      )}
-      {/* relative lifts the label above the absolutely-positioned artwork */}
-      <span className="relative">{content}</span>
-      {teamsHere.length > 0 && (
-        <Flex gap="1" className="absolute bottom-0.5">
-          {teamsHere.map(team => (
-            <span
-              key={team.teamId}
-              title={team.name}
-              className="flex h-3.5 w-3.5 items-center justify-center rounded-sm text-[9px] font-bold text-black"
-              style={{ backgroundColor: colorByTeamId[team.teamId] }}
-            >
-              {team.name.charAt(0)}
-            </span>
-          ))}
-        </Flex>
-      )}
-    </div>
-  );
-}
 
 const statusText = (standing: ITileRaceStanding): string => {
   if (standing.isFinished) {
@@ -205,8 +170,444 @@ const ordinal = (n: number): string => {
   return `${n}${suffix}`;
 };
 
+/**
+ * Square game-pawn marker: the team's god symbol framed in its accent color.
+ * The god derives from the color (they're paired in TEAM_IDENTITIES), with the
+ * team initial as a fallback if the pairing ever misses.
+ */
+function TeamToken({
+  name,
+  color,
+  size = 'md',
+}: {
+  name: string;
+  color: string;
+  size?: 'sm' | 'md';
+}) {
+  const god = GOD_BY_COLOR[color];
+  const sizeClass =
+    size === 'sm'
+      ? 'h-5 w-5 text-[11px] sm:h-6 sm:w-6 sm:text-xs'
+      : 'h-6 w-6 text-xs sm:h-8 sm:w-8 sm:text-sm';
+  return (
+    <span
+      title={name}
+      className={`flex shrink-0 items-center justify-center rounded-sm border-2 bg-[#111113] p-0.5 font-bold text-gray-100 ${sizeClass}`}
+      style={{ borderColor: color }}
+    >
+      {god ? (
+        <img
+          src={`/god-symbols/${god}.png`}
+          alt=""
+          className="h-full w-full object-contain [image-rendering:pixelated]"
+        />
+      ) : (
+        name.charAt(0)
+      )}
+    </span>
+  );
+}
+
+/** One cleared tile plus the team that cleared it — a line in the race history. */
+interface IClearedTile {
+  team: IStandingView;
+  entry: IHistoryEntryView;
+}
+
+// UTC pinned so the server render and every viewer's hydration agree on the date.
+const historyDate = (iso: string | null): string | null =>
+  iso
+    ? new Date(iso).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'UTC',
+      })
+    : null;
+
+/** The OSRS hint arrow: a bouncing gold arrow marking the spotted team. */
+function HintArrow({
+  className = 'h-7 w-7 sm:h-8 sm:w-8',
+}: {
+  className?: string;
+}) {
+  return (
+    <svg viewBox="0 0 24 24" className={`animate-bounce ${className}`}>
+      <path
+        d="M12 22 L4 12 H8 V2 H16 V12 H20 Z"
+        fill="#D9A13C"
+        stroke="#000"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TileCell({
+  tile,
+  teamsHere,
+  clearsHere,
+  colorByTeamId,
+  highlightTeamId,
+}: {
+  tile: ITileRaceTile | null;
+  teamsHere: IStandingView[];
+  clearsHere: IClearedTile[];
+  colorByTeamId: Record<string, string>;
+  highlightTeamId: string | null;
+}) {
+  if (!tile) {
+    return <div aria-hidden />;
+  }
+
+  const imageUrl =
+    tile.type === 'TASK'
+      ? tile.imageUrl ?? getTileImageUrl(tile.name, tile.description)
+      : null;
+  const highlighted = teamsHere.some(team => team.teamId === highlightTeamId);
+  const soleOccupant = teamsHere.length === 1 ? teamsHere[0] : null;
+
+  const label = (() => {
+    switch (tile.type) {
+      case 'START':
+        return (
+          <span className="text-sm text-green-400 sm:text-base">START</span>
+        );
+      case 'FINISH':
+        return (
+          <span className="text-sm text-green-400 sm:text-base">FINISH</span>
+        );
+      case 'GO_BACK':
+        return (
+          <span className="text-xs leading-tight text-red-400 sm:text-sm">
+            Go back {tile.amount}
+          </span>
+        );
+      case 'GO_FORWARD':
+        return (
+          <span className="text-xs leading-tight text-sky-400 sm:text-sm">
+            Forward {tile.amount}
+          </span>
+        );
+      case 'TASK':
+        return (
+          <span className="text-xs leading-tight text-gray-200 sm:text-sm">
+            {tile.name}
+          </span>
+        );
+    }
+  })();
+
+  const detailHeading = (() => {
+    switch (tile.type) {
+      case 'START':
+        return (
+          <Text size="2" className="text-green-400">
+            Start · every team begins here
+          </Text>
+        );
+      case 'FINISH':
+        return (
+          <Text size="2" className="text-green-400">
+            Finish · first team here wins
+          </Text>
+        );
+      case 'GO_BACK':
+        return (
+          <Text size="2" className="text-red-400">
+            Go back {tile.amount} tiles
+          </Text>
+        );
+      case 'GO_FORWARD':
+        return (
+          <Text size="2" className="text-sky-400">
+            Go forward {tile.amount} tiles
+          </Text>
+        );
+      case 'TASK':
+        return (
+          <Text size="2" className="text-gray-100">
+            {tile.name}
+          </Text>
+        );
+    }
+  })();
+
+  return (
+    <Popover.Root>
+      <Popover.Trigger>
+        <button
+          type="button"
+          id={`tile-${tile.index}`}
+          title={tileTitle(tile)}
+          className={`relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-sm bg-sanguine-red/[0.05] p-1 text-center transition-opacity duration-200 ${
+            teamsHere.length > 1
+              ? 'border-2 border-gray-400'
+              : soleOccupant
+                ? 'border-2'
+                : 'border border-sanguine-red/[0.18]'
+          } ${highlightTeamId !== null && !highlighted ? 'opacity-40' : ''}`}
+          style={
+            soleOccupant
+              ? { borderColor: colorByTeamId[soleOccupant.teamId] }
+              : undefined
+          }
+        >
+          {imageUrl && <TileArt src={imageUrl} />}
+          <span className="absolute left-1 top-0.5 text-[10px] text-gray-500 sm:text-xs">
+            {tile.index}
+          </span>
+          {tile.type === 'TASK' && (tile.quantity ?? 1) > 1 && (
+            <span className="absolute right-1 top-0.5 text-[10px] text-osrs-gold sm:text-xs">
+              {/* A lone occupant's live count beats the static ×N requirement */}
+              {soleOccupant?.taskProgress != null
+                ? `${soleOccupant.taskProgress}/${tile.quantity}`
+                : `×${tile.quantity}`}
+            </span>
+          )}
+          {/* relative lifts the label above the absolutely-positioned artwork */}
+          <span className="relative">{label}</span>
+          {clearsHere.length > 0 && tile.type === 'TASK' && (
+            // Quest-complete check: this tile has clears — click for the story
+            <span className="absolute bottom-0.5 right-1 text-xs text-green-400 sm:text-sm">
+              ✓{clearsHere.length > 1 && clearsHere.length}
+            </span>
+          )}
+          {highlighted && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-1 z-[1] flex justify-center"
+            >
+              <HintArrow />
+            </span>
+          )}
+          {teamsHere.length > 0 && (
+            <span
+              className={`absolute bottom-1 flex ${teamsHere.length > 3 ? '-space-x-1.5' : 'gap-1'}`}
+            >
+              {teamsHere.map(team => (
+                <TeamToken
+                  key={team.teamId}
+                  name={team.name}
+                  color={colorByTeamId[team.teamId]}
+                />
+              ))}
+            </span>
+          )}
+        </button>
+      </Popover.Trigger>
+      <Popover.Content size="1" className="max-w-80">
+        <Flex direction="column" gap="1">
+          <Text size="1" className="text-gray-600">
+            Tile {tile.index}
+          </Text>
+          {detailHeading}
+          {tile.type === 'TASK' && tile.description && (
+            <Text size="2" className="text-gray-400">
+              {tile.description}
+            </Text>
+          )}
+          {tile.type === 'TASK' && (tile.quantity ?? 1) > 1 && (
+            <Text size="2" className="text-osrs-gold">
+              ×{tile.quantity} approved drops to complete
+            </Text>
+          )}
+          {teamsHere.length > 0 && (
+            <Flex direction="column" gap="1" className="pt-1">
+              {teamsHere.map(team => (
+                <Flex key={team.teamId} align="center" gap="2">
+                  <TeamToken
+                    name={team.name}
+                    color={colorByTeamId[team.teamId]}
+                    size="sm"
+                  />
+                  <Text size="2" className="text-gray-100">
+                    {team.name}
+                  </Text>
+                  <Text size="1" className="text-gray-500">
+                    {statusText(team)}
+                  </Text>
+                  {team.taskProgress != null && (
+                    <Text size="1" className="text-osrs-gold">
+                      {team.taskProgress}/{tile.quantity}
+                    </Text>
+                  )}
+                </Flex>
+              ))}
+            </Flex>
+          )}
+          {/* Who already got through here, and (per the submitter's note) how */}
+          {clearsHere.length > 0 && (
+            <Flex
+              direction="column"
+              gap="1"
+              className="mt-1 border-t border-gray-800 pt-2"
+            >
+              {clearsHere.map(({ team, entry }, i) => (
+                // Index in the key: go-back loops can land a team on a tile twice
+                <Flex
+                  key={`${team.teamId}-${entry.tileIndex}-${i}`}
+                  align="center"
+                  gap="2"
+                >
+                  <TeamToken
+                    name={team.name}
+                    color={colorByTeamId[team.teamId]}
+                    size="sm"
+                  />
+                  {/* The note is optional at submission; without one the row is
+                      just the check and the date */}
+                  <Text size="2" className="text-green-400">
+                    ✓
+                  </Text>
+                  {entry.note && (
+                    <Text size="2" className="text-gray-400">
+                      “{entry.note}”
+                    </Text>
+                  )}
+                  <Text size="1" className="text-gray-600">
+                    {historyDate(entry.completedAt)}
+                  </Text>
+                </Flex>
+              ))}
+            </Flex>
+          )}
+        </Flex>
+      </Popover.Content>
+    </Popover.Root>
+  );
+}
+
+/** One snake row of the classic board plus the turn connector down to the next row. */
+function BoardRow({
+  row,
+  rowIndex,
+  isLast,
+  teamsByTile,
+  clearsByTile,
+  colorByTeamId,
+  highlightTeamId,
+}: {
+  row: (ITileRaceTile | null)[];
+  rowIndex: number;
+  isLast: boolean;
+  teamsByTile: Record<number, IStandingView[]>;
+  clearsByTile: Record<number, IClearedTile[]>;
+  colorByTeamId: Record<string, string>;
+  highlightTeamId: string | null;
+}) {
+  return (
+    <>
+      <div
+        className="grid gap-1"
+        style={{
+          gridTemplateColumns: `repeat(${BOARD_VIEW_COLUMNS}, minmax(0, 1fr))`,
+        }}
+      >
+        {row.map((tile, i) => (
+          <TileCell
+            key={tile ? tile.index : `empty-${rowIndex}-${i}`}
+            tile={tile}
+            teamsHere={tile ? teamsByTile[tile.index] ?? [] : []}
+            clearsHere={tile ? clearsByTile[tile.index] ?? [] : []}
+            colorByTeamId={colorByTeamId}
+            highlightTeamId={highlightTeamId}
+          />
+        ))}
+      </div>
+      {!isLast && (
+        <div
+          className="grid h-3 gap-1"
+          style={{
+            gridTemplateColumns: `repeat(${BOARD_VIEW_COLUMNS}, minmax(0, 1fr))`,
+          }}
+        >
+          {/* the path snakes: even rows run left→right and turn down the right edge */}
+          <div
+            className="flex justify-center"
+            style={{
+              gridColumnStart: rowIndex % 2 === 0 ? BOARD_VIEW_COLUMNS : 1,
+            }}
+          >
+            <div className="w-1.5 bg-gray-600" />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Segmented (tiered) or continuous (classic) progress rail under the tile number. */
+function ProgressRail({
+  standing,
+  color,
+  tiered,
+  tierCount,
+}: {
+  standing: IStandingView;
+  color: string;
+  tiered: boolean;
+  tierCount: number;
+}) {
+  if (tiered) {
+    return (
+      <span className="mt-1 hidden justify-end gap-0.5 sm:flex">
+        {Array.from({ length: tierCount }, (_, i) => {
+          const cleared = standing.isFinished || (standing.tier ?? 0) > i + 1;
+          const current = !standing.isFinished && standing.tier === i + 1;
+          return (
+            <span
+              key={i}
+              className="h-1.5 w-4 rounded-sm"
+              style={{
+                backgroundColor: cleared
+                  ? color
+                  : current
+                    ? `${color}59`
+                    : '#2A2A2E',
+              }}
+            />
+          );
+        })}
+      </span>
+    );
+  }
+  return (
+    <span className="ml-auto mt-1 hidden h-1.5 w-24 rounded-sm bg-gray-800 sm:block">
+      <span
+        className="block h-full rounded-sm"
+        style={{
+          width: `${Math.round((standing.tileIndex / Math.max(standing.finishIndex, 1)) * 100)}%`,
+          backgroundColor: color,
+        }}
+      />
+    </span>
+  );
+}
+
 export default function TileRace() {
   const { race } = useLoaderData<typeof loader>();
+  const [highlightTeamId, setHighlightTeamId] = useState<string | null>(null);
+  const [rosterTeam, setRosterTeam] = useState<IStandingView | null>(null);
+
+  // Dismiss the spotlight like a modal: any click that isn't on a team control
+  // (standings row, legend chip — those toggle it themselves) lifts it.
+  useEffect(() => {
+    if (highlightTeamId === null) {
+      return;
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[data-spotlight-control]')
+      ) {
+        return;
+      }
+      setHighlightTeamId(null);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [highlightTeamId]);
 
   if (!race) {
     return (
@@ -231,7 +632,7 @@ export default function TileRace() {
         TEAM_COLORS[i % TEAM_COLORS.length],
       ]),
   );
-  const rows = chunkIntoSnakeRows(board.tiles);
+  const rows = chunkIntoSnakeRows(board.tiles, BOARD_VIEW_COLUMNS);
   const teamsByTile = standings.reduce<Record<number, IStandingView[]>>(
     (acc, standing) => ({
       ...acc,
@@ -241,46 +642,89 @@ export default function TileRace() {
   );
   const leader = standings.find(s => !s.isFinished);
   const winner = standings.find(s => s.place === 1);
+  const finishers = [...standings]
+    .filter(s => s.isFinished)
+    .sort((a, b) => (a.place ?? 0) - (b.place ?? 0));
   const hasRosters = standings.some(s => s.memberNames.length > 0);
 
+  // Clicking a team spotlights its tile (hint arrow + the rest of the board
+  // dimmed); clicking the same team again lifts the spotlight.
+  const jumpToTeam = (standing: IStandingView) => {
+    if (highlightTeamId === standing.teamId) {
+      setHighlightTeamId(null);
+      return;
+    }
+    setHighlightTeamId(standing.teamId);
+    document.getElementById(`tile-${standing.tileIndex}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'center',
+    });
+  };
+
+  const startTile = board.tiles[0];
+  const finishTile = board.tiles[board.tiles.length - 1];
+
+  const tileNameByIndex = (index: number): string =>
+    board.tiles[index]?.name ?? `Tile ${index}`;
+  // Every cleared tile across all teams, oldest first — tier rails and the race log.
+  const clearedTiles: IClearedTile[] = standings
+    .flatMap(team => team.history.map(entry => ({ team, entry })))
+    .sort((a, b) =>
+      (a.entry.completedAt ?? '').localeCompare(b.entry.completedAt ?? ''),
+    );
+  // Per-tile clears feed the tile popovers ("who got through here, and how").
+  const clearsByTile = clearedTiles.reduce<Record<number, IClearedTile[]>>(
+    (acc, clear) => ({
+      ...acc,
+      [clear.entry.tileIndex]: [...(acc[clear.entry.tileIndex] ?? []), clear],
+    }),
+    {},
+  );
+
   return (
-    <Container size="4" mt="3" pb="6" px="4">
+    // Wider than the site's Container 4: the board is the star of this page and
+    // earns the extra horizontal room.
+    <Box className="mx-auto w-full max-w-[1500px] px-4 pb-6 pt-3 sm:px-6">
       <PageHeader title={event.name} iconSrc="/sanguine_icon_small.png">
         {tiered ? (
           <>
-            <span className="text-gray-100">{standings.length}</span> teams
-            race through{' '}
-            <span className="text-gray-100">{tierSizes.length}</span> tiers of
-            tasks, one task per tier: each roll picks from the tiles of the
-            next tier.{' '}
+            <span className="text-gray-100">{standings.length}</span> teams ·{' '}
+            <span className="text-gray-100">{tierSizes.length}</span> tiers ·{' '}
+            <span className="text-gray-100">{board.tileCount}</span> tasks
           </>
         ) : (
           <>
-            <span className="text-gray-100">{standings.length}</span> teams
-            race across <span className="text-gray-100">{board.tileCount}</span>{' '}
-            tiles with a d
-            <span className="text-gray-100">{board.diceSides}</span>.{' '}
+            <span className="text-gray-100">{standings.length}</span> teams ·{' '}
+            <span className="text-gray-100">{board.tileCount}</span> tiles ·
+            rolls a d<span className="text-gray-100">{board.diceSides}</span>
           </>
         )}
         {event.status === 'ACTIVE' &&
           winner &&
-          `${winner.name} has already crossed the line.`}
+          ` · ${winner.name} finished 1st`}
         {event.status === 'ACTIVE' &&
           !winner &&
           leader &&
           (tiered
-            ? `${leader.name} leads from tier ${leader.tier ?? 0}.`
-            : `${leader.name} leads from tile ${leader.tileIndex}.`)}
+            ? ` · ${leader.name} leads from tier ${leader.tier ?? 0}`
+            : ` · ${leader.name} leads on tile ${leader.tileIndex}`)}
         {event.status === 'COMPLETED' &&
           winner &&
-          `The race is over. ${winner.name} took 1st.`}
+          ` · race over, ${winner.name} took 1st`}
       </PageHeader>
 
       <Flex direction="column" gap="6">
         <Box>
           <SectionHeading
             title="Standings"
-            summary={`${standings.filter(s => s.isFinished).length} of ${standings.length} finished`}
+            summary={
+              <Text size="2" className="text-gray-500">
+                {standings.filter(s => s.isFinished).length} of{' '}
+                {standings.length} finished · click a team to spot them on the
+                board
+              </Text>
+            }
           />
           {standings.length === 0 ? (
             <EmptyState />
@@ -292,11 +736,14 @@ export default function TileRace() {
                     Team
                   </Table.ColumnHeaderCell>
                   {hasRosters && (
-                    <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
+                    <Table.ColumnHeaderCell className="text-osrs-orange">
                       Members
                     </Table.ColumnHeaderCell>
                   )}
-                  <Table.ColumnHeaderCell justify="end" className="text-osrs-orange">
+                  <Table.ColumnHeaderCell
+                    justify="end"
+                    className="hidden text-osrs-orange sm:table-cell"
+                  >
                     {tiered ? 'Tier' : 'Tile'}
                   </Table.ColumnHeaderCell>
                   <Table.ColumnHeaderCell className="hidden text-osrs-orange md:table-cell">
@@ -309,14 +756,18 @@ export default function TileRace() {
               </Table.Header>
               <Table.Body>
                 {standings.map(standing => (
-                  <Table.Row key={standing.teamId} className={zebraStripeClass}>
+                  <Table.Row
+                    key={standing.teamId}
+                    data-spotlight-control
+                    onClick={() => jumpToTeam(standing)}
+                    className={`${zebraStripeClass} cursor-pointer hover:bg-sanguine-red/[0.09]`}
+                  >
                     <Table.Cell>
                       <Flex align="center" gap="2">
-                        <span
-                          className="h-3 w-3 shrink-0 rounded-sm"
-                          style={{
-                            backgroundColor: colorByTeamId[standing.teamId],
-                          }}
+                        <TeamToken
+                          name={standing.name}
+                          color={colorByTeamId[standing.teamId]}
+                          size="sm"
                         />
                         <Text size="2" className="text-gray-100">
                           {standing.name}
@@ -324,13 +775,24 @@ export default function TileRace() {
                       </Flex>
                     </Table.Cell>
                     {hasRosters && (
-                      <Table.Cell className="hidden sm:table-cell">
-                        <Text size="2" className="text-sanguine-bright">
-                          {standing.memberNames.join(', ')}
-                        </Text>
+                      // stopPropagation: opening the roster must not also jump the board
+                      <Table.Cell onClick={e => e.stopPropagation()}>
+                        {standing.memberNames.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setRosterTeam(standing)}
+                            className="text-sanguine-bright hover:text-white"
+                          >
+                            <Text size="2" className="whitespace-nowrap">
+                              {standing.memberNames.length} members
+                            </Text>
+                          </button>
+                        ) : (
+                          <Text size="2" className="text-gray-600" />
+                        )}
                       </Table.Cell>
                     )}
-                    <Table.Cell justify="end">
+                    <Table.Cell justify="end" className="hidden sm:table-cell">
                       <span className="whitespace-nowrap">
                         <Text size="2" className="text-gray-100">
                           {tiered
@@ -343,10 +805,16 @@ export default function TileRace() {
                           / {tiered ? tierSizes.length : standing.finishIndex}
                         </Text>
                       </span>
+                      <ProgressRail
+                        standing={standing}
+                        color={colorByTeamId[standing.teamId]}
+                        tiered={tiered}
+                        tierCount={tierSizes.length}
+                      />
                     </Table.Cell>
                     <Table.Cell className="hidden md:table-cell">
                       <Text size="2" className="text-gray-400">
-                        {standing.currentTask ?? '—'}
+                        {standing.currentTask ?? ''}
                       </Text>
                     </Table.Cell>
                     <Table.Cell>
@@ -375,63 +843,325 @@ export default function TileRace() {
             title="The board"
             summary={
               tiered ? (
-                <span>hover a tile for its full task</span>
+                <Text size="2" className="text-gray-500">
+                  click a tile for its full task
+                </Text>
               ) : (
-                <span>
+                <Text size="2" className="text-gray-500">
                   <span className="text-sky-400">forward</span> ·{' '}
-                  <span className="text-red-400">back</span> · hover a tile for
+                  <span className="text-red-400">back</span> · click a tile for
                   its full task
-                </span>
+                </Text>
               )
             }
           />
-          {tiered ? (
-            <Flex direction="column" gap="3" mt="2">
-              {[
-                board.tiles.slice(0, 1),
-                ...groupTilesIntoTiers(board.tiles, tierSizes),
-                board.tiles.slice(-1),
-              ].map((tierTiles, tierIndex) => (
-                <Box key={tierIndex}>
-                  {tierIndex > 0 && tierIndex <= tierSizes.length && (
-                    <Text as="p" size="3" className="text-osrs-orange">
-                      Tier {tierIndex}{' '}
-                      <span className="text-gray-500">
-                        · rolls a d{tierTiles.length}
+          {/* Rides below the fixed navbar while the board scrolls: every team stays
+              one click away from its tile. Solid background, never backdrop-blur. */}
+          {standings.length > 0 && (
+            <Box className="sticky top-[73px] z-10 -mx-4 border-b border-gray-800 bg-[#111113] px-4 py-1.5 sm:-mx-6 sm:px-6">
+              <Flex align="center" gap="1" wrap="wrap">
+                {standings.map(standing => (
+                  <button
+                    key={standing.teamId}
+                    type="button"
+                    data-spotlight-control
+                    onClick={() => jumpToTeam(standing)}
+                    className={`flex items-center gap-2 rounded-sm px-2 py-1 text-left ${
+                      highlightTeamId === standing.teamId
+                        ? 'bg-sanguine-red/10'
+                        : 'hover:bg-sanguine-red/[0.09]'
+                    }`}
+                  >
+                    <TeamToken
+                      name={standing.name}
+                      color={colorByTeamId[standing.teamId]}
+                      size="sm"
+                    />
+                    <span className="flex flex-col leading-tight">
+                      <Text size="2" className="text-gray-100">
+                        {standing.name}
+                      </Text>
+                      <span
+                        className={`text-xs ${standing.isFinished ? 'text-osrs-gold' : 'text-gray-500'}`}
+                      >
+                        {standing.isFinished
+                          ? `Finished ${ordinal(standing.place ?? 0)}`
+                          : tiered
+                            ? `tier ${standing.tier ?? 0}`
+                            : `tile ${standing.tileIndex}`}
                       </span>
-                    </Text>
-                  )}
-                  <Box className="overflow-x-auto">
-                    <div className="mt-1 grid min-w-[40rem] grid-cols-10 gap-1">
-                      {tierTiles.map(tile => (
-                        <TileCell
-                          key={tile.index}
-                          tile={tile}
-                          teamsHere={teamsByTile[tile.index] ?? []}
-                          colorByTeamId={colorByTeamId}
-                        />
-                      ))}
-                    </div>
-                  </Box>
-                </Box>
-              ))}
+                    </span>
+                  </button>
+                ))}
+              </Flex>
+            </Box>
+          )}
+          {tiered ? (
+            <Flex direction="column" gap="4" mt="3">
+              <Flex
+                id={`tile-${startTile.index}`}
+                align="center"
+                gap="3"
+                className="rounded-sm border border-sanguine-red/[0.18] bg-sanguine-red/[0.05] px-3 py-2"
+              >
+                <Text size="2" className="text-green-400">
+                  START
+                </Text>
+                <Flex gap="1" align="center">
+                  {(teamsByTile[startTile.index] ?? []).map(team => (
+                    <Flex key={team.teamId} align="center" gap="1">
+                      {highlightTeamId === team.teamId && (
+                        <HintArrow className="h-5 w-5" />
+                      )}
+                      <TeamToken
+                        name={team.name}
+                        color={colorByTeamId[team.teamId]}
+                      />
+                    </Flex>
+                  ))}
+                </Flex>
+                <Text size="1" className="text-gray-600">
+                  every team rolls into tier 1
+                </Text>
+              </Flex>
+              {groupTilesIntoTiers(board.tiles, tierSizes).map(
+                (tierTiles, i) => {
+                  const tierNumber = i + 1;
+                  const teamsInTier = standings.filter(
+                    s => !s.isFinished && s.tier === tierNumber,
+                  );
+                  return (
+                    <Box key={tierNumber}>
+                      <Flex align="center" gap="2">
+                        <Text as="p" size="3" className="text-osrs-orange">
+                          Tier {tierNumber}{' '}
+                          <span className="text-gray-500">
+                            · rolls a d{tierTiles.length}
+                          </span>
+                        </Text>
+                        {teamsInTier.map(team => (
+                          <TeamToken
+                            key={team.teamId}
+                            name={team.name}
+                            color={colorByTeamId[team.teamId]}
+                            size="sm"
+                          />
+                        ))}
+                      </Flex>
+                      <Box className="overflow-x-auto">
+                        <div
+                          className="mt-1 grid min-w-[48rem] gap-1"
+                          style={{
+                            gridTemplateColumns: `repeat(${BOARD_VIEW_COLUMNS}, minmax(0, 1fr))`,
+                          }}
+                        >
+                          {tierTiles.map(tile => (
+                            <TileCell
+                              key={tile.index}
+                              tile={tile}
+                              teamsHere={teamsByTile[tile.index] ?? []}
+                              clearsHere={clearsByTile[tile.index] ?? []}
+                              colorByTeamId={colorByTeamId}
+                              highlightTeamId={highlightTeamId}
+                            />
+                          ))}
+                        </div>
+                      </Box>
+                    </Box>
+                  );
+                },
+              )}
+              <Flex
+                id={`tile-${finishTile.index}`}
+                align="center"
+                gap="3"
+                className="rounded-sm border border-sanguine-red/[0.18] bg-sanguine-red/[0.05] px-3 py-2"
+              >
+                <Text size="2" className="text-green-400">
+                  FINISH
+                </Text>
+                {finishers.length === 0 ? (
+                  <Text size="1" className="text-gray-600">
+                    no team has crossed yet
+                  </Text>
+                ) : (
+                  finishers.map(team => (
+                    <Flex key={team.teamId} align="center" gap="1">
+                      {highlightTeamId === team.teamId && (
+                        <HintArrow className="h-5 w-5" />
+                      )}
+                      <TeamToken
+                        name={team.name}
+                        color={colorByTeamId[team.teamId]}
+                      />
+                      <Text size="1" className="text-osrs-gold">
+                        {ordinal(team.place ?? 0)}
+                      </Text>
+                    </Flex>
+                  ))
+                )}
+              </Flex>
             </Flex>
           ) : (
-            <Box mt="2" className="overflow-x-auto">
-              <div className="grid min-w-[40rem] grid-cols-10 gap-1">
-                {rows.flat().map((tile, i) => (
-                  <TileCell
-                    key={tile ? tile.index : `empty-${i}`}
-                    tile={tile}
-                    teamsHere={tile ? (teamsByTile[tile.index] ?? []) : []}
+            <Box mt="3" className="overflow-x-auto">
+              <div className="flex min-w-[48rem] flex-col gap-1">
+                {rows.map((row, rowIndex) => (
+                  <BoardRow
+                    key={rowIndex}
+                    row={row}
+                    rowIndex={rowIndex}
+                    isLast={rowIndex === rows.length - 1}
+                    teamsByTile={teamsByTile}
+                    clearsByTile={clearsByTile}
                     colorByTeamId={colorByTeamId}
+                    highlightTeamId={highlightTeamId}
                   />
                 ))}
               </div>
             </Box>
           )}
         </Box>
+
+        {/* One shared log for the whole race, newest first — the fresh clears
+            are what checkers come back for. Per-tile detail lives in popovers. */}
+        {clearedTiles.length > 0 && (
+          <Box>
+            <SectionHeading
+              title="Race log"
+              summary={
+                <Text size="2" className="text-gray-500">
+                  {clearedTiles.length} tiles cleared
+                </Text>
+              }
+            />
+            <Table.Root size="2" mt="2">
+              <Table.Header>
+                <Table.Row>
+                  <Table.ColumnHeaderCell className="w-20 text-osrs-orange">
+                    Date
+                  </Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell className="text-osrs-orange">
+                    Team
+                  </Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell
+                    justify="end"
+                    className="w-14 text-osrs-orange"
+                  >
+                    {tiered ? 'Tier' : 'Tile'}
+                  </Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell className="text-osrs-orange">
+                    Task
+                  </Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell className="hidden text-osrs-orange md:table-cell">
+                    Submitted by
+                  </Table.ColumnHeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {[...clearedTiles].reverse().map(({ team, entry }, i) => (
+                  <Table.Row
+                    key={`${team.teamId}-${entry.tileIndex}-${i}`}
+                    className={zebraStripeClass}
+                  >
+                    <Table.Cell>
+                      <Text
+                        size="2"
+                        className="whitespace-nowrap text-gray-500"
+                      >
+                        {historyDate(entry.completedAt) ?? ''}
+                      </Text>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Flex align="center" gap="2">
+                        <TeamToken
+                          name={team.name}
+                          color={colorByTeamId[team.teamId]}
+                          size="sm"
+                        />
+                        <Text
+                          size="2"
+                          className="hidden text-gray-100 sm:inline"
+                        >
+                          {team.name}
+                        </Text>
+                      </Flex>
+                    </Table.Cell>
+                    <Table.Cell justify="end">
+                      <Text size="2" className="text-gray-400">
+                        {entry.isFinish ? '' : entry.tier ?? entry.tileIndex}
+                      </Text>
+                    </Table.Cell>
+                    <Table.Cell>
+                      {entry.isFinish ? (
+                        <Text size="2" className="text-osrs-gold">
+                          Crossed the line {ordinal(team.place ?? 0)}
+                        </Text>
+                      ) : (
+                        <Text size="2" className="text-gray-200">
+                          {tileNameByIndex(entry.tileIndex)}
+                          {entry.note && (
+                            <span className="text-gray-400">
+                              {' '}
+                              “{entry.note}”
+                            </span>
+                          )}
+                        </Text>
+                      )}
+                    </Table.Cell>
+                    <Table.Cell className="hidden md:table-cell">
+                      <Text size="2" className="text-sanguine-bright">
+                        {entry.submittedBy ?? ''}
+                      </Text>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Root>
+          </Box>
+        )}
       </Flex>
-    </Container>
+
+      {/* Full team roster, opened from the standings' member counts */}
+      <Dialog.Root
+        open={rosterTeam !== null}
+        onOpenChange={open => !open && setRosterTeam(null)}
+      >
+        {rosterTeam && (
+          <Dialog.Content size="2" className="max-w-[480px]">
+            <Dialog.Title>
+              <Flex align="center" gap="2">
+                <TeamToken
+                  name={rosterTeam.name}
+                  color={colorByTeamId[rosterTeam.teamId]}
+                  size="sm"
+                />
+                <span className="font-normal text-gray-100">
+                  {rosterTeam.name}
+                </span>
+              </Flex>
+            </Dialog.Title>
+            <Dialog.Description size="2" className="text-gray-500">
+              {rosterTeam.memberNames.length} members ·{' '}
+              {tiered
+                ? `tier ${Math.min(rosterTeam.tier ?? 0, tierSizes.length)} of ${tierSizes.length}`
+                : `tile ${rosterTeam.tileIndex} of ${rosterTeam.finishIndex}`}{' '}
+              · {statusText(rosterTeam)}
+            </Dialog.Description>
+            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+              {rosterTeam.memberNames.map((memberName, i) => (
+                <Text
+                  key={`${memberName}-${i}`}
+                  size="2"
+                  className="truncate text-sanguine-bright"
+                  title={memberName}
+                >
+                  {memberName}
+                </Text>
+              ))}
+            </div>
+          </Dialog.Content>
+        )}
+      </Dialog.Root>
+    </Box>
   );
 }
