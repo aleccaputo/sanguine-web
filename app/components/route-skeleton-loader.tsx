@@ -94,6 +94,11 @@ function RouteSkeletonLoader() {
       return <AboutSkeleton />;
     }
 
+    // Public tile race page
+    if (targetPath === '/tile-race') {
+      return <TileRaceSkeleton />;
+    }
+
     // Events admin pages (/admin, /admin/tile-race)
     if (targetPath.startsWith('/admin')) {
       return <AdminSkeleton />;
@@ -1015,6 +1020,62 @@ function AdminSkeleton() {
 
 // Generic Skeleton for unknown routes — flat and square like everything else:
 // a ghost page header over one committed red rule and zebra rows.
+// Tile Race Page Skeleton — mirrors the public race page: standings rows with
+// team tokens and progress rails, then the sticky team legend and the 8-column
+// snake board of square tiles.
+function TileRaceSkeleton() {
+  return (
+    <Box className="mx-auto min-h-full w-full max-w-[1500px] px-4 py-6 sm:px-6">
+      <Flex direction="column">
+        <SkeletonPageHeader titleWidth="w-72" summaryWidth="w-96" />
+
+        {/* Standings table */}
+        <Box mb="6" className="border-b border-gray-700 pb-1">
+          <div className="h-6 w-32 animate-pulse rounded-sm bg-gray-800/50"></div>
+        </Box>
+        <Box mb="8">
+          {[...Array(4)].map((_, idx) => (
+            <Flex
+              key={idx}
+              align="center"
+              gap="3"
+              className={`border-b border-gray-800 px-2 py-3 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+            >
+              <div className="h-5 w-5 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="h-4 w-32 animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="hidden h-4 flex-1 animate-pulse rounded-sm bg-gray-800/40 sm:block"></div>
+              <div className="h-4 w-24 animate-pulse rounded-sm bg-gray-800/50"></div>
+            </Flex>
+          ))}
+        </Box>
+
+        {/* Board heading + team legend */}
+        <Box mb="2" className="border-b border-gray-700 pb-1">
+          <div className="h-6 w-28 animate-pulse rounded-sm bg-gray-800/50"></div>
+        </Box>
+        <Flex gap="3" mb="3" className="border-b border-gray-800 py-2">
+          {[...Array(4)].map((_, idx) => (
+            <Flex key={idx} align="center" gap="2">
+              <div className="h-5 w-5 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+              <div className="h-4 w-20 animate-pulse rounded-sm bg-gray-800/40"></div>
+            </Flex>
+          ))}
+        </Flex>
+
+        {/* Snake board tiles */}
+        <div className="grid grid-cols-8 gap-1">
+          {[...Array(16)].map((_, idx) => (
+            <div
+              key={idx}
+              className="aspect-square animate-pulse rounded-sm border border-gray-800 bg-gray-800/30"
+            ></div>
+          ))}
+        </div>
+      </Flex>
+    </Box>
+  );
+}
+
 function GenericSkeleton() {
   return (
     <Container size="3" className="min-h-full py-6">

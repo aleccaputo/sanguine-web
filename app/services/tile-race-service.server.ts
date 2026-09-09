@@ -13,7 +13,10 @@ const EVENTS_API_TIMEOUT_MS = 8_000;
 
 export type TileType = 'START' | 'FINISH' | 'TASK' | 'GO_BACK' | 'GO_FORWARD';
 
-export type MoveStatus = 'PENDING_SUBMISSION' | 'PENDING_APPROVAL' | 'COMPLETED';
+export type MoveStatus =
+  | 'PENDING_SUBMISSION'
+  | 'PENDING_APPROVAL'
+  | 'COMPLETED';
 
 /**
  * TIERED races split the board into tiers of TASK tiles: each roll uses a die
@@ -39,6 +42,20 @@ export interface ITileRaceTile {
   tier?: number;
 }
 
+/** One cleared tile in a team's race history (FINISH crossings included). */
+export interface ITileRaceHistoryEntry {
+  tileIndex: number;
+  /** Tiered races: 1-based tier the cleared tile sat in; null on classic */
+  tier: number | null;
+  isFinish: boolean;
+  rollValue: number | null;
+  /** Submitter's free-text note — often names the drop that cleared the tile */
+  note: string | null;
+  completedAt: string | null;
+  /** Admin payload only; the public API strips it (PII) */
+  submittedByDiscordId?: string | null;
+}
+
 export interface ITileRaceStanding {
   teamId: string;
   name: string;
@@ -50,8 +67,12 @@ export interface ITileRaceStanding {
   tier?: number | null;
   tierCount?: number | null;
   currentTask: string | null;
+  /** Counted tiles: approved submissions so far toward the tile's quantity; null otherwise */
+  taskProgress?: number | null;
   moveStatus: MoveStatus | null;
   isFinished: boolean;
+  /** Cleared tiles, oldest first (absent on older API deploys) */
+  history?: ITileRaceHistoryEntry[];
 }
 
 export interface ITileRace {
