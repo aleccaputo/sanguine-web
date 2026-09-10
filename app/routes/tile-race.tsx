@@ -976,14 +976,14 @@ export default function TileRace() {
                           align="center"
                           gap="3"
                           wrap="wrap"
-                          className="mt-1 rounded-sm border border-gray-800 bg-gray-900/60 px-3 py-2"
+                          className="mt-1 rounded-sm border border-sanguine-red/[0.12] bg-sanguine-red/[0.03] px-3 py-2"
                         >
                           <Flex gap="1" wrap="wrap">
                             {tierTiles.map(tile => (
                               <span
                                 key={tile.index}
                                 aria-hidden
-                                className="flex h-8 w-8 items-center justify-center rounded-sm border border-gray-800 bg-[#111113] text-sm text-gray-700"
+                                className="flex h-8 w-8 items-center justify-center rounded-sm border border-sanguine-red/[0.12] bg-[#111113] text-sm text-gray-700"
                               >
                                 ?
                               </span>
