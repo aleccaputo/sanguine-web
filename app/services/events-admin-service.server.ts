@@ -17,6 +17,8 @@ const EVENTS_API_TIMEOUT_MS = 10_000;
 /** Admin standings carry member rosters; the public payload deliberately doesn't. */
 export interface IAdminStanding extends ITileRaceStanding {
   memberDiscordIds: string[];
+  /** Discord role announcements tag instead of pinging every member */
+  roleId: string | null;
 }
 
 export interface IAdminTileRace extends Omit<ITileRace, 'standings'> {
@@ -174,21 +176,28 @@ export const addTeam = (
   name: string,
   memberDiscordIds: string[],
   actingUserId: string,
+  roleId?: string,
 ) =>
   adminRequest<{ teamId: string; name: string }>('/races/current/teams', {
     actingUserId,
-    body: { name, memberDiscordIds },
+    body: { name, memberDiscordIds, ...(roleId ? { roleId } : {}) },
   });
 
 export const updateTeam = (
   name: string,
-  patch: { name?: string; memberDiscordIds?: string[] },
+  // roleId: null clears the team's announcement role
+  patch: { name?: string; memberDiscordIds?: string[]; roleId?: string | null },
   actingUserId: string,
 ) =>
-  adminRequest<{ name: string; memberDiscordIds: string[] }>(
-    `/races/current/teams/${encodeURIComponent(name)}`,
-    { method: 'PATCH', actingUserId, body: patch },
-  );
+  adminRequest<{
+    name: string;
+    memberDiscordIds: string[];
+    roleId: string | null;
+  }>(`/races/current/teams/${encodeURIComponent(name)}`, {
+    method: 'PATCH',
+    actingUserId,
+    body: patch,
+  });
 
 export const removeTeam = (name: string, actingUserId: string) =>
   adminRequest<{ removed: boolean }>(

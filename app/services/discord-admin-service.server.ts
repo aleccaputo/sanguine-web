@@ -33,6 +33,18 @@ export interface IGuildTextChannel {
   name: string;
 }
 
+export interface IGuildRole {
+  id: string;
+  name: string;
+}
+
+interface IRawGuildRole {
+  id: string;
+  name: string;
+  position: number;
+  managed: boolean;
+}
+
 interface IPermissionOverwrite {
   id: string;
   type: number;
@@ -66,12 +78,16 @@ const discordFetchJson = async <T>(path: string, what: string): Promise<T> => {
 export const getGuildMember = async (
   discordId: string,
 ): Promise<IGuildMember | null> => {
-  const response = await discordFetch(`/guilds/${guildId}/members/${discordId}`);
+  const response = await discordFetch(
+    `/guilds/${guildId}/members/${discordId}`,
+  );
   if (response.status === 404) {
     return null;
   }
   if (!response.ok) {
-    throw new Error(`Discord API returned ${response.status} fetching guild member`);
+    throw new Error(
+      `Discord API returned ${response.status} fetching guild member`,
+    );
   }
   return (await response.json()) as IGuildMember;
 };
@@ -116,7 +132,8 @@ const botCanPostIn = (
   const withEveryone = applyOverwrite(
     basePermissions,
     overwrites.find(
-      overwrite => overwrite.type === ROLE_OVERWRITE && overwrite.id === guildId,
+      overwrite =>
+        overwrite.type === ROLE_OVERWRITE && overwrite.id === guildId,
     ),
   );
   const withRoles = (withEveryone & ~roleDeny) | roleAllow;
@@ -128,8 +145,25 @@ const botCanPostIn = (
     ),
   );
   return (
-    (permissions & REQUIRED_CHANNEL_PERMISSIONS) === REQUIRED_CHANNEL_PERMISSIONS
+    (permissions & REQUIRED_CHANNEL_PERMISSIONS) ===
+    REQUIRED_CHANNEL_PERMISSIONS
   );
+};
+
+/**
+ * Assignable guild roles for the team-role picker, in hierarchy order (highest
+ * first, matching Discord's sidebar). @everyone and managed roles (bot and
+ * integration roles) are excluded — neither makes sense as a team tag.
+ */
+export const getGuildRoles = async (): Promise<IGuildRole[]> => {
+  const roles = await discordFetchJson<IRawGuildRole[]>(
+    `/guilds/${guildId}/roles`,
+    'roles',
+  );
+  return roles
+    .filter(role => role.id !== guildId && !role.managed)
+    .sort((a, b) => b.position - a.position)
+    .map(({ id, name }) => ({ id, name }));
 };
 
 /**
@@ -139,7 +173,10 @@ const botCanPostIn = (
  */
 export const getGuildTextChannels = async (): Promise<IGuildTextChannel[]> => {
   const [channels, roles, botUser] = await Promise.all([
-    discordFetchJson<IRawGuildChannel[]>(`/guilds/${guildId}/channels`, 'channels'),
+    discordFetchJson<IRawGuildChannel[]>(
+      `/guilds/${guildId}/channels`,
+      'channels',
+    ),
     discordFetchJson<{ id: string; permissions: string }[]>(
       `/guilds/${guildId}/roles`,
       'roles',
