@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   chunkIntoSnakeRows,
+  countRevealedTiers,
   groupTilesIntoTiers,
   IBoardTileInput,
   IBoardTileLike,
   isTierBoardValid,
+  redactTilesBeyondTier,
   toBoardTileInputs,
   toTierInputs,
 } from './tile-race-board';
@@ -89,6 +91,60 @@ describe('groupTilesIntoTiers', () => {
     expect(tiers.map(tier => tier.length)).toEqual([2, 3]);
     expect(tiers[0][0]).toMatchObject({ name: 'A' });
     expect(tiers[1][2]).toMatchObject({ name: 'E' });
+  });
+});
+
+describe('countRevealedTiers', () => {
+  it('reveals every tier some team has reached', () => {
+    expect(
+      countRevealedTiers(
+        [
+          { tier: 1, isFinished: false },
+          { tier: 3, isFinished: false },
+        ],
+        6,
+      ),
+    ).toBe(3);
+  });
+
+  it('always reveals tier 1, even with no standings or pre-roll tiers', () => {
+    expect(countRevealedTiers([], 6)).toBe(1);
+    expect(countRevealedTiers([{ tier: 0, isFinished: false }], 6)).toBe(1);
+    expect(countRevealedTiers([{ tier: null, isFinished: false }], 6)).toBe(1);
+  });
+
+  it('a finished team reveals the whole board (tier may sit past the last)', () => {
+    expect(
+      countRevealedTiers(
+        [
+          { tier: 7, isFinished: true },
+          { tier: 2, isFinished: false },
+        ],
+        6,
+      ),
+    ).toBe(6);
+  });
+});
+
+describe('redactTilesBeyondTier', () => {
+  it('strips task content from tiles past the revealed tiers, keeping structure', () => {
+    const redacted = redactTilesBeyondTier(servedTieredBoard, [2, 3], 1);
+    // START and the revealed tier survive untouched
+    expect(redacted[0]).toEqual(servedTieredBoard[0]);
+    expect(redacted[1]).toEqual(servedTieredBoard[1]);
+    expect(redacted[2]).toEqual(servedTieredBoard[2]);
+    // hidden tier tiles keep only their skeleton
+    expect(redacted[3].type).toBe('TASK');
+    expect(redacted[3].name).toBeUndefined();
+    expect(redacted[4].quantity).toBeUndefined();
+    // FINISH survives past the hidden tier
+    expect(redacted[6]).toEqual(servedTieredBoard[6]);
+  });
+
+  it('redacts nothing when every tier is revealed', () => {
+    expect(redactTilesBeyondTier(servedTieredBoard, [2, 3], 2)).toEqual(
+      servedTieredBoard,
+    );
   });
 });
 
