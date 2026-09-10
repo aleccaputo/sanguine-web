@@ -30,10 +30,10 @@ import {
   moveTeam,
   removeTeam,
   rerollTeam,
-  rescheduleRace,
   startRace,
   endRace,
   updateBoard,
+  updateRaceSettings,
   updateTeam,
 } from '~/services/events-admin-service.server';
 import {
@@ -257,7 +257,7 @@ export async function action({ request }: ActionFunctionArgs) {
       case 'removeteam':
         await removeTeam(teamName, user.discordId);
         return json({ intent, errors: null });
-      case 'reschedule': {
+      case 'updatesettings': {
         const days = Number(formData.get('days'));
         if (!Number.isInteger(days) || days < 1 || days > 90) {
           return json(
@@ -265,7 +265,22 @@ export async function action({ request }: ActionFunctionArgs) {
             { status: 400 },
           );
         }
-        await rescheduleRace(days, user.discordId);
+        // Channels are absent when the Discord channel list failed to load and
+        // the form degraded to days-only — omit them rather than blanking them.
+        const approvalsChannelId = String(
+          formData.get('approvalsChannelId') ?? '',
+        );
+        const announcementsChannelId = String(
+          formData.get('announcementsChannelId') ?? '',
+        );
+        await updateRaceSettings(
+          {
+            days,
+            ...(approvalsChannelId ? { approvalsChannelId } : {}),
+            ...(announcementsChannelId ? { announcementsChannelId } : {}),
+          },
+          user.discordId,
+        );
         return json({ intent, errors: null });
       }
       case 'start':
@@ -517,12 +532,14 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
 function ChannelSelect({
   name,
   channels,
+  defaultValue,
 }: {
   name: string;
   channels: IGuildTextChannel[];
+  defaultValue?: string;
 }) {
   return (
-    <Select.Root name={name} required>
+    <Select.Root name={name} required defaultValue={defaultValue}>
       <Select.Trigger placeholder="Pick a channel" className="min-w-56" />
       <Select.Content>
         {channels.map(channel => (
@@ -551,6 +568,10 @@ function RaceDashboard({
   const finished = standings.filter(s => s.isFinished).length;
   const channelName = (id: string) =>
     `#${channels.find(channel => channel.id === id)?.name ?? id}`;
+  const plannedDays = Math.max(
+    1,
+    Math.round(dayjs(event.endDate).diff(dayjs(event.startDate), 'day', true)),
+  );
 
   return (
     <Flex direction="column" gap="6">
@@ -590,14 +611,26 @@ function RaceDashboard({
           >
             /tile-race
           </Link>
-          . Runs through{' '}
-          <span className="text-gray-100">
-            {dayjs(event.endDate).format('MMM D, YYYY')}
-          </span>
-          .
+          .{' '}
+          {event.status === 'DRAFT' ? (
+            // A draft's stored dates are stale (pinned at creation) — the clock
+            // restarts when the race starts, so show the plan, not the dates.
+            <>
+              Runs for <span className="text-gray-100">{plannedDays}</span>{' '}
+              days once started.
+            </>
+          ) : (
+            <>
+              Runs through{' '}
+              <span className="text-gray-100">
+                {dayjs(event.endDate).format('MMM D, YYYY')}
+              </span>
+              .
+            </>
+          )}
         </Text>
-        <Form method="post" className="mt-3 flex items-end gap-2">
-          <input type="hidden" name="intent" value="reschedule" />
+        <Form method="post" className="mt-3 flex flex-wrap items-end gap-3">
+          <input type="hidden" name="intent" value="updatesettings" />
           <div className={fieldClass}>
             <Label className="text-lg" htmlFor="rescheduleDays">
               Planned days (from start)
@@ -608,22 +641,48 @@ function RaceDashboard({
               type="number"
               min={1}
               max={90}
-              defaultValue={dayjs(event.endDate).diff(
-                dayjs(event.startDate),
-                'day',
-              )}
+              defaultValue={plannedDays}
               className="w-24 text-lg"
             />
           </div>
+          {/* No channel list (Discord API hiccup) degrades to days-only — the
+              action leaves channels untouched when they aren't submitted */}
+          {channels.length > 0 && (
+            <>
+              <div className={fieldClass}>
+                <Label className="text-lg" htmlFor="settingsApprovalsChannel">
+                  Approvals channel (private)
+                </Label>
+                <ChannelSelect
+                  name="approvalsChannelId"
+                  channels={channels}
+                  defaultValue={race.channels.approvalsChannelId}
+                />
+              </div>
+              <div className={fieldClass}>
+                <Label
+                  className="text-lg"
+                  htmlFor="settingsAnnouncementsChannel"
+                >
+                  Announcements channel (public)
+                </Label>
+                <ChannelSelect
+                  name="announcementsChannelId"
+                  channels={channels}
+                  defaultValue={race.channels.announcementsChannelId}
+                />
+              </div>
+            </>
+          )}
           <Button
             type="submit"
             disabled={submitting}
-            loading={pendingIntent === 'reschedule'}
+            loading={pendingIntent === 'updatesettings'}
           >
-            Update length
+            Save settings
           </Button>
         </Form>
-        {actionData?.intent === 'reschedule' && actionData.errors && (
+        {actionData?.intent === 'updatesettings' && actionData.errors && (
           <ActionErrors errors={actionData.errors} />
         )}
         {event.status === 'DRAFT' && (
