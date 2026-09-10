@@ -101,6 +101,7 @@ export async function loader() {
         currentTask: standing.currentTask,
         taskProgress: standing.taskProgress ?? null,
         moveStatus: standing.moveStatus,
+        pendingSubmissions: standing.pendingSubmissions ?? 0,
         isFinished: standing.isFinished,
         memberNames: (memberIdsByTeamId.get(standing.teamId) ?? []).map(
           id => nameByDiscordId[id] ?? 'Unknown',
@@ -177,7 +178,13 @@ const statusText = (standing: ITileRaceStanding): string => {
   if (standing.isFinished) {
     return `Finished ${ordinal(standing.place ?? 0)}`;
   }
-  if (standing.moveStatus === 'PENDING_APPROVAL') {
+  // The submission queue keeps the move PENDING_SUBMISSION while screenshots
+  // await approval; PENDING_APPROVAL only exists on pre-queue API deploys.
+  const pending = standing.pendingSubmissions ?? 0;
+  if (pending > 1) {
+    return `Awaiting approval (${pending})`;
+  }
+  if (pending === 1 || standing.moveStatus === 'PENDING_APPROVAL') {
     return 'Awaiting approval';
   }
   if (standing.moveStatus === 'PENDING_SUBMISSION') {
@@ -969,14 +976,14 @@ export default function TileRace() {
                           align="center"
                           gap="3"
                           wrap="wrap"
-                          className="mt-1 rounded-sm border border-gray-800 bg-gray-900/60 px-3 py-2"
+                          className="mt-1 rounded-sm border border-sanguine-red/[0.12] bg-sanguine-red/[0.03] px-3 py-2"
                         >
                           <Flex gap="1" wrap="wrap">
                             {tierTiles.map(tile => (
                               <span
                                 key={tile.index}
                                 aria-hidden
-                                className="flex h-8 w-8 items-center justify-center rounded-sm border border-gray-800 bg-[#111113] text-sm text-gray-700"
+                                className="flex h-8 w-8 items-center justify-center rounded-sm border border-sanguine-red/[0.12] bg-[#111113] text-sm text-gray-700"
                               >
                                 ?
                               </span>
