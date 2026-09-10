@@ -24,7 +24,9 @@ import { EmptyState } from '~/components/EmptyState';
 import { zebraStripeClass } from '~/utils/styles';
 import {
   chunkIntoSnakeRows,
+  countRevealedTiers,
   groupTilesIntoTiers,
+  redactTilesBeyondTier,
 } from '~/utils/tile-race-board';
 import { getTileImageUrl } from '~/utils/tile-race-images';
 import { TileArt } from '~/components/TileArt';
@@ -65,10 +67,29 @@ export async function loader() {
     ...[...memberIdsByTeamId.values()].flat(),
     ...submitterIds,
   ]);
+  // Suspense: on a live tiered race, tiers no team has reached stay face-down.
+  // Redacted here rather than hidden in the UI so the unrevealed tasks never
+  // reach the browser at all. A completed race shows the whole board.
+  const raceTierSizes = race.board.tierSizes ?? [];
+  const revealedTierCount =
+    race.board.mode === 'TIERED' && race.event.status === 'ACTIVE'
+      ? countRevealedTiers(race.standings, raceTierSizes.length)
+      : null;
   return json({
     race: {
       event: race.event,
-      board: race.board,
+      board:
+        revealedTierCount !== null
+          ? {
+              ...race.board,
+              tiles: redactTilesBeyondTier(
+                race.board.tiles,
+                raceTierSizes,
+                revealedTierCount,
+              ),
+            }
+          : race.board,
+      revealedTierCount,
       standings: race.standings.map(standing => ({
         teamId: standing.teamId,
         name: standing.name,
@@ -624,6 +645,9 @@ export default function TileRace() {
   const { event, board, standings } = race;
   const tiered = board.mode === 'TIERED';
   const tierSizes = board.tierSizes ?? [];
+  // null = nothing hidden (classic board, or a finished race shows everything)
+  const revealedTiers = race.revealedTierCount ?? tierSizes.length;
+  const hiddenTierCount = Math.max(tierSizes.length - revealedTiers, 0);
   const colorByTeamId = Object.fromEntries(
     [...standings]
       .sort((a, b) => a.teamId.localeCompare(b.teamId))
@@ -845,6 +869,8 @@ export default function TileRace() {
               tiered ? (
                 <Text size="2" className="text-gray-500">
                   click a tile for its full task
+                  {hiddenTierCount > 0 &&
+                    ' · deeper tiers are revealed as teams reach them'}
                 </Text>
               ) : (
                 <Text size="2" className="text-gray-500">
@@ -927,6 +953,42 @@ export default function TileRace() {
               {groupTilesIntoTiers(board.tiles, tierSizes).map(
                 (tierTiles, i) => {
                   const tierNumber = i + 1;
+                  if (tierNumber > revealedTiers) {
+                    // Face-down tier: no team has reached it yet, and its task
+                    // content was redacted server-side. Only the tile count
+                    // (the die size, already public mechanics) shows.
+                    return (
+                      <Box key={tierNumber}>
+                        <Text as="p" size="3" className="text-gray-600">
+                          Tier {tierNumber}{' '}
+                          <span className="text-gray-700">
+                            · rolls a d{tierTiles.length}
+                          </span>
+                        </Text>
+                        <Flex
+                          align="center"
+                          gap="3"
+                          wrap="wrap"
+                          className="mt-1 rounded-sm border border-gray-800 bg-gray-900/60 px-3 py-2"
+                        >
+                          <Flex gap="1" wrap="wrap">
+                            {tierTiles.map(tile => (
+                              <span
+                                key={tile.index}
+                                aria-hidden
+                                className="flex h-8 w-8 items-center justify-center rounded-sm border border-gray-800 bg-[#111113] text-sm text-gray-700"
+                              >
+                                ?
+                              </span>
+                            ))}
+                          </Flex>
+                          <Text size="1" className="text-gray-600">
+                            revealed when the first team gets here
+                          </Text>
+                        </Flex>
+                      </Box>
+                    );
+                  }
                   const teamsInTier = standings.filter(
                     s => !s.isFinished && s.tier === tierNumber,
                   );

@@ -46,11 +46,13 @@ const ok = async <T>(value: T): Promise<T> => value;
 export const createRace = () => ok({ eventId: 'mock-race' });
 export const updateBoard = () =>
   ok({ tileCount: 25, taskCount: 21, diceSides: 6, version: 1 });
-export const rescheduleRace = () =>
+export const updateRaceSettings = () =>
   ok({
     name: 'Sanguine Tile Race',
     startDate: mockAdminRaceBase.event.startDate,
     endDate: mockAdminRaceBase.event.endDate,
+    approvalsChannelId: '200000000000000002',
+    announcementsChannelId: '200000000000000001',
   });
 export const startRace = () => ok({ started: true, teamCount: 4 });
 export const endRace = async (): Promise<IAdminTileRace> => {

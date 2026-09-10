@@ -87,6 +87,52 @@ export const groupTilesIntoTiers = <T,>(
   });
 };
 
+/**
+ * How many tiers the public page may show: every tier some team has reached,
+ * never fewer than 1 (finished teams have seen the whole board). Unreached
+ * tiers stay face-down until a team lands on them.
+ */
+export const countRevealedTiers = (
+  standings: { tier?: number | null; isFinished: boolean }[],
+  tierCount: number,
+): number =>
+  Math.max(
+    1,
+    ...standings.map(standing =>
+      standing.isFinished
+        ? tierCount
+        : Math.min(standing.tier ?? 1, tierCount),
+    ),
+  );
+
+/**
+ * Strips task content (name/description/artwork/quantity) from every tile past
+ * the revealed tiers, so unrevealed tasks never reach the browser — hiding them
+ * only in the UI would leak the whole board through the network tab. Structure
+ * (index/type/tier) survives, as does the FINISH tile.
+ */
+export const redactTilesBeyondTier = <T extends IBoardTileLike>(
+  tiles: T[],
+  tierSizes: number[],
+  revealedTiers: number,
+): T[] => {
+  // +1 skips START; tiles within the revealed tiers keep their content.
+  const firstHiddenIndex =
+    1 + tierSizes.slice(0, revealedTiers).reduce((sum, size) => sum + size, 0);
+  return tiles.map((tile, index) =>
+    index >= firstHiddenIndex && tile.type !== 'FINISH'
+      ? {
+          ...tile,
+          name: undefined,
+          description: undefined,
+          imageUrl: undefined,
+          quantity: undefined,
+          amount: undefined,
+        }
+      : tile,
+  );
+};
+
 /** Client-side mirror of the API's tiered board rules, gating the submit button. */
 export const isTierBoardValid = (tiers: IBoardTileInput[][]): boolean =>
   tiers.length > 0 &&

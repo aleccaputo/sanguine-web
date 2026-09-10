@@ -136,12 +136,25 @@ export const updateBoard = (
     },
   });
 
-/** Re-plan the race length: endDate = startDate + days (draft or running). */
-export const rescheduleRace = (days: number, actingUserId: string) =>
-  adminRequest<{ name: string; startDate: string; endDate: string }>(
-    '/races/current',
-    { method: 'PATCH', actingUserId, body: { days } },
-  );
+export interface IUpdateRaceSettingsInput {
+  /** Planned length: endDate = startDate + days (draft or running) */
+  days?: number;
+  approvalsChannelId?: string;
+  announcementsChannelId?: string;
+}
+
+/** Update race settings: planned length and/or the Discord channels. */
+export const updateRaceSettings = (
+  input: IUpdateRaceSettingsInput,
+  actingUserId: string,
+) =>
+  adminRequest<{
+    name: string;
+    startDate: string;
+    endDate: string;
+    approvalsChannelId: string;
+    announcementsChannelId: string;
+  }>('/races/current', { method: 'PATCH', actingUserId, body: input });
 
 export const startRace = (actingUserId: string) =>
   adminRequest<{ started: boolean; teamCount: number }>(
