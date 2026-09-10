@@ -31,8 +31,7 @@ export const getAdminRace = async (): Promise<IAdminTileRace | null> => {
     ...base,
     event: {
       ...base.event,
-      status:
-        process.env.MOCK_DRAFT_RACE === '1' ? 'DRAFT' : base.event.status,
+      status: process.env.MOCK_DRAFT_RACE === '1' ? 'DRAFT' : base.event.status,
     },
     channels: {
       approvalsChannelId: '200000000000000002',
@@ -64,11 +63,12 @@ export const cancelRace = () => ok({ cancelled: true });
 export const addTeam = () => ok({ teamId: 'mock-team', name: 'Mock Team' });
 export const updateTeam = (
   name: string,
-  patch: { name?: string; memberDiscordIds?: string[] },
+  patch: { name?: string; memberDiscordIds?: string[]; roleId?: string | null },
 ) =>
   ok({
     name: patch.name ?? name,
     memberDiscordIds: patch.memberDiscordIds ?? [],
+    roleId: patch.roleId ?? null,
   });
 export const removeTeam = () => ok({ removed: true });
 export const moveTeam = () => ok({ tileIndex: 1 });

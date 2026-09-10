@@ -141,6 +141,7 @@ export const mockAdminRaceBase: MockAdminRace = {
     {
       teamId: 'team-1',
       name: 'Blood Reapers',
+      roleId: '300000000000000001',
       memberDiscordIds: roster(0, 3),
       place: 1,
       tileIndex: finishIndex,
@@ -160,6 +161,7 @@ export const mockAdminRaceBase: MockAdminRace = {
     {
       teamId: 'team-2',
       name: 'Scythe Squad',
+      roleId: null,
       // Oversized roster: exercises the standings "+N more" truncation
       memberDiscordIds: roster(3, 26),
       place: null,
@@ -177,6 +179,7 @@ export const mockAdminRaceBase: MockAdminRace = {
     {
       teamId: 'team-3',
       name: 'Gob Squad',
+      roleId: null,
       memberDiscordIds: roster(6, 8),
       place: null,
       tileIndex: 12,
@@ -189,6 +192,7 @@ export const mockAdminRaceBase: MockAdminRace = {
     {
       teamId: 'team-4',
       name: 'Rune Goons',
+      roleId: null,
       memberDiscordIds: roster(8, 11),
       place: null,
       tileIndex: 12,
@@ -305,6 +309,7 @@ export const mockTieredAdminRaceBase: MockAdminRace = {
     {
       teamId: 'team-1',
       name: 'Blood Reapers',
+      roleId: '300000000000000001',
       memberDiscordIds: roster(0, 4),
       place: 1,
       tileIndex: tieredFinishIndex,
@@ -327,6 +332,7 @@ export const mockTieredAdminRaceBase: MockAdminRace = {
     {
       teamId: 'team-2',
       name: 'Scythe Squad',
+      roleId: null,
       memberDiscordIds: roster(4, 8),
       place: null,
       tileIndex: 23,
@@ -346,6 +352,7 @@ export const mockTieredAdminRaceBase: MockAdminRace = {
     {
       teamId: 'team-3',
       name: 'Gob Squad',
+      roleId: null,
       memberDiscordIds: roster(8, 12),
       place: null,
       // Shares the tile with Rune Goons — exercises stacked markers on one tile
@@ -365,6 +372,7 @@ export const mockTieredAdminRaceBase: MockAdminRace = {
     {
       teamId: 'team-4',
       name: 'Rune Goons',
+      roleId: null,
       memberDiscordIds: roster(12, 16),
       place: null,
       tileIndex: 19,
@@ -385,6 +393,7 @@ export const mockTieredAdminRaceBase: MockAdminRace = {
     {
       teamId: 'team-5',
       name: 'Rat Pack',
+      roleId: null,
       memberDiscordIds: roster(16, 20),
       place: null,
       tileIndex: 4,
