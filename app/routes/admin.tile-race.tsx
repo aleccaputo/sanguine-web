@@ -37,7 +37,9 @@ import {
   updateTeam,
 } from '~/services/events-admin-service.server';
 import {
+  getGuildRoles,
   getGuildTextChannels,
+  IGuildRole,
   IGuildTextChannel,
 } from '~/services/discord-admin-service.server';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
@@ -81,18 +83,26 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Channels feed the create form's pickers and name the dashboard's channel refs;
     // a Discord API hiccup degrades to raw ids rather than failing the page. Same
     // spirit for the roster: no roster just means the typeahead only takes raw ids.
-    const [race, channels, members] = await Promise.all([
+    const [race, channels, roles, members] = await Promise.all([
       getAdminRace(),
       getGuildTextChannels().catch(() => [] as IGuildTextChannel[]),
+      getGuildRoles().catch(() => [] as IGuildRole[]),
       getRoster().catch(() => [] as IPickerMember[]),
     ]);
-    return json({ race, channels, members, apiError: null as string | null });
+    return json({
+      race,
+      channels,
+      roles,
+      members,
+      apiError: null as string | null,
+    });
   } catch (e) {
     const message =
       e instanceof EventsApiError ? e.message : 'Events API is unreachable';
     return json({
       race: null as IAdminTileRace | null,
       channels: [] as IGuildTextChannel[],
+      roles: [] as IGuildRole[],
       members: [] as IPickerMember[],
       apiError: message,
     });
@@ -147,6 +157,13 @@ const parseBoardInput = (
       tiles: (parsed as IBoardTileInput[]).map(withGuessedImage),
     },
   };
+};
+
+// The role Select submits a role id, or ROLE_NONE for "tag members individually".
+const ROLE_NONE = 'none';
+const parseRoleId = (raw: FormDataEntryValue | null): string | null => {
+  const value = String(raw ?? '').trim();
+  return /^\d{5,25}$/.test(value) ? value : null;
 };
 
 // The MemberPicker submits its selection as a JSON array of Discord ids.
@@ -229,6 +246,7 @@ export async function action({ request }: ActionFunctionArgs) {
           String(formData.get('name') ?? '').trim(),
           ids,
           user.discordId,
+          parseRoleId(formData.get('teamRole')) ?? undefined,
         );
         return json({ intent, errors: null });
       }
@@ -249,7 +267,12 @@ export async function action({ request }: ActionFunctionArgs) {
         }
         await updateTeam(
           teamName,
-          { name: newName, memberDiscordIds: ids },
+          {
+            name: newName,
+            memberDiscordIds: ids,
+            // A snowflake sets the role; "none" clears it back to member pings
+            roleId: parseRoleId(formData.get('teamRole')),
+          },
           user.discordId,
         );
         return json({ intent, errors: null });
@@ -328,7 +351,8 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function AdminTileRace() {
-  const { race, channels, members, apiError } = useLoaderData<typeof loader>();
+  const { race, channels, roles, members, apiError } =
+    useLoaderData<typeof loader>();
 
   if (apiError) {
     return (
@@ -342,7 +366,12 @@ export default function AdminTileRace() {
   }
 
   return race ? (
-    <RaceDashboard race={race} channels={channels} members={members} />
+    <RaceDashboard
+      race={race}
+      channels={channels}
+      roles={roles}
+      members={members}
+    />
   ) : (
     <CreateRaceForm channels={channels} />
   );
@@ -484,8 +513,8 @@ function CreateRaceForm({ channels }: { channels: IGuildTextChannel[] }) {
               </Label>
               <Text size="2" className="text-gray-500">
                 Each team rolls a die sized to its current tier and completes
-                the task it lands on, one task per tier. Click ＋ to add a
-                task, click a task to edit it.
+                the task it lands on, one task per tier. Click ＋ to add a task,
+                click a task to edit it.
               </Text>
               <TileRaceTierBoardBuilder tiers={tiers} onChange={setTiers} />
             </>
@@ -552,13 +581,44 @@ function ChannelSelect({
   );
 }
 
+// Optional Discord role for a team: announcements tag the role instead of
+// pinging every member. Sourced like the channel pickers (bot token, guild
+// roles minus @everyone and bot roles); "No role" falls back to member pings.
+function RoleSelect({
+  roles,
+  defaultValue,
+  id,
+}: {
+  roles: IGuildRole[];
+  defaultValue?: string;
+  id?: string;
+}) {
+  return (
+    <Select.Root name="teamRole" defaultValue={defaultValue ?? ROLE_NONE}>
+      <Select.Trigger id={id} className="min-w-56" />
+      <Select.Content>
+        <Select.Item value={ROLE_NONE}>
+          No role — tag members individually
+        </Select.Item>
+        {roles.map(role => (
+          <Select.Item key={role.id} value={role.id}>
+            @{role.name}
+          </Select.Item>
+        ))}
+      </Select.Content>
+    </Select.Root>
+  );
+}
+
 function RaceDashboard({
   race,
   channels,
+  roles,
   members,
 }: {
   race: IAdminTileRace;
   channels: IGuildTextChannel[];
+  roles: IGuildRole[];
   members: IPickerMember[];
 }) {
   const actionData = useActionData<typeof action>();
@@ -592,8 +652,8 @@ function RaceDashboard({
             </>
           ) : (
             <>
-              <span className="text-gray-100">{board.tileCount}</span> tiles,
-              d<span className="text-gray-100">{board.diceSides}</span>
+              <span className="text-gray-100">{board.tileCount}</span> tiles, d
+              <span className="text-gray-100">{board.diceSides}</span>
             </>
           )}
           . Approvals in{' '}
@@ -616,8 +676,8 @@ function RaceDashboard({
             // A draft's stored dates are stale (pinned at creation) — the clock
             // restarts when the race starts, so show the plan, not the dates.
             <>
-              Runs for <span className="text-gray-100">{plannedDays}</span>{' '}
-              days once started.
+              Runs for <span className="text-gray-100">{plannedDays}</span> days
+              once started.
             </>
           ) : (
             <>
@@ -738,13 +798,14 @@ function RaceDashboard({
                   key={standing.teamId}
                   standing={standing}
                   raceStatus={event.status}
+                  roles={roles}
                   members={members}
                 />
               ))}
             </Table.Body>
           </Table.Root>
         )}
-        <AddTeamForm members={members} />
+        <AddTeamForm roles={roles} members={members} />
       </Box>
 
       <Box>
@@ -799,10 +860,12 @@ function RaceDashboard({
 function TeamRow({
   standing,
   raceStatus,
+  roles,
   members,
 }: {
   standing: IAdminTileRace['standings'][number];
   raceStatus: IAdminTileRace['event']['status'];
+  roles: IGuildRole[];
   members: IPickerMember[];
 }) {
   const fetcher = useFetcher<typeof action>();
@@ -837,6 +900,13 @@ function TeamRow({
           <Text size="4" className="text-gray-100">
             {standing.name}
           </Text>
+          {standing.roleId && (
+            <Text size="3" className="ml-2 text-osrs-orange">
+              @
+              {roles.find(role => role.id === standing.roleId)?.name ??
+                standing.roleId}
+            </Text>
+          )}
           {rosterNames && (
             <Text as="p" size="3" className="text-sanguine-bright">
               {rosterNames}
@@ -988,6 +1058,19 @@ function TeamRow({
                   defaultSelectedIds={standing.memberDiscordIds}
                 />
               </div>
+              <div className={fieldClass}>
+                <Label
+                  className="text-lg"
+                  htmlFor={`editRole-${standing.teamId}`}
+                >
+                  Team role
+                </Label>
+                <RoleSelect
+                  id={`editRole-${standing.teamId}`}
+                  roles={roles}
+                  defaultValue={standing.roleId ?? ROLE_NONE}
+                />
+              </div>
               <Button
                 variant="primary"
                 type="submit"
@@ -1031,10 +1114,7 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
 
   return (
     <Box>
-      <SectionHeading
-        title="Board"
-        summary="editable until the race starts"
-      />
+      <SectionHeading title="Board" summary="editable until the race starts" />
       <Form method="post" className="mt-2 flex flex-col gap-3">
         <input type="hidden" name="intent" value="updateboard" />
         <input type="hidden" name="boardMode" value={mode} />
@@ -1095,7 +1175,13 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
   );
 }
 
-function AddTeamForm({ members }: { members: IPickerMember[] }) {
+function AddTeamForm({
+  roles,
+  members,
+}: {
+  roles: IGuildRole[];
+  members: IPickerMember[];
+}) {
   const actionData = useActionData<typeof action>();
   const submitting = usePendingIntent() === 'addteam';
 
@@ -1124,6 +1210,12 @@ function AddTeamForm({ members }: { members: IPickerMember[] }) {
             Members
           </Label>
           <MemberPicker id="members" members={members} inputName="members" />
+        </div>
+        <div className={fieldClass}>
+          <Label className="text-lg" htmlFor="teamRole">
+            Team role
+          </Label>
+          <RoleSelect id="teamRole" roles={roles} />
         </div>
         {actionData?.intent === 'addteam' && actionData.errors && (
           <ActionErrors errors={actionData.errors} />
