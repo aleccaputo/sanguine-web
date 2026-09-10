@@ -70,6 +70,8 @@ export interface ITileRaceStanding {
   /** Counted tiles: approved submissions so far toward the tile's quantity; null otherwise */
   taskProgress?: number | null;
   moveStatus: MoveStatus | null;
+  /** Submissions sitting in the approvals channel for the current tile (absent on older API deploys) */
+  pendingSubmissions?: number;
   isFinished: boolean;
   /** Cleared tiles, oldest first (absent on older API deploys) */
   history?: ITileRaceHistoryEntry[];

@@ -101,6 +101,7 @@ export async function loader() {
         currentTask: standing.currentTask,
         taskProgress: standing.taskProgress ?? null,
         moveStatus: standing.moveStatus,
+        pendingSubmissions: standing.pendingSubmissions ?? 0,
         isFinished: standing.isFinished,
         memberNames: (memberIdsByTeamId.get(standing.teamId) ?? []).map(
           id => nameByDiscordId[id] ?? 'Unknown',
@@ -177,7 +178,13 @@ const statusText = (standing: ITileRaceStanding): string => {
   if (standing.isFinished) {
     return `Finished ${ordinal(standing.place ?? 0)}`;
   }
-  if (standing.moveStatus === 'PENDING_APPROVAL') {
+  // The submission queue keeps the move PENDING_SUBMISSION while screenshots
+  // await approval; PENDING_APPROVAL only exists on pre-queue API deploys.
+  const pending = standing.pendingSubmissions ?? 0;
+  if (pending > 1) {
+    return `Awaiting approval (${pending})`;
+  }
+  if (pending === 1 || standing.moveStatus === 'PENDING_APPROVAL') {
     return 'Awaiting approval';
   }
   if (standing.moveStatus === 'PENDING_SUBMISSION') {
