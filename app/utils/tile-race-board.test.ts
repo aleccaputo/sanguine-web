@@ -6,6 +6,7 @@ import {
   IBoardTileInput,
   IBoardTileLike,
   isTierBoardValid,
+  landedTileIndexes,
   redactTilesBeyondTier,
   toBoardTileInputs,
   toTierInputs,
@@ -40,7 +41,7 @@ describe('chunkIntoSnakeRows', () => {
 });
 
 describe('toBoardTileInputs', () => {
-  it('drops START/FINISH and keeps only each type’s own fields', () => {
+  it('drops START/FINISH, keeps only each type’s own fields, and tags each tile with its board index', () => {
     const served: IBoardTileLike[] = [
       { type: 'START', name: 'Start' },
       {
@@ -59,9 +60,21 @@ describe('toBoardTileInputs', () => {
         name: 'Punch Vorkath to death',
         description: undefined,
         imageUrl: 'https://oldschool.runescape.wiki/images/Vorkath.png',
+        sourceIndex: 1,
       },
-      { type: 'GO_BACK', amount: 2 },
+      { type: 'GO_BACK', amount: 2, sourceIndex: 2 },
     ]);
+  });
+});
+
+describe('landedTileIndexes', () => {
+  it('collects every tile a team stands on or has cleared', () => {
+    const landed = landedTileIndexes([
+      { tileIndex: 4, history: [{ tileIndex: 1 }, { tileIndex: 4 }] },
+      { tileIndex: 2 },
+      { tileIndex: 0, history: [] },
+    ]);
+    expect([...landed].sort()).toEqual([0, 1, 2, 4]);
   });
 });
 
@@ -82,6 +95,8 @@ describe('toTierInputs', () => {
     expect(tiers[0].map(tile => tile.name)).toEqual(['A', 'B']);
     expect(tiers[1].map(tile => tile.name)).toEqual(['C', 'D', 'E']);
     expect(tiers[1][1].quantity).toBe(10);
+    // Board indexes survive the split so a live edit can re-point moves
+    expect(tiers[1].map(tile => tile.sourceIndex)).toEqual([3, 4, 5]);
   });
 });
 
@@ -158,7 +173,9 @@ describe('isTierBoardValid', () => {
     expect(isTierBoardValid([[namedTask('A')], [namedTask('B')]])).toBe(true);
     expect(isTierBoardValid([])).toBe(false);
     expect(isTierBoardValid([[namedTask('A')], []])).toBe(false);
-    expect(isTierBoardValid([[namedTask('A'), { type: 'TASK', name: ' ' }]])).toBe(false);
+    expect(
+      isTierBoardValid([[namedTask('A'), { type: 'TASK', name: ' ' }]]),
+    ).toBe(false);
     expect(isTierBoardValid([[{ type: 'GO_BACK', amount: 1 }]])).toBe(false);
     expect(
       isTierBoardValid([

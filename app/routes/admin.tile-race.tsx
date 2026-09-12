@@ -46,6 +46,7 @@ import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import {
   IBoardTileInput,
   isTierBoardValid,
+  landedTileIndexes,
   toBoardTileInputs,
   toTierInputs,
 } from '~/utils/tile-race-board';
@@ -765,7 +766,13 @@ function RaceDashboard({
         )}
       </Box>
 
-      {event.status === 'DRAFT' && <EditBoardSection board={board} />}
+      {(event.status === 'DRAFT' || event.status === 'ACTIVE') && (
+        <EditBoardSection
+          board={board}
+          live={event.status === 'ACTIVE'}
+          lockedTiles={landedTileIndexes(standings)}
+        />
+      )}
 
       <Box>
         <SectionHeading title="Teams" summary={`${standings.length} teams`} />
@@ -1088,9 +1095,21 @@ function TeamRow({
   );
 }
 
-// Draft races only — once the race starts, moves reference tiles by index and
-// the API refuses board edits.
-function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
+// Draft and running races alike. Every tile loaded from the served board
+// carries its board index (sourceIndex); on a running race the events API
+// follows those to re-point every team's moves, so tiers and tiles can be
+// added or reordered under live teams. Tiles a team has landed on are locked
+// against deletion (the API would refuse), and the mode is fixed once started.
+function EditBoardSection({
+  board,
+  live,
+  lockedTiles,
+}: {
+  board: IAdminTileRace['board'];
+  /** The race is ACTIVE: no mode switch, landed-on tiles can't be removed */
+  live: boolean;
+  lockedTiles: Set<number>;
+}) {
   const actionData = useActionData<typeof action>();
   const submitting = usePendingIntent() === 'updateboard';
   const [mode, setMode] = useState<RaceMode>(
@@ -1114,7 +1133,24 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
 
   return (
     <Box>
-      <SectionHeading title="Board" summary="editable until the race starts" />
+      <SectionHeading
+        title="Board"
+        summary={
+          live
+            ? 'live — teams keep the tile they are on'
+            : 'editable until the race starts'
+        }
+      />
+      {live && (
+        <Text size="3" className="mt-1 block text-gray-500">
+          Add tiers or tiles, rename, reorder, change artwork or drop counts at
+          any time. Tiles marked 📍 have a team on them or in their history —
+          edit those in place, they can’t be deleted.{' '}
+          {tiered
+            ? 'A new tier before a team’s current tier is skipped by that team; one after it is rolled into next.'
+            : 'Teams roll from wherever they are on the new layout.'}
+        </Text>
+      )}
       <Form method="post" className="mt-2 flex flex-col gap-3">
         <input type="hidden" name="intent" value="updateboard" />
         <input type="hidden" name="boardMode" value={mode} />
@@ -1126,7 +1162,7 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
         {/* Version the tiles were loaded at — a concurrent save 409s instead of clobbering */}
         <input type="hidden" name="version" value={board.version ?? 0} />
         <Flex gap="4" wrap="wrap">
-          <RaceModeSelect mode={mode} onChange={setMode} />
+          {!live && <RaceModeSelect mode={mode} onChange={setMode} />}
           {!tiered && (
             <div className={fieldClass}>
               <Label className="text-lg" htmlFor="editDiceSides">
@@ -1145,9 +1181,17 @@ function EditBoardSection({ board }: { board: IAdminTileRace['board'] }) {
           )}
         </Flex>
         {tiered ? (
-          <TileRaceTierBoardBuilder tiers={tiers} onChange={setTiers} />
+          <TileRaceTierBoardBuilder
+            tiers={tiers}
+            onChange={setTiers}
+            lockedTiles={live ? lockedTiles : undefined}
+          />
         ) : (
-          <TileRaceBoardBuilder tiles={tiles} onChange={setTiles} />
+          <TileRaceBoardBuilder
+            tiles={tiles}
+            onChange={setTiles}
+            lockedTiles={live ? lockedTiles : undefined}
+          />
         )}
         {actionData?.intent === 'updateboard' && actionData.errors && (
           <ActionErrors errors={actionData.errors} />
