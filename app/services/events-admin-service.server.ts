@@ -116,9 +116,12 @@ export const createRace = (input: ICreateRaceInput, actingUserId: string) =>
   });
 
 /**
- * Replace the board of the open race. The API rejects this once the race is
- * ACTIVE, and 409s if the board's version moved since it was loaded (someone
- * else saved first) rather than silently overwriting their edits.
+ * Replace the board of the open race, draft or running. On a running race each
+ * tile's sourceIndex tells the API which current tile it is, and every team's
+ * moves are re-pointed in the same transaction; the API refuses to remove a
+ * tile a team has landed on or to change the race mode. 409s if the board's
+ * version moved since it was loaded (someone else saved first) rather than
+ * silently overwriting their edits.
  */
 export const updateBoard = (
   input: { board: IBoardDefinitionInput; version: number },
@@ -129,6 +132,8 @@ export const updateBoard = (
     taskCount: number;
     diceSides: number;
     version: number;
+    /** Moves whose tile indexes were rewritten (0 on a draft) */
+    remappedMoves: number;
   }>('/races/current/board', {
     method: 'PUT',
     actingUserId,

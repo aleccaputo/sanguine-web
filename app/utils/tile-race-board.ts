@@ -12,6 +12,12 @@ export interface IBoardTileInput {
   /** TASK tiles: approved submissions required to complete the tile (1 = ordinary) */
   quantity?: number;
   amount?: number;
+  /**
+   * The index this tile has on the served board it was loaded from; absent on
+   * tiles added in the editor. On a running race the events API follows it to
+   * re-point every team's moves at the tile's new index.
+   */
+  sourceIndex?: number;
 }
 
 export const BOARD_COLUMNS = 10;
@@ -28,12 +34,11 @@ export interface IBoardTileLike {
 
 /**
  * A served board back into builder inputs: START/FINISH drop (the API re-adds
- * them), and each tile keeps only the fields its type submits.
+ * them), and each tile keeps only the fields its type submits, plus its board
+ * index as sourceIndex (the served list is the full board, START at 0).
  */
-export const toBoardTileInputs = (
-  tiles: IBoardTileLike[],
-): IBoardTileInput[] =>
-  tiles.flatMap((tile): IBoardTileInput[] => {
+export const toBoardTileInputs = (tiles: IBoardTileLike[]): IBoardTileInput[] =>
+  tiles.flatMap((tile, sourceIndex): IBoardTileInput[] => {
     switch (tile.type) {
       case 'TASK':
         return [
@@ -43,15 +48,31 @@ export const toBoardTileInputs = (
             description: tile.description,
             imageUrl: tile.imageUrl,
             quantity: tile.quantity,
+            sourceIndex,
           },
         ];
       case 'GO_BACK':
       case 'GO_FORWARD':
-        return [{ type: tile.type, amount: tile.amount ?? 1 }];
+        return [{ type: tile.type, amount: tile.amount ?? 1, sourceIndex }];
       default:
         return [];
     }
   });
+
+/**
+ * Board indexes some team is standing on or has cleared. The events API refuses
+ * a live edit that removes one of these (edit it in place instead), so the
+ * builder locks their delete buttons up front.
+ */
+export const landedTileIndexes = (
+  standings: { tileIndex: number; history?: { tileIndex: number }[] }[],
+): Set<number> =>
+  new Set(
+    standings.flatMap(standing => [
+      standing.tileIndex,
+      ...(standing.history ?? []).map(entry => entry.tileIndex),
+    ]),
+  );
 
 /**
  * A served tiered board back into builder inputs: START/FINISH drop and the
@@ -74,7 +95,7 @@ export const toTierInputs = (
  * A served tiered board's tiles grouped per tier (START and FINISH dropped) —
  * how the public page renders a tiered board, one row of tiles per tier.
  */
-export const groupTilesIntoTiers = <T,>(
+export const groupTilesIntoTiers = <T>(
   tiles: T[],
   tierSizes: number[],
 ): T[][] => {
@@ -99,9 +120,7 @@ export const countRevealedTiers = (
   Math.max(
     1,
     ...standings.map(standing =>
-      standing.isFinished
-        ? tierCount
-        : Math.min(standing.tier ?? 1, tierCount),
+      standing.isFinished ? tierCount : Math.min(standing.tier ?? 1, tierCount),
     ),
   );
 
@@ -147,7 +166,7 @@ export const isTierBoardValid = (tiers: IBoardTileInput[][]): boolean =>
  * Chutes-and-ladders reading order: rows alternate direction, and short rows keep
  * their items on the side the path travels from (nulls fill the dead cells).
  */
-export const chunkIntoSnakeRows = <T,>(
+export const chunkIntoSnakeRows = <T>(
   items: T[],
   columns: number = BOARD_COLUMNS,
 ): (T | null)[][] =>

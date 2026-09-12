@@ -44,7 +44,13 @@ const ok = async <T>(value: T): Promise<T> => value;
 
 export const createRace = () => ok({ eventId: 'mock-race' });
 export const updateBoard = () =>
-  ok({ tileCount: 25, taskCount: 21, diceSides: 6, version: 1 });
+  ok({
+    tileCount: 25,
+    taskCount: 21,
+    diceSides: 6,
+    version: 1,
+    remappedMoves: 0,
+  });
 export const updateRaceSettings = () =>
   ok({
     name: 'Sanguine Tile Race',

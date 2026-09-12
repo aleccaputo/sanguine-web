@@ -21,7 +21,19 @@ import { TileImagePicker } from '~/components/TileImagePicker';
 interface ITileRaceBoardBuilderProps {
   tiles: IBoardTileInput[];
   onChange: (tiles: IBoardTileInput[]) => void;
+  /**
+   * Live edits: board indexes (tile.sourceIndex) some team is standing on or
+   * has cleared. Those tiles can be edited in place but not deleted or
+   * retyped — the events API would refuse the save.
+   */
+  lockedTiles?: Set<number>;
 }
+
+const isLockedTile = (tile: IBoardTileInput, lockedTiles?: Set<number>) =>
+  tile.sourceIndex !== undefined && !!lockedTiles?.has(tile.sourceIndex);
+
+const LOCKED_HINT =
+  'A team is on this tile or has cleared it — edit it, don’t delete it';
 
 type BuilderCell =
   | { kind: 'start' }
@@ -34,6 +46,7 @@ const NEW_TILE: IBoardTileInput = { type: 'TASK', name: '' };
 export function TileRaceBoardBuilder({
   tiles,
   onChange,
+  lockedTiles,
 }: ITileRaceBoardBuilderProps) {
   const [selected, setSelected] = useState<number | null>(null);
 
@@ -95,6 +108,8 @@ export function TileRaceBoardBuilder({
   };
 
   const selectedTile = selected !== null ? tiles[selected] : null;
+  const selectedLocked =
+    !!selectedTile && isLockedTile(selectedTile, lockedTiles);
 
   return (
     <Box>
@@ -105,6 +120,9 @@ export function TileRaceBoardBuilder({
               key={i}
               cell={cell}
               selected={cell?.kind === 'tile' && cell.index === selected}
+              locked={
+                cell?.kind === 'tile' && isLockedTile(cell.tile, lockedTiles)
+              }
               onAppend={appendTile}
               onSelect={index => setSelected(index === selected ? null : index)}
             />
@@ -143,11 +161,18 @@ export function TileRaceBoardBuilder({
                 variant="danger"
                 type="button"
                 onClick={() => removeTile(selected)}
+                disabled={selectedLocked}
+                title={selectedLocked ? LOCKED_HINT : undefined}
               >
                 Delete
               </Button>
             </Flex>
           </Flex>
+          {selectedLocked && (
+            <Text size="3" className="mt-2 block text-gray-500">
+              {LOCKED_HINT}.
+            </Text>
+          )}
           <Flex mt="3" gap="4" wrap="wrap" align="end">
             <div className="flex flex-col gap-1.5">
               <Label className="text-lg" htmlFor="tileType">
@@ -155,6 +180,7 @@ export function TileRaceBoardBuilder({
               </Label>
               <Select.Root
                 value={selectedTile.type}
+                disabled={selectedLocked}
                 onValueChange={value =>
                   changeType(selected, value as BoardTileInputType)
                 }
@@ -276,6 +302,8 @@ function TaskTileFields({
 interface ITileRaceTierBoardBuilderProps {
   tiers: IBoardTileInput[][];
   onChange: (tiers: IBoardTileInput[][]) => void;
+  /** See TileRaceBoardBuilder: tiles teams have landed on can't be deleted */
+  lockedTiles?: Set<number>;
 }
 
 const MAX_TIER_SIZE = 20;
@@ -283,6 +311,7 @@ const MAX_TIER_SIZE = 20;
 export function TileRaceTierBoardBuilder({
   tiers,
   onChange,
+  lockedTiles,
 }: ITileRaceTierBoardBuilderProps) {
   const [selected, setSelected] = useState<{
     tier: number;
@@ -352,7 +381,11 @@ export function TileRaceTierBoardBuilder({
     }
     onChange(
       tiers.map((tier, i) =>
-        i === tierIndex ? tiers[target] : i === target ? tiers[tierIndex] : tier,
+        i === tierIndex
+          ? tiers[target]
+          : i === target
+            ? tiers[tierIndex]
+            : tier,
       ),
     );
     setSelected(null);
@@ -360,6 +393,11 @@ export function TileRaceTierBoardBuilder({
 
   const selectedTile =
     selected !== null ? tiers[selected.tier]?.[selected.tile] : null;
+  const selectedLocked =
+    !!selectedTile && isLockedTile(selectedTile, lockedTiles);
+  // A tier holding a landed-on tile can't go either
+  const tierLocked = (tier: IBoardTileInput[]) =>
+    tier.some(tile => isLockedTile(tile, lockedTiles));
 
   return (
     <Box>
@@ -370,8 +408,8 @@ export function TileRaceTierBoardBuilder({
               <Text size="3" className="text-osrs-orange">
                 Tier {tierIndex + 1}{' '}
                 <span className="text-gray-500">
-                  · {tier.length} tile{tier.length === 1 ? '' : 's'} · rolls a
-                  d{tier.length}
+                  · {tier.length} tile{tier.length === 1 ? '' : 's'} · rolls a d
+                  {tier.length}
                 </span>
               </Text>
               <Flex gap="2">
@@ -393,6 +431,12 @@ export function TileRaceTierBoardBuilder({
                   variant="danger"
                   type="button"
                   onClick={() => removeTier(tierIndex)}
+                  disabled={tierLocked(tier)}
+                  title={
+                    tierLocked(tier)
+                      ? 'A team is in this tier or has cleared one of its tiles'
+                      : undefined
+                  }
                 >
                   Remove tier
                 </Button>
@@ -408,6 +452,7 @@ export function TileRaceTierBoardBuilder({
                       selected?.tier === tierIndex &&
                       selected.tile === tileIndex
                     }
+                    locked={isLockedTile(tile, lockedTiles)}
                     onAppend={() => appendTile(tierIndex)}
                     onSelect={tileIndex =>
                       setSelected(current =>
@@ -467,17 +512,22 @@ export function TileRaceTierBoardBuilder({
                 variant="danger"
                 type="button"
                 onClick={() => removeTile(selected.tier, selected.tile)}
+                disabled={selectedLocked}
+                title={selectedLocked ? LOCKED_HINT : undefined}
               >
                 Delete
               </Button>
             </Flex>
           </Flex>
+          {selectedLocked && (
+            <Text size="3" className="mt-2 block text-gray-500">
+              {LOCKED_HINT}.
+            </Text>
+          )}
           <Flex mt="3" gap="4" wrap="wrap" align="end">
             <TaskTileFields
               tile={selectedTile}
-              onPatch={patch =>
-                updateTile(selected.tier, selected.tile, patch)
-              }
+              onPatch={patch => updateTile(selected.tier, selected.tile, patch)}
             />
           </Flex>
         </Box>
@@ -492,11 +542,14 @@ const CELL_BASE =
 function BuilderCellView({
   cell,
   selected,
+  locked = false,
   onAppend,
   onSelect,
 }: {
   cell: BuilderCell | null;
   selected: boolean;
+  /** A team has landed on this tile — shown with a pin, can't be deleted */
+  locked?: boolean;
   onAppend: () => void;
   onSelect: (index: number) => void;
 }) {
@@ -530,7 +583,7 @@ function BuilderCellView({
   const { tile, index } = cell;
   const imageUrl =
     tile.type === 'TASK'
-      ? (tile.imageUrl ?? getTileImageUrl(tile.name, tile.description))
+      ? tile.imageUrl ?? getTileImageUrl(tile.name, tile.description)
       : null;
   const content =
     tile.type === 'GO_BACK' ? (
@@ -569,6 +622,15 @@ function BuilderCellView({
       {tile.type === 'TASK' && (tile.quantity ?? 1) > 1 && (
         <span className="absolute right-1 top-0.5 text-[11px] text-osrs-gold">
           ×{tile.quantity}
+        </span>
+      )}
+      {locked && (
+        <span
+          className="absolute bottom-0.5 right-1 text-[11px] text-green-400"
+          title={LOCKED_HINT}
+          aria-label="A team has landed on this tile"
+        >
+          📍
         </span>
       )}
       {/* relative lifts the label above the absolutely-positioned artwork */}
