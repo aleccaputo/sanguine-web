@@ -4,7 +4,10 @@ import type {
   ITileRaceStanding,
   ITileRaceTile,
 } from '../services/tile-race-service.server';
-import type { IAdminTileRace } from '../services/events-admin-service.server';
+import type {
+  IAdminTileRace,
+  IApprovedDrop,
+} from '../services/events-admin-service.server';
 import { MOCK_USERS } from '~/mocks/fixtures.server';
 
 const roster = (from: number, to: number) =>
@@ -39,6 +42,48 @@ const crossedLine = (
   note: null,
   completedAt: `2026-08-${String(day).padStart(2, '0')}T20:00:00.000Z`,
   submittedByDiscordId: null,
+});
+
+/** An extra approved submission on a counted tile, beyond the one history credits. */
+const approvedDrop = (
+  tileIndex: number,
+  day: number,
+  submitterIndex: number,
+  note?: string,
+  tier?: number,
+): IApprovedDrop => ({
+  tileIndex,
+  tier: tier ?? null,
+  submittedByDiscordId: MOCK_USERS[submitterIndex].discordId,
+  note: note ?? null,
+  submittedAt: `2026-08-${String(day).padStart(2, '0')}T17:45:00.000Z`,
+  approvedAt: `2026-08-${String(day).padStart(2, '0')}T18:00:00.000Z`,
+});
+
+// The real admin payload lists every approved submission per team. The fixture
+// derives one per cleared tile from history (same submitter, note, and date),
+// plus extras on counted tiles where several members each contributed a drop.
+const withApprovedDrops = <T extends { standings: MockAdminRace['standings'] }>(
+  race: T,
+  extrasByTeamId: Record<string, IApprovedDrop[]>,
+): T => ({
+  ...race,
+  standings: race.standings.map(standing => ({
+    ...standing,
+    approvedDrops: [
+      ...(standing.history ?? [])
+        .filter(entry => !entry.isFinish && entry.submittedByDiscordId)
+        .map(entry => ({
+          tileIndex: entry.tileIndex,
+          tier: entry.tier,
+          submittedByDiscordId: entry.submittedByDiscordId ?? '',
+          note: entry.note,
+          submittedAt: entry.completedAt ?? '',
+          approvedAt: entry.completedAt ?? '',
+        })),
+      ...(extrasByTeamId[standing.teamId] ?? []),
+    ].sort((a, b) => a.approvedAt.localeCompare(b.approvedAt)),
+  })),
 });
 
 // Deterministic fixture standing in for the sanguine-events API under MOCK_MODE:
@@ -124,89 +169,102 @@ const finishIndex = tiles.length - 1;
 // mirroring what the real API's public serializer does.
 type MockAdminRace = Omit<IAdminTileRace, 'channels'>;
 
-export const mockAdminRaceBase: MockAdminRace = {
-  event: {
-    id: 'mock-tile-race',
-    name: 'Sanguine Tile Race',
-    status: 'ACTIVE',
-    startDate: '2026-08-01T00:00:00.000Z',
-    endDate: '2026-08-15T00:00:00.000Z',
+export const mockAdminRaceBase: MockAdminRace = withApprovedDrops(
+  {
+    event: {
+      id: 'mock-tile-race',
+      name: 'Sanguine Tile Race',
+      status: 'ACTIVE',
+      startDate: '2026-08-01T00:00:00.000Z',
+      endDate: '2026-08-15T00:00:00.000Z',
+    },
+    board: {
+      diceSides: 6,
+      tileCount: innerTiles.length,
+      tiles,
+    },
+    standings: [
+      {
+        teamId: 'team-1',
+        name: 'Blood Reapers',
+        roleId: '300000000000000001',
+        memberDiscordIds: roster(0, 3),
+        place: 1,
+        tileIndex: finishIndex,
+        finishIndex,
+        currentTask: null,
+        moveStatus: 'COMPLETED',
+        isFinished: true,
+        history: [
+          cleared(3, 2, 0),
+          cleared(9, 4, 1, '10th head finally'),
+          cleared(15, 6, 2, 'Eclipse moon chestplate'),
+          cleared(19, 8, 0, "Craw's bow"),
+          cleared(25, 10, 1),
+          crossedLine(26, 10),
+        ],
+      },
+      {
+        teamId: 'team-2',
+        name: 'Scythe Squad',
+        roleId: null,
+        // Oversized roster: exercises the standings "+N more" truncation
+        memberDiscordIds: roster(3, 26),
+        place: null,
+        tileIndex: 18,
+        finishIndex,
+        currentTask: '150KC @ Vardorvis',
+        moveStatus: 'PENDING_APPROVAL',
+        isFinished: false,
+        history: [
+          cleared(2, 3, 4, 'Saradomin hilt LOL'),
+          cleared(8, 6, 5),
+          cleared(12, 9, 6),
+        ],
+      },
+      {
+        teamId: 'team-3',
+        name: 'Gob Squad',
+        roleId: null,
+        memberDiscordIds: roster(6, 8),
+        place: null,
+        tileIndex: 12,
+        finishIndex,
+        currentTask: 'Reach 6hr log',
+        moveStatus: 'PENDING_SUBMISSION',
+        isFinished: false,
+        history: [cleared(1, 4, 6), cleared(6, 7, 7)],
+      },
+      {
+        teamId: 'team-4',
+        name: 'Rune Goons',
+        roleId: null,
+        memberDiscordIds: roster(8, 11),
+        place: null,
+        tileIndex: 12,
+        finishIndex,
+        currentTask: 'Reach 6hr log',
+        moveStatus: 'PENDING_SUBMISSION',
+        isFinished: false,
+        history: [
+          cleared(5, 5, 8, 'Dust... at least it counts'),
+          cleared(10, 8, 9),
+        ],
+      },
+    ],
   },
-  board: {
-    diceSides: 6,
-    tileCount: innerTiles.length,
-    tiles,
+  {
+    // Blood Reapers' nine other KBD heads (history credits only the tenth)
+    'team-1': Array.from({ length: 9 }, (_, i) =>
+      approvedDrop(
+        9,
+        2 + Math.floor(i / 4),
+        i % 3,
+        i === 0 ? 'first head' : undefined,
+      ),
+    ),
   },
-  standings: [
-    {
-      teamId: 'team-1',
-      name: 'Blood Reapers',
-      roleId: '300000000000000001',
-      memberDiscordIds: roster(0, 3),
-      place: 1,
-      tileIndex: finishIndex,
-      finishIndex,
-      currentTask: null,
-      moveStatus: 'COMPLETED',
-      isFinished: true,
-      history: [
-        cleared(3, 2, 0),
-        cleared(9, 4, 1, '10th head finally'),
-        cleared(15, 6, 2, 'Eclipse moon chestplate'),
-        cleared(19, 8, 0, "Craw's bow"),
-        cleared(25, 10, 1),
-        crossedLine(26, 10),
-      ],
-    },
-    {
-      teamId: 'team-2',
-      name: 'Scythe Squad',
-      roleId: null,
-      // Oversized roster: exercises the standings "+N more" truncation
-      memberDiscordIds: roster(3, 26),
-      place: null,
-      tileIndex: 18,
-      finishIndex,
-      currentTask: '150KC @ Vardorvis',
-      moveStatus: 'PENDING_APPROVAL',
-      isFinished: false,
-      history: [
-        cleared(2, 3, 4, 'Saradomin hilt LOL'),
-        cleared(8, 6, 5),
-        cleared(12, 9, 6),
-      ],
-    },
-    {
-      teamId: 'team-3',
-      name: 'Gob Squad',
-      roleId: null,
-      memberDiscordIds: roster(6, 8),
-      place: null,
-      tileIndex: 12,
-      finishIndex,
-      currentTask: 'Reach 6hr log',
-      moveStatus: 'PENDING_SUBMISSION',
-      isFinished: false,
-      history: [cleared(1, 4, 6), cleared(6, 7, 7)],
-    },
-    {
-      teamId: 'team-4',
-      name: 'Rune Goons',
-      roleId: null,
-      memberDiscordIds: roster(8, 11),
-      place: null,
-      tileIndex: 12,
-      finishIndex,
-      currentTask: 'Reach 6hr log',
-      moveStatus: 'PENDING_SUBMISSION',
-      isFinished: false,
-      history: [
-        cleared(5, 5, 8, 'Dust... at least it counts'),
-        cleared(10, 8, 9),
-      ],
-    },
-  ],
-};
+);
 
 // Tiered fixture (MOCK_TIERED_RACE=1): six tiers sized like a real event, one
 // task per tier — exercises the per-tier board rows, tier standings, d{size}
@@ -282,137 +340,156 @@ const tierOf = (tileIndex: number): number =>
       tileIndex <= tierSizes.slice(0, tier + 1).reduce((a, b) => a + b, 0),
   ) + 1;
 
-export const mockTieredAdminRaceBase: MockAdminRace = {
-  event: {
-    id: 'mock-tiered-race',
-    name: 'Sanguine Tier Race',
-    status: 'ACTIVE',
-    startDate: '2026-08-01T00:00:00.000Z',
-    endDate: '2026-08-15T00:00:00.000Z',
+export const mockTieredAdminRaceBase: MockAdminRace = withApprovedDrops(
+  {
+    event: {
+      id: 'mock-tiered-race',
+      name: 'Sanguine Tier Race',
+      status: 'ACTIVE',
+      startDate: '2026-08-01T00:00:00.000Z',
+      endDate: '2026-08-15T00:00:00.000Z',
+    },
+    board: {
+      mode: 'TIERED',
+      diceSides: 6,
+      tileCount: tieredTiles.length - 2,
+      tierSizes,
+      tiles: tieredTiles.map(tile => ({
+        ...tile,
+        tier:
+          tile.type === 'START'
+            ? 0
+            : tile.type === 'FINISH'
+              ? tierSizes.length + 1
+              : tierOf(tile.index),
+      })),
+    },
+    standings: [
+      {
+        teamId: 'team-1',
+        name: 'Blood Reapers',
+        roleId: '300000000000000001',
+        memberDiscordIds: roster(0, 4),
+        place: 1,
+        tileIndex: tieredFinishIndex,
+        finishIndex: tieredFinishIndex,
+        tier: tierSizes.length + 1,
+        tierCount: tierSizes.length,
+        currentTask: null,
+        moveStatus: 'COMPLETED',
+        isFinished: true,
+        history: [
+          cleared(2, 2, 0, undefined, 1),
+          cleared(9, 4, 1, undefined, 2),
+          cleared(14, 6, 0, "Inquisitor's mace!", 3),
+          cleared(16, 9, 2, 'Dex scroll from a solo', 4),
+          cleared(23, 11, 0, undefined, 5),
+          cleared(26, 13, 3, 'quiver GET', 6),
+          crossedLine(27, 13, 7),
+        ],
+      },
+      {
+        teamId: 'team-2',
+        name: 'Scythe Squad',
+        roleId: null,
+        memberDiscordIds: roster(4, 8),
+        place: null,
+        tileIndex: 23,
+        finishIndex: tieredFinishIndex,
+        tier: 5,
+        tierCount: tierSizes.length,
+        currentTask: 'Awakened DT2 kill',
+        moveStatus: 'PENDING_APPROVAL',
+        isFinished: false,
+        history: [
+          cleared(1, 3, 4, undefined, 1),
+          cleared(8, 5, 5, undefined, 2),
+          cleared(12, 8, 6, 'Chromium ingot lol', 3),
+          cleared(20, 11, 4, 'Echo crystal', 4),
+        ],
+      },
+      {
+        teamId: 'team-3',
+        name: 'Gob Squad',
+        roleId: null,
+        memberDiscordIds: roster(8, 12),
+        place: null,
+        // Shares the tile with Rune Goons — exercises stacked markers on one tile
+        tileIndex: 19,
+        finishIndex: tieredFinishIndex,
+        tier: 4,
+        tierCount: tierSizes.length,
+        currentTask: 'Punch Vorkath to death',
+        moveStatus: 'PENDING_SUBMISSION',
+        isFinished: false,
+        history: [
+          cleared(5, 4, 8, 'Imp champion scroll?!', 1),
+          cleared(11, 7, 9, undefined, 2),
+          cleared(15, 10, 10, undefined, 3),
+        ],
+      },
+      {
+        teamId: 'team-4',
+        name: 'Rune Goons',
+        roleId: null,
+        memberDiscordIds: roster(12, 16),
+        place: null,
+        tileIndex: 19,
+        finishIndex: tieredFinishIndex,
+        tier: 4,
+        tierCount: tierSizes.length,
+        currentTask: 'Punch Vorkath to death',
+        moveStatus: 'PENDING_SUBMISSION',
+        isFinished: false,
+        history: [
+          cleared(3, 3, 12, "Karil's leathertop", 1),
+          cleared(6, 6, 13, 'BCP first GWD trip', 2),
+          // Same tier-3 tile Blood Reapers rolled: both teams cleared tile 14,
+          // exercising the multi-clear checkmark and stacked popover entries.
+          cleared(14, 9, 14, 'Nightmare staff', 3),
+        ],
+      },
+      {
+        teamId: 'team-5',
+        name: 'Rat Pack',
+        roleId: null,
+        memberDiscordIds: roster(16, 20),
+        place: null,
+        tileIndex: 4,
+        finishIndex: tieredFinishIndex,
+        tier: 1,
+        tierCount: tierSizes.length,
+        currentTask: '10 KBD heads (4/10)',
+        taskProgress: 4,
+        moveStatus: 'PENDING_APPROVAL',
+        isFinished: false,
+      },
+    ],
   },
-  board: {
-    mode: 'TIERED',
-    diceSides: 6,
-    tileCount: tieredTiles.length - 2,
-    tierSizes,
-    tiles: tieredTiles.map(tile => ({
-      ...tile,
-      tier:
-        tile.type === 'START'
-          ? 0
-          : tile.type === 'FINISH'
-            ? tierSizes.length + 1
-            : tierOf(tile.index),
-    })),
+  {
+    // Rat Pack's four approved KBD heads so far, from three different members
+    'team-5': [
+      approvedDrop(4, 3, 16, 'head 1', 1),
+      approvedDrop(4, 5, 17, undefined, 1),
+      approvedDrop(4, 6, 16, 'another one', 1),
+      approvedDrop(4, 8, 18, 'KBD head #4', 1),
+    ],
   },
-  standings: [
-    {
-      teamId: 'team-1',
-      name: 'Blood Reapers',
-      roleId: '300000000000000001',
-      memberDiscordIds: roster(0, 4),
-      place: 1,
-      tileIndex: tieredFinishIndex,
-      finishIndex: tieredFinishIndex,
-      tier: tierSizes.length + 1,
-      tierCount: tierSizes.length,
-      currentTask: null,
-      moveStatus: 'COMPLETED',
-      isFinished: true,
-      history: [
-        cleared(2, 2, 0, undefined, 1),
-        cleared(9, 4, 1, undefined, 2),
-        cleared(14, 6, 0, "Inquisitor's mace!", 3),
-        cleared(16, 9, 2, 'Dex scroll from a solo', 4),
-        cleared(23, 11, 0, undefined, 5),
-        cleared(26, 13, 3, 'quiver GET', 6),
-        crossedLine(27, 13, 7),
-      ],
-    },
-    {
-      teamId: 'team-2',
-      name: 'Scythe Squad',
-      roleId: null,
-      memberDiscordIds: roster(4, 8),
-      place: null,
-      tileIndex: 23,
-      finishIndex: tieredFinishIndex,
-      tier: 5,
-      tierCount: tierSizes.length,
-      currentTask: 'Awakened DT2 kill',
-      moveStatus: 'PENDING_APPROVAL',
-      isFinished: false,
-      history: [
-        cleared(1, 3, 4, undefined, 1),
-        cleared(8, 5, 5, undefined, 2),
-        cleared(12, 8, 6, 'Chromium ingot lol', 3),
-        cleared(20, 11, 4, 'Echo crystal', 4),
-      ],
-    },
-    {
-      teamId: 'team-3',
-      name: 'Gob Squad',
-      roleId: null,
-      memberDiscordIds: roster(8, 12),
-      place: null,
-      // Shares the tile with Rune Goons — exercises stacked markers on one tile
-      tileIndex: 19,
-      finishIndex: tieredFinishIndex,
-      tier: 4,
-      tierCount: tierSizes.length,
-      currentTask: 'Punch Vorkath to death',
-      moveStatus: 'PENDING_SUBMISSION',
-      isFinished: false,
-      history: [
-        cleared(5, 4, 8, 'Imp champion scroll?!', 1),
-        cleared(11, 7, 9, undefined, 2),
-        cleared(15, 10, 10, undefined, 3),
-      ],
-    },
-    {
-      teamId: 'team-4',
-      name: 'Rune Goons',
-      roleId: null,
-      memberDiscordIds: roster(12, 16),
-      place: null,
-      tileIndex: 19,
-      finishIndex: tieredFinishIndex,
-      tier: 4,
-      tierCount: tierSizes.length,
-      currentTask: 'Punch Vorkath to death',
-      moveStatus: 'PENDING_SUBMISSION',
-      isFinished: false,
-      history: [
-        cleared(3, 3, 12, "Karil's leathertop", 1),
-        cleared(6, 6, 13, 'BCP first GWD trip', 2),
-        // Same tier-3 tile Blood Reapers rolled: both teams cleared tile 14,
-        // exercising the multi-clear checkmark and stacked popover entries.
-        cleared(14, 9, 14, 'Nightmare staff', 3),
-      ],
-    },
-    {
-      teamId: 'team-5',
-      name: 'Rat Pack',
-      roleId: null,
-      memberDiscordIds: roster(16, 20),
-      place: null,
-      tileIndex: 4,
-      finishIndex: tieredFinishIndex,
-      tier: 1,
-      tierCount: tierSizes.length,
-      currentTask: '10 KBD heads (4/10)',
-      taskProgress: 4,
-      moveStatus: 'PENDING_APPROVAL',
-      isFinished: false,
-    },
-  ],
-};
+);
 
-/** The fixture the mocks serve: tiered under MOCK_TIERED_RACE=1, else classic. */
-export const getMockAdminRaceBase = (): MockAdminRace =>
-  process.env.MOCK_TIERED_RACE === '1'
-    ? mockTieredAdminRaceBase
-    : mockAdminRaceBase;
+/**
+ * The fixture the mocks serve: tiered under MOCK_TIERED_RACE=1, else classic.
+ * MOCK_COMPLETED_RACE=1 serves it as COMPLETED (the stats page after a race).
+ */
+export const getMockAdminRaceBase = (): MockAdminRace => {
+  const base =
+    process.env.MOCK_TIERED_RACE === '1'
+      ? mockTieredAdminRaceBase
+      : mockAdminRaceBase;
+  return process.env.MOCK_COMPLETED_RACE === '1'
+    ? { ...base, event: { ...base.event, status: 'COMPLETED' } }
+    : base;
+};
 
 const toPublicStanding = (
   standing: MockAdminRace['standings'][number],

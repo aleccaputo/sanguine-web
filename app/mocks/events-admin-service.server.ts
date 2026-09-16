@@ -21,11 +21,9 @@ export class EventsApiError extends Error {
 // MOCK_EMPTY_RACE=1 makes the portal show the create-race form instead of the
 // dashboard; MOCK_DRAFT_RACE=1 serves the fixture as a DRAFT so the pre-start
 // surfaces (board editor, start button) render; MOCK_TIERED_RACE=1 swaps in
-// the tiered fixture (combines with MOCK_DRAFT_RACE for the tier editor).
-export const getAdminRace = async (): Promise<IAdminTileRace | null> => {
-  if (process.env.MOCK_EMPTY_RACE === '1') {
-    return null;
-  }
+// the tiered fixture (combines with MOCK_DRAFT_RACE for the tier editor);
+// MOCK_COMPLETED_RACE=1 serves it as COMPLETED (see getMockAdminRaceBase).
+const mockAdminRace = (): IAdminTileRace => {
   const base = getMockAdminRaceBase();
   return {
     ...base,
@@ -39,6 +37,16 @@ export const getAdminRace = async (): Promise<IAdminTileRace | null> => {
     },
   };
 };
+
+// Like the real /admin/races/current, a completed race is no longer "open".
+export const getAdminRace = async (): Promise<IAdminTileRace | null> =>
+  process.env.MOCK_EMPTY_RACE === '1' || process.env.MOCK_COMPLETED_RACE === '1'
+    ? null
+    : mockAdminRace();
+
+// /admin/races/latest keeps serving the completed race for the stats page.
+export const getLatestAdminRace = async (): Promise<IAdminTileRace | null> =>
+  process.env.MOCK_EMPTY_RACE === '1' ? null : mockAdminRace();
 
 const ok = async <T>(value: T): Promise<T> => value;
 

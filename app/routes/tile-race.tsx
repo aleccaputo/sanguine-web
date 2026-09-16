@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { json, MetaFunction } from '@remix-run/node';
-import { useLoaderData } from '@remix-run/react';
+import { Link, useLoaderData } from '@remix-run/react';
 import {
   Box,
   Container,
@@ -21,7 +21,7 @@ import { getNicknameMapByDiscordIds } from '~/services/sanguine-service.server';
 import { PageHeader } from '~/components/PageHeader';
 import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
-import { zebraStripeClass } from '~/utils/styles';
+import { proseLinkClass, zebraStripeClass } from '~/utils/styles';
 import {
   chunkIntoSnakeRows,
   countRevealedTiers,
@@ -30,6 +30,8 @@ import {
 } from '~/utils/tile-race-board';
 import { getTileImageUrl } from '~/utils/tile-race-images';
 import { TileArt } from '~/components/TileArt';
+import { TeamToken } from '~/components/TeamToken';
+import { assignTeamColors } from '~/utils/tile-race-teams';
 
 export const meta: MetaFunction = () => {
   return [
@@ -135,24 +137,6 @@ interface IStandingView extends Omit<ITileRaceStanding, 'history'> {
 // consumers read the board, admins pack it.
 const BOARD_VIEW_COLUMNS = 8;
 
-// Stable per-team identities: an OSRS god symbol (from /public/god-symbols)
-// paired with the accent color matching its canonical palette. The accent drives
-// borders/rails/legend; the symbol is the pawn. Never sanguine red — that means
-// members/links.
-const TEAM_IDENTITIES = [
-  { color: '#D9A13C', god: 'saradomin' },
-  { color: '#4FB4D8', god: 'armadyl' },
-  { color: '#6BBF59', god: 'guthix' },
-  { color: '#A97BD6', god: 'zaros' },
-  { color: '#D66BA0', god: 'zamorak' },
-  { color: '#C98A45', god: 'bandos' },
-];
-
-const TEAM_COLORS = TEAM_IDENTITIES.map(identity => identity.color);
-const GOD_BY_COLOR = Object.fromEntries(
-  TEAM_IDENTITIES.map(identity => [identity.color, identity.god]),
-);
-
 const tileTitle = (tile: ITileRaceTile): string => {
   switch (tile.type) {
     case 'START':
@@ -197,44 +181,6 @@ const ordinal = (n: number): string => {
   const suffix = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
   return `${n}${suffix}`;
 };
-
-/**
- * Square game-pawn marker: the team's god symbol framed in its accent color.
- * The god derives from the color (they're paired in TEAM_IDENTITIES), with the
- * team initial as a fallback if the pairing ever misses.
- */
-function TeamToken({
-  name,
-  color,
-  size = 'md',
-}: {
-  name: string;
-  color: string;
-  size?: 'sm' | 'md';
-}) {
-  const god = GOD_BY_COLOR[color];
-  const sizeClass =
-    size === 'sm'
-      ? 'h-5 w-5 text-[11px] sm:h-6 sm:w-6 sm:text-xs'
-      : 'h-6 w-6 text-xs sm:h-8 sm:w-8 sm:text-sm';
-  return (
-    <span
-      title={name}
-      className={`flex shrink-0 items-center justify-center rounded-sm border-2 bg-[#111113] p-0.5 font-bold text-gray-100 ${sizeClass}`}
-      style={{ borderColor: color }}
-    >
-      {god ? (
-        <img
-          src={`/god-symbols/${god}.png`}
-          alt=""
-          className="h-full w-full object-contain [image-rendering:pixelated]"
-        />
-      ) : (
-        name.charAt(0)
-      )}
-    </span>
-  );
-}
 
 /** One cleared tile plus the team that cleared it — a line in the race history. */
 interface IClearedTile {
@@ -655,14 +601,7 @@ export default function TileRace() {
   // null = nothing hidden (classic board, or a finished race shows everything)
   const revealedTiers = race.revealedTierCount ?? tierSizes.length;
   const hiddenTierCount = Math.max(tierSizes.length - revealedTiers, 0);
-  const colorByTeamId = Object.fromEntries(
-    [...standings]
-      .sort((a, b) => a.teamId.localeCompare(b.teamId))
-      .map((standing, i) => [
-        standing.teamId,
-        TEAM_COLORS[i % TEAM_COLORS.length],
-      ]),
-  );
+  const colorByTeamId = assignTeamColors(standings);
   const rows = chunkIntoSnakeRows(board.tiles, BOARD_VIEW_COLUMNS);
   const teamsByTile = standings.reduce<Record<number, IStandingView[]>>(
     (acc, standing) => ({
@@ -743,6 +682,10 @@ export default function TileRace() {
         {event.status === 'COMPLETED' &&
           winner &&
           ` · race over, ${winner.name} took 1st`}
+        {' · '}
+        <Link to="/tile-race/stats" className={proseLinkClass}>
+          drop stats
+        </Link>
       </PageHeader>
 
       <Flex direction="column" gap="6">
