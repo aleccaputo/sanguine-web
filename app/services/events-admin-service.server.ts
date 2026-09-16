@@ -14,11 +14,27 @@ const EVENTS_API_URL = process.env.EVENTS_API_URL ?? 'http://localhost:8080';
 const EVENTS_API_TOKEN = process.env.EVENTS_API_TOKEN ?? '';
 const EVENTS_API_TIMEOUT_MS = 10_000;
 
+/** One approved submission — a drop — with who sent it and what they said it was. */
+export interface IApprovedDrop {
+  tileIndex: number;
+  /** Tiered races: 1-based tier of the tile; null on classic */
+  tier: number | null;
+  submittedByDiscordId: string;
+  note: string | null;
+  submittedAt: string;
+  approvedAt: string;
+}
+
 /** Admin standings carry member rosters; the public payload deliberately doesn't. */
 export interface IAdminStanding extends ITileRaceStanding {
   memberDiscordIds: string[];
   /** Discord role announcements tag instead of pinging every member */
   roleId: string | null;
+  /**
+   * Every approved submission across the team's moves, oldest approval first —
+   * counted tiles hold several where history keeps one. Absent on older API deploys.
+   */
+  approvedDrops?: IApprovedDrop[];
 }
 
 export interface IAdminTileRace extends Omit<ITileRace, 'standings'> {
@@ -93,6 +109,25 @@ const adminRequest = async <T>(
 export const getAdminRace = async (): Promise<IAdminTileRace | null> => {
   try {
     return await adminRequest<IAdminTileRace>('/races/current', {
+      method: 'GET',
+    });
+  } catch (e) {
+    if (e instanceof EventsApiError && e.status === 404) {
+      return null;
+    }
+    throw e;
+  }
+};
+
+/**
+ * The open race, or else the most recently completed one however long ago it
+ * ended — the stats page outlives the event, where /races/current 404s the
+ * moment a race completes. Null when no race was ever run (or the API predates
+ * the route; both 404).
+ */
+export const getLatestAdminRace = async (): Promise<IAdminTileRace | null> => {
+  try {
+    return await adminRequest<IAdminTileRace>('/races/latest', {
       method: 'GET',
     });
   } catch (e) {

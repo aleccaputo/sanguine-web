@@ -95,6 +95,10 @@ function RouteSkeletonLoader() {
     }
 
     // Public tile race page
+    if (targetPath === '/tile-race/stats') {
+      return <TileRaceStatsSkeleton />;
+    }
+
     if (targetPath === '/tile-race') {
       return <TileRaceSkeleton />;
     }
@@ -1023,6 +1027,59 @@ function AdminSkeleton() {
 // Tile Race Page Skeleton — mirrors the public race page: standings rows with
 // team tokens and progress rails, then the sticky team legend and the 8-column
 // snake board of square tiles.
+// Tile race stats: page header over the three-column leader band, then the
+// members hiscores table as zebra ghost rows.
+function TileRaceStatsSkeleton() {
+  return (
+    <Container size="4" className="min-h-full py-6">
+      <SkeletonPageHeader titleWidth="w-64" summaryWidth="w-[28rem]" />
+      <Box
+        mb="6"
+        className="border-b border-t-2 border-gray-800 border-t-sanguine-red"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-3">
+          {[...Array(3)].map((_, col) => (
+            <div
+              key={col}
+              className={
+                col > 0
+                  ? 'border-t border-gray-800 pb-2 sm:border-l sm:border-t-0 sm:pl-5'
+                  : 'pb-2 sm:pr-5'
+              }
+            >
+              <div className="mt-2 h-4 w-24 animate-pulse rounded-sm bg-gray-800/40"></div>
+              {[...Array(3)].map((_, row) => (
+                <Flex key={row} align="center" gap="3" className="py-1.5">
+                  <div className="h-5 w-5 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="h-5 w-5 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="h-4 flex-1 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="h-4 w-8 animate-pulse rounded-sm bg-gray-800/40"></div>
+                </Flex>
+              ))}
+            </div>
+          ))}
+        </div>
+      </Box>
+      <Box className="border-b border-gray-700 pb-1">
+        <div className="h-6 w-28 animate-pulse rounded-sm bg-gray-800/50"></div>
+      </Box>
+      {[...Array(8)].map((_, idx) => (
+        <Flex
+          key={idx}
+          align="center"
+          gap="3"
+          className={`border-b border-gray-800 px-2 py-2.5 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+        >
+          <div className="h-4 w-6 animate-pulse rounded-sm bg-gray-800/40"></div>
+          <div className="h-4 w-32 animate-pulse rounded-sm bg-gray-800/50"></div>
+          <div className="hidden h-4 w-28 animate-pulse rounded-sm bg-gray-800/40 sm:block"></div>
+          <div className="ml-auto h-4 w-8 animate-pulse rounded-sm bg-gray-800/50"></div>
+        </Flex>
+      ))}
+    </Container>
+  );
+}
+
 function TileRaceSkeleton() {
   return (
     <Box className="mx-auto min-h-full w-full max-w-[1500px] px-4 py-6 sm:px-6">
