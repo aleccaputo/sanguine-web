@@ -125,6 +125,26 @@ export const groupDropsByTile = (
       {},
     );
 
+export interface ITileDropGroup {
+  tileIndex: number;
+  /** Oldest approval first */
+  drops: IRaceDrop[];
+}
+
+/**
+ * Drops grouped per tile, most-hit tile first (ties in board order) — what one
+ * member's expanded row lists.
+ */
+export const rankTilesByDrops = (drops: IRaceDrop[]): ITileDropGroup[] =>
+  Object.entries(groupDropsByTile(drops))
+    .map(([tileIndex, tileDrops]) => ({
+      tileIndex: Number(tileIndex),
+      drops: tileDrops,
+    }))
+    .sort(
+      (a, b) => b.drops.length - a.drops.length || a.tileIndex - b.tileIndex,
+    );
+
 /** Distinct values in first-seen order, nulls dropped. */
 export const distinct = <T>(values: (T | null | undefined)[]): T[] =>
   values.filter(
