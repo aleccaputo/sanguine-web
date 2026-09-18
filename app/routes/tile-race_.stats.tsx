@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, MouseEventHandler, useState } from 'react';
 import { json, MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData, useNavigate } from '@remix-run/react';
 import { Box, Container, Flex, Table, Text } from '@radix-ui/themes';
@@ -15,11 +15,7 @@ import {
 } from '~/components/SortableHeaderCell';
 import { TeamToken } from '~/components/TeamToken';
 import { assignTeamColors, godSymbolSrc } from '~/utils/tile-race-teams';
-import {
-  proseLinkClass,
-  zebraRowClass,
-  zebraStripeClass,
-} from '~/utils/styles';
+import { proseLinkClass, zebraStripeClass } from '~/utils/styles';
 import { getTileImageUrl } from '~/utils/tile-race-images';
 import {
   distinct,
@@ -27,8 +23,10 @@ import {
   groupDropsByTile,
   IMemberDropTally,
   IRaceDrop,
+  rankTilesByDrops,
   tallyDropsByMember,
   tallyDropsByTeam,
+  UNKNOWN_MEMBER_KEY,
 } from '~/utils/tile-race-stats';
 
 export const meta: MetaFunction = () => [
@@ -150,13 +148,19 @@ function TaskArt({ src }: { src: string }) {
 function MemberName({
   memberId,
   memberName,
+  onClick,
 }: {
   memberId: string | null;
   memberName: string | null;
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
 }) {
   if (memberId && memberName) {
     return (
-      <Link to={`/users/${memberId}`} className={`text-sm ${proseLinkClass}`}>
+      <Link
+        to={`/users/${memberId}`}
+        className={`text-sm ${proseLinkClass}`}
+        onClick={onClick}
+      >
         {memberName}
       </Link>
     );
@@ -175,6 +179,12 @@ export default function TileRaceStats() {
     key: 'drops',
     direction: 'desc',
   });
+  // Member rows whose drop list is unfolded beneath them (keys, any number open).
+  const [openMembers, setOpenMembers] = useState<string[]>([]);
+  const toggleMember = (key: string) =>
+    setOpenMembers(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key],
+    );
 
   if (!stats) {
     return (
@@ -202,6 +212,10 @@ export default function TileRaceStats() {
   const byTeam = tallyDropsByTeam(drops);
   const byTile = groupDropsByTile(drops);
   const dropsOn = (task: ITaskView): IRaceDrop[] => byTile[task.index] ?? [];
+  const taskAt = (tileIndex: number): ITaskView | undefined =>
+    tasks.find(task => task.index === tileIndex);
+  const taskNameAt = (tileIndex: number): string =>
+    taskAt(tileIndex)?.name ?? `Tile ${tileIndex}`;
   const tasksWithDrops = tasks.filter(task => dropsOn(task).length > 0);
   const winner = teams.find(team => team.place === 1);
   const running = event.status === 'ACTIVE';
@@ -344,7 +358,7 @@ export default function TileRaceStats() {
                     <Text size="2" className="text-gray-500">
                       {knownMembers.length}{' '}
                       {plural(knownMembers.length, 'member')} with an approved
-                      drop
+                      drop; click a row to see what they got
                     </Text>
                   }
                 />
@@ -385,49 +399,169 @@ export default function TileRaceStats() {
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
-                    {sortedMembers.map((member: IMemberDropTally) => (
-                      <Table.Row key={member.key} className={zebraRowClass}>
-                        <Table.Cell>
-                          <Text size="2" className="text-gray-500">
-                            {rankByKey[member.key]}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <MemberName
-                            memberId={member.memberId}
-                            memberName={member.memberName}
-                          />
-                        </Table.Cell>
-                        <Table.Cell className="hidden sm:table-cell">
-                          <Flex align="center" gap="2">
-                            <TeamToken
-                              name={teamName(member.teamId)}
-                              color={colorByTeamId[member.teamId]}
-                              size="sm"
-                            />
-                            <Text size="2" className="text-gray-300">
-                              {teamName(member.teamId)}
-                            </Text>
-                          </Flex>
-                        </Table.Cell>
-                        <Table.Cell justify="end">
-                          <Text size="2" className="text-gray-100">
-                            {member.drops}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell
-                          justify="end"
-                          className="hidden md:table-cell"
-                        >
-                          <Text
-                            size="2"
-                            className="whitespace-nowrap text-gray-500"
+                    {sortedMembers.map((member: IMemberDropTally, i) => {
+                      const open = openMembers.includes(member.key);
+                      const detailId = `member-drops-${member.key}`;
+                      // Stripe by position, not `even:` — the unfolded detail
+                      // row is an extra <tr> and must share its member's tint.
+                      const stripe =
+                        i % 2 === 1 ? 'bg-sanguine-red/[0.05]' : '';
+                      return (
+                        <Fragment key={member.key}>
+                          <Table.Row
+                            className={`cursor-pointer hover:bg-sanguine-red/[0.09] ${stripe}`}
+                            onClick={() => toggleMember(member.key)}
                           >
-                            {formatDate(member.latestAt)}
-                          </Text>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
+                            <Table.Cell>
+                              <Text size="2" className="text-gray-500">
+                                {rankByKey[member.key]}
+                              </Text>
+                            </Table.Cell>
+                            <Table.Cell>
+                              <MemberName
+                                memberId={member.memberId}
+                                memberName={member.memberName}
+                                // The link navigates; it mustn't also unfold the row.
+                                onClick={e => e.stopPropagation()}
+                              />
+                            </Table.Cell>
+                            <Table.Cell className="hidden sm:table-cell">
+                              <Flex align="center" gap="2">
+                                <TeamToken
+                                  name={teamName(member.teamId)}
+                                  color={colorByTeamId[member.teamId]}
+                                  size="sm"
+                                />
+                                <Text size="2" className="text-gray-300">
+                                  {teamName(member.teamId)}
+                                </Text>
+                              </Flex>
+                            </Table.Cell>
+                            <Table.Cell justify="end">
+                              <button
+                                type="button"
+                                aria-expanded={open}
+                                aria-controls={detailId}
+                                aria-label={`${open ? 'Hide' : 'Show'} ${
+                                  member.memberName ?? 'this member'
+                                }'s drops`}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  toggleMember(member.key);
+                                }}
+                                className="whitespace-nowrap text-sm text-gray-100"
+                              >
+                                <span
+                                  aria-hidden
+                                  className="mr-1 text-xs text-gray-500"
+                                >
+                                  {open ? '▼' : '▶'}
+                                </span>
+                                {member.drops}
+                              </button>
+                            </Table.Cell>
+                            <Table.Cell
+                              justify="end"
+                              className="hidden md:table-cell"
+                            >
+                              <Text
+                                size="2"
+                                className="whitespace-nowrap text-gray-500"
+                              >
+                                {formatDate(member.latestAt)}
+                              </Text>
+                            </Table.Cell>
+                          </Table.Row>
+                          {open && (
+                            <Table.Row id={detailId} className={stripe}>
+                              <Table.Cell colSpan={5} className="pb-3 pt-0">
+                                <Flex
+                                  direction="column"
+                                  gap="1"
+                                  className="pl-4 pt-2 sm:pl-10"
+                                >
+                                  {rankTilesByDrops(
+                                    drops.filter(
+                                      drop =>
+                                        (drop.memberId ??
+                                          UNKNOWN_MEMBER_KEY) === member.key,
+                                    ),
+                                  ).map(group => {
+                                    const art = taskAt(
+                                      group.tileIndex,
+                                    )?.imageUrl;
+                                    const notes = group.drops
+                                      .map(drop => drop.note)
+                                      .filter((note): note is string => !!note);
+                                    return (
+                                      // Dates sit on the right beside the task
+                                      // on wide screens and tuck under it at
+                                      // phone width, so names never wrap a
+                                      // word per line.
+                                      <Flex
+                                        key={group.tileIndex}
+                                        direction={{
+                                          initial: 'column',
+                                          sm: 'row',
+                                        }}
+                                        align={{
+                                          initial: 'start',
+                                          sm: 'center',
+                                        }}
+                                        justify="between"
+                                        gap={{ initial: '0', sm: '3' }}
+                                      >
+                                        <Flex
+                                          align="center"
+                                          gap="2"
+                                          className="min-w-0"
+                                        >
+                                          {art && <TaskArt src={art} />}
+                                          <Text
+                                            size="2"
+                                            className="text-gray-200"
+                                          >
+                                            <span className="whitespace-nowrap">
+                                              {taskNameAt(group.tileIndex)}
+                                            </span>
+                                            {group.drops.length > 1 && (
+                                              <span className="text-gray-100">
+                                                {' '}
+                                                ×{group.drops.length}
+                                              </span>
+                                            )}
+                                            {notes.length > 0 && (
+                                              <span className="text-gray-400">
+                                                {' '}
+                                                {notes
+                                                  .map(note => `“${note}”`)
+                                                  .join(' ')}
+                                              </span>
+                                            )}
+                                          </Text>
+                                        </Flex>
+                                        <Text
+                                          size="2"
+                                          className="shrink-0 whitespace-nowrap pl-8 text-gray-500 sm:pl-0"
+                                        >
+                                          {distinct(
+                                            group.drops.map(
+                                              drop => drop.approvedAt,
+                                            ),
+                                          )
+                                            .map(formatDate)
+                                            .join(', ')}
+                                        </Text>
+                                      </Flex>
+                                    );
+                                  })}
+                                </Flex>
+                              </Table.Cell>
+                            </Table.Row>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </Table.Body>
                 </Table.Root>
               </Box>
@@ -647,8 +781,7 @@ export default function TileRaceStats() {
                       </Table.Cell>
                       <Table.Cell>
                         <Text size="2" className="text-gray-200">
-                          {tasks.find(task => task.index === drop.tileIndex)
-                            ?.name ?? `Tile ${drop.tileIndex}`}
+                          {taskNameAt(drop.tileIndex)}
                           {drop.note && (
                             <span className="text-gray-400">
                               {' '}

@@ -4,6 +4,7 @@ import {
   dropsForStanding,
   groupDropsByTile,
   IRaceDrop,
+  rankTilesByDrops,
   tallyDropsByMember,
   tallyDropsByTeam,
 } from './tile-race-stats';
@@ -135,6 +136,27 @@ describe('tallyDropsByTeam and groupDropsByTile', () => {
     expect(tallyDropsByTeam(drops)).toEqual({ a: 2, b: 1 });
     expect(groupDropsByTile(drops)[1].map(d => d.teamId)).toEqual(['b', 'a']);
     expect(groupDropsByTile(drops)[2]).toHaveLength(1);
+  });
+});
+
+describe('rankTilesByDrops', () => {
+  it('groups per tile, most-hit first, ties in board order, each oldest first', () => {
+    const groups = rankTilesByDrops([
+      drop({ tileIndex: 7, approvedAt: '2026-08-03T00:00:00Z' }),
+      drop({ tileIndex: 2 }),
+      drop({ tileIndex: 7, approvedAt: '2026-08-01T00:00:00Z' }),
+      drop({ tileIndex: 5 }),
+    ]);
+
+    expect(groups.map(g => [g.tileIndex, g.drops.length])).toEqual([
+      [7, 2],
+      [2, 1],
+      [5, 1],
+    ]);
+    expect(groups[0].drops.map(d => d.approvedAt)).toEqual([
+      '2026-08-01T00:00:00Z',
+      '2026-08-03T00:00:00Z',
+    ]);
   });
 });
 
