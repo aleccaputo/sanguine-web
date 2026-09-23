@@ -72,6 +72,8 @@ import { matchesAccountName } from '~/utils/account-matching';
 import { getRaidCompletionsForDiscordId } from '~/data/raid-completions';
 import { isClanPointAudit } from '~/utils/point-types';
 import { getSlayerRecordForDiscordId } from '~/services/slayer-service.server';
+import { getBountyRecordForDiscordId } from '~/services/bounty-service.server';
+import { ordinal } from '~/utils/bounty';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = data?.user?.nickname
@@ -99,6 +101,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
     pbCategoryKeys,
     raidCompletions,
     slayerRecord,
+    bounties,
     templeClog,
   ] = await Promise.all([
     getUserWithNickname(discordId),
@@ -108,6 +111,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
     getPersonalBestCategoryKeysForDiscordId(discordId),
     getRaidCompletionsForDiscordId(discordId),
     getSlayerRecordForDiscordId(discordId),
+    getBountyRecordForDiscordId(discordId),
     getGroupCollectionLog().catch(() => null),
   ]);
 
@@ -321,6 +325,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
     historicalCompetitions,
     otherAwards,
     slayer,
+    bounties,
     pbNameByDiscordId,
     pbBossImageByName,
     clogSummaries,
@@ -356,6 +361,7 @@ export default function UserById() {
     historicalCompetitions,
     otherAwards,
     slayer,
+    bounties,
     pbNameByDiscordId,
     pbBossImageByName,
     clogSummaries,
@@ -458,6 +464,7 @@ export default function UserById() {
   // account switcher, so their pages never need resetting.
   const raidsPagination = usePagination(raids, itemsPerPage);
   const slayerPagination = usePagination(slayer.completions, itemsPerPage);
+  const bountiesPagination = usePagination(bounties.wins, itemsPerPage);
   const purchasesPagination = usePagination(skipPurchases, itemsPerPage);
 
   const totalGP = filteredItems.reduce(
@@ -487,11 +494,13 @@ export default function UserById() {
     (historicalCompetitions?.points ?? 0);
   const hasSlayerHistory = slayer.completions.length > 0;
   const slayerPointsTotal = slayer.taskClanPoints + slayer.prizePoints;
+  const hasBountyHistory = bounties.wins.length > 0;
   const hasSpendHistory = skipPurchases.length > 0;
   const hasClanPointHistory =
     raids.length > 0 ||
     hasCompetitionHistory ||
     hasSlayerHistory ||
+    hasBountyHistory ||
     hasSpendHistory ||
     otherAwards !== null;
   // Subsection headers exist to divide multiple point sources (their totals reconcile
@@ -500,6 +509,7 @@ export default function UserById() {
     raids.length > 0,
     hasCompetitionHistory,
     hasSlayerHistory,
+    hasBountyHistory,
     hasSpendHistory,
     otherAwards !== null,
   ].filter(Boolean).length;
@@ -544,6 +554,9 @@ export default function UserById() {
                       : []),
                     ...(hasSlayerHistory
                       ? [{ id: 'slayer', title: 'Slayer' }]
+                      : []),
+                    ...(hasBountyHistory
+                      ? [{ id: 'bounties', title: 'Bounties' }]
                       : []),
                     ...(hasSpendHistory
                       ? [{ id: 'purchases', title: 'Purchases' }]
@@ -638,6 +651,7 @@ export default function UserById() {
     ...(isGuest ? [] : [mainRankLabel]),
     ...(raids.length > 0 ? ['Raiders'] : []),
     ...(hasSlayerHistory ? ['Slayers'] : []),
+    ...(hasBountyHistory ? ['Bounty hunters'] : []),
     ...(pbGolds > 0 ? ['Clan record holders'] : []),
     ...(compPodiums > 0 ? ['Competition medalists'] : []),
   ];
@@ -802,6 +816,11 @@ export default function UserById() {
                 )}
               </InfoboxRow>
             )}
+            {hasBountyHistory && (
+              <InfoboxRow label="Bounties">
+                {bounties.wins.length} claimed
+              </InfoboxRow>
+            )}
             {totalComps > 0 && (
               <InfoboxRow label="Competitions">
                 {totalComps}
@@ -959,6 +978,25 @@ export default function UserById() {
                     , worth{' '}
                     <span className="text-osrs-gold">
                       {slayerPointsTotal.toLocaleString()} clan points
+                    </span>
+                  </>
+                )}
+                .
+              </>
+            )}
+            {hasBountyHistory && (
+              <>
+                {' '}
+                They have claimed{' '}
+                <span className="text-white">{bounties.wins.length}</span>{' '}
+                <Link to="/bounties" className={proseLinkClass}>
+                  {bounties.wins.length === 1 ? 'bounty' : 'bounties'}
+                </Link>
+                {bounties.clanPoints > 0 && (
+                  <>
+                    {' for '}
+                    <span className="text-osrs-gold">
+                      {bounties.clanPoints.toLocaleString()} clan points
                     </span>
                   </>
                 )}
@@ -1227,7 +1265,8 @@ export default function UserById() {
                     {skipPointsSpent > 0 && (
                       <>
                         {' '}
-                        · <span className="text-gray-400">
+                        ·{' '}
+                        <span className="text-gray-400">
                           {skipPointsSpent.toLocaleString()}
                         </span>{' '}
                         spent on skips
@@ -1666,6 +1705,134 @@ export default function UserById() {
                       totalPages={slayerPagination.totalPages}
                       onPrev={slayerPagination.onPrev}
                       onNext={slayerPagination.onNext}
+                    />
+                  </Box>
+                )}
+
+                {/* Bounties — the clan-wide boss races this member won, and the drop that
+                    claimed each. Keyed to the member like slayer, so the account switcher
+                    doesn't apply; the claiming account is noted on the row. */}
+                {hasBountyHistory && (
+                  <Box id="bounties" className="scroll-mt-20">
+                    {clanPointSources > 1 && (
+                      <SubsectionHeading
+                        title="Bounties"
+                        hint="clan bounties claimed"
+                        summary={
+                          <Text
+                            size="2"
+                            className="whitespace-nowrap text-gray-500"
+                          >
+                            <span className="text-osrs-gold">
+                              {bounties.clanPoints}
+                            </span>{' '}
+                            clan points
+                          </Text>
+                        }
+                      />
+                    )}
+                    <div className="overflow-x-auto">
+                      <Table.Root size="2">
+                        <Table.Header>
+                          <Table.Row>
+                            <Table.ColumnHeaderCell className="text-osrs-orange">
+                              Bounty
+                            </Table.ColumnHeaderCell>
+                            <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
+                              Claimed with
+                            </Table.ColumnHeaderCell>
+                            <Table.ColumnHeaderCell className="hidden text-osrs-orange sm:table-cell">
+                              Date
+                            </Table.ColumnHeaderCell>
+                            <Table.ColumnHeaderCell
+                              className="whitespace-nowrap text-osrs-orange"
+                              align="right"
+                            >
+                              Clan pts
+                            </Table.ColumnHeaderCell>
+                          </Table.Row>
+                        </Table.Header>
+                        <Table.Body>
+                          {bountiesPagination.pageItems.map(win => (
+                            <Table.Row
+                              key={`${win.bountyId}-${win.discordId}`}
+                              className={zebraRowClass}
+                            >
+                              <Table.Cell className="text-white">
+                                <Flex align="center" gap="2">
+                                  <Box className="flex h-7 w-7 flex-shrink-0 items-center justify-center">
+                                    <img
+                                      src={win.bossImageUrl}
+                                      alt=""
+                                      className="max-h-7 max-w-7 object-contain"
+                                    />
+                                  </Box>
+                                  <Flex direction="column">
+                                    <Text size="2" weight="medium">
+                                      {win.bossDisplayName}
+                                      {win.maxWinners > 1 && (
+                                        <span className="ml-2 text-xs text-gray-500">
+                                          {ordinal(win.placement)} of{' '}
+                                          {win.maxWinners}
+                                        </span>
+                                      )}
+                                    </Text>
+                                    <Text
+                                      size="2"
+                                      className="text-gray-300 sm:hidden"
+                                    >
+                                      {win.itemName}
+                                    </Text>
+                                  </Flex>
+                                </Flex>
+                              </Table.Cell>
+                              <Table.Cell className="hidden sm:table-cell">
+                                <Flex align="center" gap="2">
+                                  <Box className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
+                                    {win.itemIcon && (
+                                      <img
+                                        src={win.itemIcon}
+                                        alt=""
+                                        className="max-h-6 max-w-6 object-contain"
+                                      />
+                                    )}
+                                  </Box>
+                                  <Flex direction="column">
+                                    <Text size="2" className="text-white">
+                                      {win.itemName}
+                                    </Text>
+                                    {win.osrsName && (
+                                      <Text size="1" className="text-gray-500">
+                                        on {win.osrsName}
+                                      </Text>
+                                    )}
+                                  </Flex>
+                                </Flex>
+                              </Table.Cell>
+                              <Table.Cell className="hidden text-gray-400 sm:table-cell">
+                                <span className="whitespace-nowrap">
+                                  {dayjs(win.claimedAt).format('MMM D,')}
+                                </span>{' '}
+                                <span className="whitespace-nowrap">
+                                  {dayjs(win.claimedAt).format('YYYY')}
+                                </span>
+                              </Table.Cell>
+                              <Table.Cell
+                                align="right"
+                                className="whitespace-nowrap font-medium text-osrs-gold"
+                              >
+                                +{win.clanPoints}
+                              </Table.Cell>
+                            </Table.Row>
+                          ))}
+                        </Table.Body>
+                      </Table.Root>
+                    </div>
+                    <Pagination
+                      page={bountiesPagination.page}
+                      totalPages={bountiesPagination.totalPages}
+                      onPrev={bountiesPagination.onPrev}
+                      onNext={bountiesPagination.onNext}
                     />
                   </Box>
                 )}

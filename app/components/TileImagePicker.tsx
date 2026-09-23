@@ -27,7 +27,11 @@ const labelFromUrl = (url: string): string => {
  * shows as a thumbnail chip with a clear button; the chosen URL reaches the
  * form via the parent's tile state, not a hidden input of its own.
  */
-export function TileImagePicker({ value, onChange, id }: ITileImagePickerProps) {
+export function TileImagePicker({
+  value,
+  onChange,
+  id,
+}: ITileImagePickerProps) {
   const fetcher = useFetcher<{ results: ITileImageOption[] }>();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -46,7 +50,7 @@ export function TileImagePicker({ value, onChange, id }: ITileImagePickerProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trimmed]);
 
-  const suggestions = trimmed.length < 2 ? [] : (fetcher.data?.results ?? []);
+  const suggestions = trimmed.length < 2 ? [] : fetcher.data?.results ?? [];
   const searching = trimmed.length >= 2 && fetcher.state !== 'idle';
 
   const pick = (option: ITileImageOption) => {

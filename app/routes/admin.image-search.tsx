@@ -1,10 +1,7 @@
 import { json, LoaderFunctionArgs } from '@remix-run/node';
 import { requireStaff } from '~/services/auth.server';
 import { searchItems } from '~/services/osrs-wiki-prices-service';
-import {
-  ITileImageOption,
-  searchBossImages,
-} from '~/utils/tile-image-catalog';
+import { ITileImageOption, searchBossImages } from '~/utils/tile-image-catalog';
 
 const MAX_RESULTS = 12;
 

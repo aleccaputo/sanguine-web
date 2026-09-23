@@ -469,6 +469,144 @@ const buildSpins = (): MockSpin[] => {
 
 export const MOCK_SPINS: MockSpin[] = buildSpins();
 
+// ---- Clan bounties ----
+
+export type MockBountyClaim = {
+  discordId: string;
+  itemId: number;
+  itemName: string;
+  dropPoints: number;
+  bossNameRaw: string;
+  osrsName: string | null;
+  dropMessageId: string;
+  rewardClanPoints: number;
+  claimedAt: string;
+};
+
+export type MockBounty = {
+  id: string;
+  v: number;
+  task: MockSpin['task'];
+  rewardClanPoints: number;
+  maxWinners: number;
+  claims: MockBountyClaim[];
+  channelId: string;
+  messageId: string | null;
+  postedByDiscordId: string;
+  pingRoleId: string | null;
+  postedAt: string;
+  expiresAt: string | null;
+  status: string;
+  closedAt: string | null;
+};
+
+const buildBounty = (
+  postedAt: Date,
+  {
+    status,
+    maxWinners,
+    winners,
+    hours,
+  }: {
+    status: string;
+    maxWinners: number;
+    winners: MockUser[];
+    hours: number | null;
+  },
+): MockBounty => {
+  const [bossMetric, bossDisplayName] =
+    faker.helpers.arrayElement(SLAYER_BOSSES);
+  const reward = faker.helpers.arrayElement([10, 10, 10, 15, 20]);
+  const claims = winners.map((user, index) => ({
+    discordId: user.discordId,
+    itemId: faker.number.int({ min: 1, max: 30000 }),
+    itemName: faker.commerce.productName(),
+    dropPoints: faker.number.int({ min: 1, max: 90 }),
+    bossNameRaw: bossDisplayName.toLowerCase(),
+    osrsName:
+      user.alts.length > 0 && faker.datatype.boolean(0.25)
+        ? faker.helpers.arrayElement(user.alts).altName
+        : null,
+    dropMessageId: faker.string.numeric(18),
+    rewardClanPoints: reward,
+    claimedAt: new Date(
+      postedAt.getTime() +
+        (index + 1) * faker.number.int({ min: 1, max: 9 }) * 3_600_000,
+    ).toISOString(),
+  }));
+  const lastClaimAt = claims[claims.length - 1]?.claimedAt ?? null;
+  const expiresAt = hours
+    ? new Date(postedAt.getTime() + hours * 3_600_000).toISOString()
+    : null;
+  return {
+    id: objectId(),
+    v: 0,
+    task: {
+      type: 'BOSS_DROP',
+      bossMetric,
+      bossDisplayName,
+      dinkNames: [bossDisplayName.toLowerCase()],
+      itemFilter: { mode: 'ANY', itemIds: [] },
+    },
+    rewardClanPoints: reward,
+    maxWinners,
+    claims,
+    channelId: faker.string.numeric(18),
+    messageId: faker.string.numeric(18),
+    postedByDiscordId: MOCK_USERS[0].discordId,
+    pingRoleId: faker.string.numeric(18),
+    postedAt: postedAt.toISOString(),
+    expiresAt,
+    status,
+    closedAt:
+      status === 'CLAIMED'
+        ? lastClaimAt
+        : status === 'OPEN'
+          ? null
+          : expiresAt ??
+            new Date(postedAt.getTime() + 36 * 3_600_000).toISOString(),
+  };
+};
+
+const buildBounties = (): MockBounty[] => {
+  const hunters = MOCK_USERS.slice(0, 14);
+  // A run of past bounties: mostly winner-takes-all and claimed, a couple with a podium, one
+  // that expired unclaimed, one called off. Then one open right now.
+  const history = Array.from({ length: 9 }, (_, index) => {
+    const postedAt = faker.date.between({
+      from: '2026-06-01',
+      to: '2026-08-01',
+    });
+    const maxWinners = index % 4 === 3 ? 3 : 1;
+    const outcome = faker.helpers.weightedArrayElement([
+      { value: 'CLAIMED', weight: 6 },
+      { value: 'EXPIRED', weight: 1 },
+      { value: 'CANCELLED', weight: 1 },
+    ]);
+    const winnerCount =
+      outcome === 'CLAIMED'
+        ? maxWinners
+        : outcome === 'EXPIRED'
+          ? faker.number.int({ min: 0, max: maxWinners - 1 })
+          : 0;
+    return buildBounty(postedAt, {
+      status: outcome,
+      maxWinners,
+      winners: faker.helpers.arrayElements(hunters, winnerCount),
+      hours: outcome === 'EXPIRED' || faker.datatype.boolean(0.3) ? 6 : null,
+    });
+  });
+  const open = buildBounty(new Date('2026-08-05T14:00:00.000Z'), {
+    status: 'OPEN',
+    maxWinners: 3,
+    winners: faker.helpers.arrayElements(hunters, 1),
+    hours: null,
+  });
+  return [...history, open];
+};
+
+export const MOCK_BOUNTIES: MockBounty[] = buildBounties();
+
 export type MockCompetition = {
   id: number;
   title: string;

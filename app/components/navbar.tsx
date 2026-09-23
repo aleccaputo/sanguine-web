@@ -9,6 +9,9 @@ const eventsLinks: SubLink[] = [
   { to: '/events', label: 'Events' },
   { to: '/bingo', label: 'Bingo' },
   { to: '/tile-race', label: 'Tile Race' },
+  // Bounties are fired off ad hoc by the event team, so they live with the other events
+  // rather than beside the always-on slayer grind.
+  { to: '/bounties', label: 'Bounties' },
   { to: '/monthly-winners', label: 'Monthly Winners' },
 ];
 

@@ -15,7 +15,8 @@ const mockUser: ISessionUser = {
 
 export const requireStaff = async (): Promise<ISessionUser> => mockUser;
 
-export const getSessionUser = async (): Promise<ISessionUser | null> => mockUser;
+export const getSessionUser = async (): Promise<ISessionUser | null> =>
+  mockUser;
 
 export const authenticator = {
   sessionErrorKey: 'auth:error',
