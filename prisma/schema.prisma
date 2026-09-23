@@ -177,6 +177,43 @@ model WheelEvents {
   createdAt           String
 }
 
+// ---- Clan bounties ----
+
+// One claim on a bounty. Claims are append-only and pushed in claim order, so a claim's
+// position in the array IS its placement (the bot never stores it).
+type BountyClaim {
+  discordId        String
+  itemId           Int
+  itemName         String
+  dropPoints       Int
+  bossNameRaw      String
+  osrsName         String?
+  dropMessageId    String
+  rewardClanPoints Int
+  claimedAt        String
+}
+
+// A clan-wide race on one boss: the first N members whose drop satisfies the task win
+// rewardClanPoints each (audited as BOUNTY). Independent of Sanguine Slayer — the task snapshot
+// is the same WheelTask shape a spin carries, but nothing here touches WheelSpins. expiresAt is
+// null for "open until every slot is claimed". Status: OPEN -> CLAIMED | EXPIRED | CANCELLED.
+model Bounties {
+  id                String        @id @default(auto()) @map("_id") @db.ObjectId
+  v                 Int?          @map("__v")
+  task              WheelTask
+  rewardClanPoints  Int
+  maxWinners        Int
+  claims            BountyClaim[]
+  channelId         String
+  messageId         String?
+  postedByDiscordId String
+  pingRoleId        String?
+  postedAt          String
+  expiresAt         String?
+  status            String
+  closedAt          String?
+}
+
 model PersonalBests {
   id                    String   @id @default(auto()) @map("_id") @db.ObjectId
   v                     Int?     @map("__v")

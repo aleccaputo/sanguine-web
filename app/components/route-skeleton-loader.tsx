@@ -79,6 +79,11 @@ function RouteSkeletonLoader() {
       return <SlayerSkeleton />;
     }
 
+    // Bounties page
+    if (targetPath === '/bounties') {
+      return <BountiesSkeleton />;
+    }
+
     // Collection log page
     if (targetPath === '/collection-log') {
       return <CollectionLogSkeleton />;
@@ -672,6 +677,95 @@ function CollectionLogSkeleton() {
             </Box>
           </Box>
         </div>
+      </Flex>
+    </Container>
+  );
+}
+
+// Bounties Skeleton — mirrors the board: header, the open-bounty rows, the
+// two-column leader band, then the past-bounties table.
+function BountiesSkeleton() {
+  return (
+    <Container size="4" className="min-h-full py-6">
+      <Flex direction="column">
+        <SkeletonPageHeader titleWidth="w-44" />
+
+        {/* Open now */}
+        <Box mb="10">
+          <SkeletonSectionHeading titleWidth="w-24" />
+          <Box mt="2">
+            {[...Array(2)].map((_, idx) => (
+              <Flex
+                key={idx}
+                align="center"
+                gap="3"
+                className={`border-b border-gray-800 px-2 py-3 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+              >
+                <div className="h-9 w-9 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="h-4 w-36 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="h-3 w-72 max-w-full animate-pulse rounded-sm bg-gray-800/40"></div>
+                </div>
+                <div className="h-3 w-16 animate-pulse rounded-sm bg-gray-800/40"></div>
+              </Flex>
+            ))}
+          </Box>
+        </Box>
+
+        {/* Leader band */}
+        <Box
+          mb="6"
+          className="border-b border-t-2 border-gray-800 border-t-sanguine-red"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2">
+            {[0, 1].map(col => (
+              <div
+                key={col}
+                className={
+                  col > 0
+                    ? 'border-t border-gray-800 pb-2 sm:border-l sm:border-t-0 sm:pl-5'
+                    : 'pb-2 sm:pr-5'
+                }
+              >
+                <div className="mb-2 mt-2 h-3 w-40 animate-pulse rounded-sm bg-gray-800/50"></div>
+                {[...Array(3)].map((_, idx) => (
+                  <Flex key={idx} align="center" gap="3" className="py-1.5">
+                    <div className="h-4 w-5 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                    <div className="h-[22px] w-[22px] shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                    <div
+                      className={`h-4 flex-1 animate-pulse rounded-sm bg-gray-800/50 ${idx === 0 ? 'h-5' : ''}`}
+                    ></div>
+                    <div className="h-4 w-12 animate-pulse rounded-sm bg-gray-800/50"></div>
+                  </Flex>
+                ))}
+              </div>
+            ))}
+          </div>
+        </Box>
+
+        {/* Past bounties table */}
+        <Box>
+          <SkeletonSectionHeading titleWidth="w-32" />
+          <Box mt="2">
+            {[...Array(8)].map((_, idx) => (
+              <Flex
+                key={idx}
+                align="center"
+                gap="3"
+                className={`px-2 py-2 ${idx % 2 === 1 ? 'bg-sanguine-red/[0.05]' : ''}`}
+              >
+                <div className="h-7 w-7 shrink-0 animate-pulse rounded-sm bg-gray-800/50"></div>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="h-4 w-32 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+                  <div className="h-3 w-24 animate-pulse rounded-sm bg-gray-800/40"></div>
+                </div>
+                <div className="h-4 w-40 max-w-full animate-pulse rounded-sm bg-gray-800/50"></div>
+                <div className="hidden h-4 w-24 animate-pulse rounded-sm bg-gray-800/40 md:block"></div>
+                <div className="h-4 w-10 animate-pulse rounded-sm bg-gray-800/50"></div>
+              </Flex>
+            ))}
+          </Box>
+        </Box>
       </Flex>
     </Container>
   );

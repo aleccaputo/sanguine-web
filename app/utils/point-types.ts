@@ -1,14 +1,15 @@
 // PointAudit types that always pay into the clan-points bucket (GROUP_RAID payouts, manual
-// CLAN adjustments, Sanguine Slayer task rewards, and the negative BOSS_WHEEL_SKIP_PURCHASE
-// rows members create when buying task skips) rather than the drop-driven `points` bucket.
-// Mirrors the Discord bot's leaderboard exclusion — clan points never count toward
-// drop-point charts or event totals. Slayer's other audit type, BOSS_WHEEL, is a genuine
-// drop-point bonus and stays out of this list.
+// CLAN adjustments, Sanguine Slayer task rewards, clan bounty rewards, and the negative
+// BOSS_WHEEL_SKIP_PURCHASE rows members create when buying task skips) rather than the
+// drop-driven `points` bucket. Mirrors the Discord bot's leaderboard exclusion — clan points
+// never count toward drop-point charts or event totals. Slayer's other audit type, BOSS_WHEEL,
+// is a genuine drop-point bonus and stays out of this list.
 export const CLAN_POINT_AUDIT_TYPES = [
   'GROUP_RAID',
   'CLAN_MANUAL',
   'BOSS_WHEEL_CLAN',
   'BOSS_WHEEL_SKIP_PURCHASE',
+  'BOUNTY',
 ] as const;
 
 // When COMPETITION rewards (BOTW/SOTW/ROTW) moved from the drop-points bucket to clan points.
