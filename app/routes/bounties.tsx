@@ -482,19 +482,6 @@ export default function Bounties() {
             </section>
           </>
         )}
-
-        <section className="mt-10">
-          <SectionHeading title="How it works" />
-          <Text as="p" size="3" className="mt-3 leading-7 text-gray-300">
-            Bounties are posted in Discord. Drops count automatically through
-            Dink; if Dink is down, post a screenshot and tell a mod. Separate
-            from your{' '}
-            <Link to="/slayer" className={proseLinkClass}>
-              slayer task
-            </Link>
-            , so one drop can count for both. One claim per person.
-          </Text>
-        </section>
       </Flex>
     </Container>
   );
