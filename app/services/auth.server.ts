@@ -125,6 +125,5 @@ export const requireStaff = async (request: Request): Promise<ISessionUser> => {
   return user;
 };
 
-export const getSessionUser = (
-  request: Request,
-): Promise<ISessionUser | null> => authenticator.isAuthenticated(request);
+export const getSessionUser = (request: Request): Promise<ISessionUser | null> =>
+  authenticator.isAuthenticated(request);
