@@ -74,6 +74,15 @@ export async function loader() {
 
 const claimCount = (bounty: IBounty) => bounty.claims.length;
 
+/** One member's tally across every bounty they have claimed. */
+interface IHunterRow {
+  discordId: string;
+  wins: number;
+  firsts: number;
+  clanPoints: number;
+  loot: number;
+}
+
 /** The card's state line, with the date it refers to formatted for the page. */
 const stateLine = (bounty: IBounty): string => {
   const { label, dateKey } = describeBountyState({
@@ -117,7 +126,7 @@ export default function Bounties() {
           clanPoints: row.clanPoints + claim.clanPoints,
           loot: row.loot + claim.itemValue,
         });
-      }, new Map<string, { discordId: string; wins: number; firsts: number; clanPoints: number; loot: number }>())
+      }, new Map<string, IHunterRow>())
       .values(),
   ].map(row => {
     const member = members[row.discordId];
@@ -236,7 +245,7 @@ export default function Bounties() {
         </PageHeader>
 
         {bounties.length === 0 ? (
-          <EmptyState>No bounties yet.</EmptyState>
+          <EmptyState />
         ) : (
           <>
             {/* Open bounties first: what people should be killing right now */}
@@ -333,7 +342,7 @@ export default function Bounties() {
                   })}
                 </Box>
               ) : (
-                <EmptyState>None open.</EmptyState>
+                <EmptyState />
               )}
             </section>
 
@@ -393,7 +402,7 @@ export default function Bounties() {
                                   <Text size="2" weight="medium">
                                     {bounty.bossDisplayName}
                                   </Text>
-                                  <Text size="1" className="text-gray-500">
+                                  <Text size="2" className="text-gray-500">
                                     {dayjs(bounty.postedAt).format(
                                       'MMM D, YYYY',
                                     )}
@@ -477,7 +486,7 @@ export default function Bounties() {
                   />
                 </Box>
               ) : (
-                <EmptyState>None closed yet.</EmptyState>
+                <EmptyState />
               )}
             </section>
           </>

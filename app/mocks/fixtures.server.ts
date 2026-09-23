@@ -500,19 +500,17 @@ export type MockBounty = {
   closedAt: string | null;
 };
 
+interface IMockBountyOptions {
+  status: string;
+  maxWinners: number;
+  winners: MockUser[];
+  /** Deadline in hours after posting, or null for open until claimed. */
+  hours: number | null;
+}
+
 const buildBounty = (
   postedAt: Date,
-  {
-    status,
-    maxWinners,
-    winners,
-    hours,
-  }: {
-    status: string;
-    maxWinners: number;
-    winners: MockUser[];
-    hours: number | null;
-  },
+  { status, maxWinners, winners, hours }: IMockBountyOptions,
 ): MockBounty => {
   const [bossMetric, bossDisplayName] =
     faker.helpers.arrayElement(SLAYER_BOSSES);

@@ -33,6 +33,12 @@ export const slotsRemaining = ({
 }: Pick<IBountyLike, 'status' | 'maxWinners' | 'claimCount'>): number =>
   status === BOUNTY_STATUS.OPEN ? Math.max(0, maxWinners - claimCount) : 0;
 
+export interface IBountyStateDescription {
+  label: string;
+  /** The bounty date that belongs after the label, or null when none does. */
+  dateKey: 'expiresAt' | 'closedAt' | null;
+}
+
 /**
  * The one-line state a list row shows, in the same words the Discord card uses.
  * Dates are left to the caller (they format per locale); this returns the label
@@ -40,7 +46,7 @@ export const slotsRemaining = ({
  */
 export const describeBountyState = (
   bounty: IBountyLike,
-): { label: string; dateKey: 'expiresAt' | 'closedAt' | null } => {
+): IBountyStateDescription => {
   switch (bounty.status) {
     case BOUNTY_STATUS.OPEN:
       return bounty.expiresAt
