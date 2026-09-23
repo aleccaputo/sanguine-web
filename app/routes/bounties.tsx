@@ -32,7 +32,7 @@ export const meta: MetaFunction = () => {
     {
       name: 'description',
       content:
-        'Clan bounties: the bosses the Slayer Master has put a price on, who claimed them, and the clan points they paid.',
+        'Clan bounties: which bosses were posted, who claimed them, and the clan points paid.',
     },
   ];
 };
@@ -197,52 +197,46 @@ export default function Bounties() {
     <Container size="4" mt="3" pb="6">
       <Flex direction="column">
         <PageHeader title="Bounties" iconSrc={BOUNTY_ICON}>
-          The Slayer Master puts a price on a boss, and the first point-worthy
-          drop from it wins clan points.{' '}
+          First point-worthy drop from the bounty boss wins clan points.{' '}
           {bounties.length > 0 ? (
             <>
               <span className="font-semibold text-white">
                 {bounties.length}
               </span>{' '}
-              {bounties.length === 1 ? 'bounty has' : 'bounties have'} been
               posted
               {claims.length > 0 && (
                 <>
-                  {' and '}
-                  <span className="font-semibold text-sanguine-bright">
-                    {hunters.length}
-                  </span>{' '}
-                  {hunters.length === 1 ? 'member has' : 'members have'} claimed{' '}
+                  ,{' '}
                   <span className="font-semibold text-white">
                     {claims.length}
                   </span>{' '}
-                  of them, worth{' '}
+                  {claims.length === 1 ? 'claim' : 'claims'} by{' '}
+                  <span className="font-semibold text-sanguine-bright">
+                    {hunters.length}
+                  </span>{' '}
+                  {hunters.length === 1 ? 'member' : 'members'} worth{' '}
                   <span className="font-semibold text-osrs-gold">
                     {totalClanPoints.toLocaleString()}
                   </span>{' '}
                   clan points
                 </>
               )}
-              .
               {unclaimed > 0 && (
                 <>
-                  {' '}
-                  <span className="font-semibold text-white">
-                    {unclaimed}
-                  </span>{' '}
-                  {unclaimed === 1 ? 'went' : 'have gone'} unclaimed.
+                  ,{' '}
+                  <span className="font-semibold text-white">{unclaimed}</span>{' '}
+                  unclaimed
                 </>
               )}
+              .
             </>
           ) : (
-            <>None have been posted yet.</>
+            <>None posted yet.</>
           )}
         </PageHeader>
 
         {bounties.length === 0 ? (
-          <EmptyState>
-            No bounties on the board. Nothing interesting happens.
-          </EmptyState>
+          <EmptyState>No bounties yet.</EmptyState>
         ) : (
           <>
             {/* Open bounties first: what people should be killing right now */}
@@ -339,9 +333,7 @@ export default function Bounties() {
                   })}
                 </Box>
               ) : (
-                <EmptyState>
-                  Nothing on the board right now. Nothing interesting happens.
-                </EmptyState>
+                <EmptyState>None open.</EmptyState>
               )}
             </section>
 
@@ -485,34 +477,22 @@ export default function Bounties() {
                   />
                 </Box>
               ) : (
-                <EmptyState>
-                  None have closed yet. Nothing interesting happens.
-                </EmptyState>
+                <EmptyState>None closed yet.</EmptyState>
               )}
             </section>
           </>
         )}
 
-        {/* The rules, in the same words the Discord card uses */}
         <section className="mt-10">
           <SectionHeading title="How it works" />
           <Text as="p" size="3" className="mt-3 leading-7 text-gray-300">
-            The event team posts a bounty in Discord: one boss, a{' '}
-            <span className="text-osrs-gold">clan point</span> reward, and how
-            many members can claim it. The first point-worthy drop from that
-            boss wins. Drops count automatically through Dink, so there is
-            nothing to sign up for. If Dink isn&apos;t working or you&apos;re on
-            mobile, post a screenshot like normal and tell a mod it&apos;s for
-            the bounty.
-          </Text>
-          <Text as="p" size="3" className="mt-3 leading-7 text-gray-300">
-            Bounties are separate from your{' '}
+            Bounties are posted in Discord. Drops count automatically through
+            Dink; if Dink is down, post a screenshot and tell a mod. Separate
+            from your{' '}
             <Link to="/slayer" className={proseLinkClass}>
               slayer task
             </Link>
-            . If the bounty boss happens to be your task, one drop counts for
-            both. A bounty with a deadline closes when it passes; one without
-            stays open until every slot is claimed. One claim per person.
+            , so one drop can count for both. One claim per person.
           </Text>
         </section>
       </Flex>
