@@ -158,6 +158,16 @@ export const ENGAGEMENT_SYSTEM_LABELS: Record<EngagementSystem, string> = {
   personalBests: 'Personal bests',
 };
 
+/** What one event of each system is, in words that fit beside a count. */
+export const ENGAGEMENT_SYSTEM_UNITS: Record<EngagementSystem, string> = {
+  drops: 'drops posted',
+  competitions: 'placings',
+  slayer: 'tasks completed',
+  bounties: 'bounties won',
+  raids: 'raids',
+  personalBests: 'PBs',
+};
+
 /** Column-header length labels for dense tables. */
 export const ENGAGEMENT_SYSTEM_SHORT_LABELS: Record<EngagementSystem, string> =
   {

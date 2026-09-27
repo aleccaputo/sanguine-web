@@ -30,6 +30,7 @@ import { rankLabel } from '~/utils/clan-ranks';
 import {
   ENGAGEMENT_SYSTEM_LABELS,
   ENGAGEMENT_SYSTEM_SHORT_LABELS,
+  ENGAGEMENT_SYSTEM_UNITS,
   ENGAGEMENT_SYSTEMS,
   EngagementSystem,
   IInactiveMember,
@@ -903,9 +904,9 @@ export default function AdminInsights() {
       <Box mt="8" id={SECTION_IDS.systems} className={sectionClass}>
         <SectionHeading title="Systems engagement" />
         <Note>
-          One event per drop posted, competition placing, Slayer task spun,
-          bounty claim, and per participant of each raid or PB submission, in
-          the last {days} days.
+          Counts are actions, never points: one per drop posted, competition
+          placing, Slayer task completed, bounty won, and per participant of
+          each approved raid or PB, in the last {days} days.
         </Note>
         {activeMembers === 0 ? (
           <NoData />
@@ -936,7 +937,7 @@ export default function AdminInsights() {
                         Members
                       </Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell className={numberHeaderClass}>
-                        Events
+                        Actions
                       </Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
@@ -966,7 +967,7 @@ export default function AdminInsights() {
             <Box>
               <SubsectionHeading
                 title="Top by system"
-                hint={`the ${TOP_PER_SYSTEM} busiest members of each, by events this period`}
+                hint={`the ${TOP_PER_SYSTEM} busiest members of each this period`}
               />
               <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
                 {ENGAGEMENT_SYSTEMS.map(system => (
@@ -976,7 +977,10 @@ export default function AdminInsights() {
                       size="2"
                       className="border-b border-gray-800 pb-1 text-gray-300"
                     >
-                      {ENGAGEMENT_SYSTEM_LABELS[system]}
+                      {ENGAGEMENT_SYSTEM_LABELS[system]}{' '}
+                      <span className="text-gray-500">
+                        {ENGAGEMENT_SYSTEM_UNITS[system]}
+                      </span>
                     </Text>
                     {topBySystem[system].length === 0 ? (
                       <Text as="p" size="2" className="py-1 text-gray-600">
@@ -1017,7 +1021,7 @@ export default function AdminInsights() {
             <Box>
               <SubsectionHeading
                 title="Most engaged"
-                hint={`top ${Math.min(mostEngaged.length, MOST_ENGAGED_SHOWN)}, by systems touched then events`}
+                hint={`top ${Math.min(mostEngaged.length, MOST_ENGAGED_SHOWN)}, by systems touched, then actions`}
               />
               <Table.Root size="2">
                 <Table.Header>
@@ -1034,7 +1038,7 @@ export default function AdminInsights() {
                       Systems
                     </Table.ColumnHeaderCell>
                     <Table.ColumnHeaderCell className={numberHeaderClass}>
-                      Events
+                      Actions
                     </Table.ColumnHeaderCell>
                   </Table.Row>
                 </Table.Header>

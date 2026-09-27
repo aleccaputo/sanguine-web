@@ -39,9 +39,15 @@ export const getSpinCountsByStatus = async (): Promise<
   return Object.fromEntries(rows.map(row => [row.status, row._count._all]));
 };
 
-/** Every task handed out on or after `since` (ISO), whatever became of it. */
-export const getSpinsSince = (since: string) =>
+/**
+ * Every task completed on or after `since` (ISO). Completions, not spins: a spin that was
+ * rerolled, replaced, or expired is a task handed out, not a task done.
+ */
+export const getCompletedTasksSince = (since: string) =>
   prisma.wheelSpins.findMany({
-    where: { spunAt: { gte: since } },
-    select: { discordId: true, spunAt: true, status: true },
+    where: {
+      status: SPIN_STATUS.COMPLETED,
+      completion: { is: { completedAt: { gte: since } } },
+    },
+    select: { discordId: true, completion: { select: { completedAt: true } } },
   });

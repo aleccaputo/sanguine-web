@@ -3,7 +3,7 @@ import { getBounties, getBountyById } from '~/data/bounties';
 import { getPersonalBestsSince } from '~/data/personal-bests';
 import { getAuditEventsSince } from '~/data/points-audit';
 import { getRaidCompletionsSince } from '~/data/raid-completions';
-import { getSpinsSince } from '~/data/slayer';
+import { getCompletedTasksSince } from '~/data/slayer';
 import {
   getRsnMemberBridge,
   IRsnMemberBridge,
@@ -168,14 +168,14 @@ export const getBountyScorecard = async (
 
 /**
  * Every system touch on or after `since`: one event per drop posted, competition placing, task
- * spun, bounty claim, and per participant of each raid or PB submission.
+ * completed, bounty claim, and per participant of each raid or PB submission.
  */
 export const getEngagementEvents = async (
   since: string,
 ): Promise<IEngagementEvent[]> => {
   const [audits, spins, bounties, raids, personalBests] = await Promise.all([
     getAuditEventsSince(since),
-    getSpinsSince(since),
+    getCompletedTasksSince(since),
     getBounties(),
     getRaidCompletionsSince(since),
     getPersonalBestsSince(since),
@@ -195,11 +195,17 @@ export const getEngagementEvents = async (
         discordId: audit.destinationDiscordId,
         at: audit.createdAt,
       })),
-    ...spins.map(spin => ({
-      system: 'slayer' as const,
-      discordId: spin.discordId,
-      at: spin.spunAt,
-    })),
+    ...spins.flatMap(spin =>
+      spin.completion
+        ? [
+            {
+              system: 'slayer' as const,
+              discordId: spin.discordId,
+              at: spin.completion.completedAt,
+            },
+          ]
+        : [],
+    ),
     ...bounties.flatMap(bounty =>
       bounty.claims
         .filter(claim => claim.claimedAt >= since)
