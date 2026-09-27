@@ -86,6 +86,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       joined: user.joined,
       lastClanEventAt: lastEvents.get(user.discordId) ?? null,
       lastInGameChangeAt: inGame.get(user.discordId)?.lastChangedAt ?? null,
+      activeAlt: inGame.get(user.discordId)?.activeAlt ?? null,
       womRole: inGame.get(user.discordId)?.role ?? null,
     })),
     windowStart,
@@ -177,6 +178,18 @@ const formatGain = (metric: string, value: number) =>
     : Math.round(value).toLocaleString();
 
 const formatDate = (iso: string) => dayjs(iso).format('MMM D, YYYY');
+
+interface IAltNoteProps {
+  alt: string | null;
+}
+
+/** "on AltName" after an in-game figure when the latest change was on a registered alt. */
+const AltNote = ({ alt }: IAltNoteProps) =>
+  alt ? (
+    <Text size="1" className="ml-1 hidden text-gray-500 sm:inline">
+      on {alt}
+    </Text>
+  ) : null;
 
 /** Days since, as "3d" or "today", or a dimmed "none" when there is nothing on record. */
 const daysAgo = (days: number | null) =>
@@ -421,14 +434,23 @@ function PvmActivitySection({ days }: IPvmActivitySectionProps) {
                           {index + 1}
                         </Table.Cell>
                         <Table.Cell>
-                          <a
-                            href={`https://wiseoldman.net/players/${encodeURIComponent(row.displayName)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={proseLinkClass}
-                          >
-                            {row.displayName}
-                          </a>
+                          {row.discordId ? (
+                            <Link
+                              to={`/users/${row.discordId}`}
+                              className={proseLinkClass}
+                            >
+                              {row.displayName}
+                            </Link>
+                          ) : (
+                            <a
+                              href={`https://wiseoldman.net/players/${encodeURIComponent(row.displayName)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-gray-400 hover:text-white"
+                            >
+                              {row.displayName}
+                            </a>
+                          )}
                         </Table.Cell>
                         <Table.Cell
                           className={`${numberCellClass} text-gray-100`}
@@ -548,6 +570,7 @@ function SkillingOnlySection({ days }: ISkillingOnlySectionProps) {
                   className={`${numberCellClass} hidden text-gray-300 md:table-cell`}
                 >
                   {daysAgo(row.daysSinceInGameChange)}
+                  <AltNote alt={row.activeAlt} />
                 </Table.Cell>
                 <Table.Cell className={`${numberCellClass} text-gray-100`}>
                   {hours(row.ehpGained)}
@@ -627,6 +650,7 @@ function InactiveTable({ rows, memberName, inGame }: IInactiveTableProps) {
             {inGame && (
               <Table.Cell className={`${numberCellClass} text-gray-300`}>
                 {daysAgo(row.daysSinceInGameChange)}
+                <AltNote alt={row.activeAlt} />
               </Table.Cell>
             )}
             <Table.Cell className={`${numberCellClass} text-gray-300`}>

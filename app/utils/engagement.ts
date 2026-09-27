@@ -55,6 +55,8 @@ export const bountyMeasurementWindow = (
 export interface IMemberGainLike {
   displayName: string;
   gained: number;
+  /** The clan member this row belongs to once accounts are folded, null for an unmapped account. */
+  discordId?: string | null;
 }
 
 export interface IBountyScoreInput {
@@ -69,6 +71,7 @@ export interface IBountyScoreInput {
 export interface IBountyParticipant {
   displayName: string;
   gained: number;
+  discordId: string | null;
 }
 
 export interface IBountyScorecard {
@@ -124,7 +127,11 @@ export const scoreBounty = (
     topParticipants: [...duringGainers]
       .sort((a, b) => b.gained - a.gained)
       .slice(0, topLimit)
-      .map(({ displayName, gained }) => ({ displayName, gained })),
+      .map(({ displayName, gained, discordId }) => ({
+        displayName,
+        gained,
+        discordId: discordId ?? null,
+      })),
   };
 };
 
@@ -307,7 +314,11 @@ export const summarizePvmActivity = (
     top: [...rows]
       .sort((a, b) => b.gained - a.gained)
       .slice(0, topLimit)
-      .map(({ displayName, gained }) => ({ displayName, gained })),
+      .map(({ displayName, gained, discordId }) => ({
+        displayName,
+        gained,
+        discordId: discordId ?? null,
+      })),
   };
 };
 
@@ -369,6 +380,8 @@ export interface IMemberActivityInput {
   lastClanEventAt: string | null;
   /** WOM lastChangedAt, latest across the member's accounts, or null when none is in the group. */
   lastInGameChangeAt: string | null;
+  /** The account that change was on, when it was a registered alt rather than the main. */
+  activeAlt: string | null;
   womRole: string | null;
 }
 
@@ -496,6 +509,8 @@ export interface ISkillingInput {
   womRole: string | null;
   /** WOM lastChangedAt, latest across accounts, or null when none is in the group. */
   lastInGameChangeAt: string | null;
+  /** The account that change was on, when it was a registered alt rather than the main. */
+  activeAlt: string | null;
   /** Summed across the member's accounts over the window. */
   ehbGained: number;
   ehpGained: number;

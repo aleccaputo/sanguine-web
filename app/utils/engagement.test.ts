@@ -125,8 +125,8 @@ describe('scoreBounty', () => {
       2,
     );
     expect(card.topParticipants).toEqual([
-      { displayName: 'C', gained: 3 },
-      { displayName: 'B', gained: 2 },
+      { displayName: 'C', gained: 3, discordId: null },
+      { displayName: 'B', gained: 2, discordId: null },
     ]);
   });
 });
@@ -217,14 +217,14 @@ describe('summarizePvmActivity', () => {
     const activity = summarizePvmActivity([
       { displayName: 'A', gained: 0 },
       { displayName: 'B', gained: 5.5 },
-      { displayName: 'C', gained: 12 },
+      { displayName: 'C', gained: 12, discordId: 'c' },
     ]);
     expect(activity).toEqual({
       activeMembers: 2,
       totalGained: 17.5,
       top: [
-        { displayName: 'C', gained: 12 },
-        { displayName: 'B', gained: 5.5 },
+        { displayName: 'C', gained: 12, discordId: 'c' },
+        { displayName: 'B', gained: 5.5, discordId: null },
       ],
     });
   });
@@ -250,6 +250,7 @@ describe('summarizeInactivity', () => {
     joined: '2025-01-01T00:00:00.000Z',
     lastClanEventAt,
     lastInGameChangeAt,
+    activeAlt: null,
     womRole: 'member',
   });
 
@@ -338,6 +339,7 @@ describe('summarizeSkillingOnly', () => {
     discordId,
     womRole: 'member',
     lastInGameChangeAt,
+    activeAlt: null,
     ehbGained,
     ehpGained,
   });

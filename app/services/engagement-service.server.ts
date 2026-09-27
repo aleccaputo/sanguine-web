@@ -11,6 +11,7 @@ import {
 import {
   getClanFromWom,
   getGroupGainsForWindow,
+  IMemberGain,
 } from '~/services/wom-api-service.server';
 import { normalizeRsn } from '~/utils/collection-log';
 import {
@@ -79,6 +80,46 @@ export const getBountyListings = async (): Promise<IBountyListing[]> => {
   }));
 };
 
+/**
+ * Folds per-account WOM gains into one row per clan member (main plus registered alts, named
+ * by nickname), leaving accounts the bridge can't place as their own rows. A member playing on
+ * an alt is still that member doing the content.
+ */
+const foldGainsByMember = (
+  gains: Pick<IMemberGain, 'displayName' | 'gained'>[],
+  bridge: IRsnMemberBridge,
+): IMemberGainLike[] => {
+  const nameByDiscordId = new Map(
+    bridge.roster.map(user => [user.discordId, user.nickname ?? '']),
+  );
+  const owned = gains.map(gain => ({
+    ...gain,
+    discordId:
+      bridge.discordIdByRsn.get(normalizeRsn(gain.displayName)) ?? null,
+  }));
+  const members = [
+    ...new Set(
+      owned
+        .map(gain => gain.discordId)
+        .filter((id): id is string => id !== null),
+    ),
+  ].map(discordId => ({
+    discordId,
+    displayName: nameByDiscordId.get(discordId) || discordId,
+    gained: owned
+      .filter(gain => gain.discordId === discordId)
+      .reduce((sum, gain) => sum + gain.gained, 0),
+  }));
+  const strays = owned
+    .filter(gain => gain.discordId === null)
+    .map(({ displayName, gained }) => ({
+      displayName,
+      gained,
+      discordId: null,
+    }));
+  return [...members, ...strays];
+};
+
 export interface IBountyScorecardResult {
   bountyId: string;
   window: IBountyWindow;
@@ -96,7 +137,8 @@ export const getBountyScorecard = async (
   }
   const window = bountyMeasurementWindow(bounty, now);
   const metric = bounty.task.bossMetric as Metric;
-  const [during, before] = await Promise.all([
+  const [bridge, during, before] = await Promise.all([
+    getRsnMemberBridge(),
     getGroupGainsForWindow(
       metric,
       new Date(window.start),
@@ -112,8 +154,8 @@ export const getBountyScorecard = async (
     bountyId,
     window,
     scorecard: scoreBounty({
-      during,
-      before,
+      during: foldGainsByMember(during, bridge),
+      before: foldGainsByMember(before, bridge),
       claimCount: bounty.claims.length,
       postedAt: bounty.postedAt,
       closedAt: bounty.closedAt,
@@ -207,28 +249,30 @@ export const getPvmActivity = async (
 ): Promise<IPvmActivityResult> => {
   const start = new Date(now.getTime() - days * DAY_MS);
   // "All raids" is one read per raid metric (each cached on its own), summed per player.
-  const gains =
+  const [bridge, gains] = await Promise.all([
+    getRsnMemberBridge(),
     metric === ALL_RAIDS_METRIC
-      ? sumGainsByPlayer(
-          await Promise.all(
-            RAID_METRICS.map(raid =>
-              getGroupGainsForWindow(raid as Metric, start, now),
-            ),
+      ? Promise.all(
+          RAID_METRICS.map(raid =>
+            getGroupGainsForWindow(raid as Metric, start, now),
           ),
-        )
-      : await getGroupGainsForWindow(metric, start, now);
+        ).then(lists => sumGainsByPlayer(lists))
+      : getGroupGainsForWindow(metric, start, now),
+  ]);
   return {
     metric,
     days,
     start: start.toISOString(),
     end: now.toISOString(),
-    activity: summarizePvmActivity(gains),
+    activity: summarizePvmActivity(foldGainsByMember(gains, bridge)),
   };
 };
 
 export interface IInGameActivity {
   /** Latest WOM lastChangedAt across the member's main and alts, as ISO, or null if unknown. */
   lastChangedAt: string | null;
+  /** The registered alt that latest change happened on, or null when it was the main. */
+  activeAlt: string | null;
   /** The main account's WOM group role, falling back to whichever account matched first. */
   role: string;
 }
@@ -257,6 +301,7 @@ export const getInGameActivityByDiscordId = async (
           {
             discordId,
             rsn,
+            displayName: membership.player.displayName,
             role: membership.role,
             changedAt: membership.player.lastChangedAt
               ? new Date(membership.player.lastChangedAt).toISOString()
@@ -271,13 +316,20 @@ export const getInGameActivityByDiscordId = async (
         account => mainRsnByDiscordId.get(discordId) === account.rsn,
       );
       const latest = own
-        .map(account => account.changedAt)
-        .filter((value): value is string => value !== null)
-        .sort()
+        .filter(
+          (account): account is typeof account & { changedAt: string } =>
+            account.changedAt !== null,
+        )
+        .sort((a, b) => a.changedAt.localeCompare(b.changedAt))
         .at(-1);
+      const onAlt = latest !== undefined && latest !== main;
       return [
         discordId,
-        { lastChangedAt: latest ?? null, role: (main ?? own[0]).role },
+        {
+          lastChangedAt: latest?.changedAt ?? null,
+          activeAlt: onAlt ? latest.displayName : null,
+          role: (main ?? own[0]).role,
+        },
       ];
     }),
   );
@@ -346,6 +398,7 @@ export const getSkillingOnly = async (
         discordId: user.discordId,
         womRole: inGame.get(user.discordId)?.role ?? null,
         lastInGameChangeAt: inGame.get(user.discordId)?.lastChangedAt ?? null,
+        activeAlt: inGame.get(user.discordId)?.activeAlt ?? null,
         ehbGained: ehbByMember.get(user.discordId) ?? 0,
         ehpGained: ehpByMember.get(user.discordId) ?? 0,
       })),
