@@ -271,6 +271,8 @@ interface ICompositionBarProps {
   segments: ICompositionSegment[];
   /** Legend suffix per segment, e.g. a share; defaults to the count. */
   formatValue?: (value: number, total: number) => ReactNode;
+  /** Handles a click on a segment with a target; defaults to scrolling to it in place. */
+  onSelect?: (targetId: string) => void;
 }
 
 /**
@@ -281,12 +283,13 @@ export function CompositionBar({
   title,
   segments,
   formatValue = value => value.toLocaleString(),
+  onSelect,
 }: ICompositionBarProps) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
   const shown = segments.filter(segment => segment.value > 0);
   const jump = (targetId: string) => (event: MouseEvent) => {
     event.preventDefault();
-    jumpToSection(targetId);
+    (onSelect ?? jumpToSection)(targetId);
   };
   return (
     <Box>

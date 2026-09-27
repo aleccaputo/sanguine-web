@@ -7,7 +7,15 @@ import {
   useRouteError,
   useSearchParams,
 } from '@remix-run/react';
-import { Box, Flex, Heading, Select, Table, Text } from '@radix-ui/themes';
+import {
+  Box,
+  Flex,
+  Heading,
+  Select,
+  Table,
+  Tabs,
+  Text,
+} from '@radix-ui/themes';
 import dayjs from 'dayjs';
 import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { Button } from '~/components/button';
@@ -50,10 +58,12 @@ import {
 } from '~/utils/engagement';
 import {
   clanSystemActiveByMonth,
+  IMonthlyFlow,
   median,
   monthlyFlows,
   summarizeReach,
 } from '~/utils/engagement-stats';
+import { jumpToSection } from '~/utils/jump-to-section';
 import { proseLinkClass, zebraStripeClass } from '~/utils/styles';
 import type { loader as bountyScorecardLoader } from './admin.insights_.bounty.$id';
 import type { loader as pvmActivityLoader } from './admin.insights_.pvm';
@@ -163,6 +173,37 @@ const SECTION_IDS = {
 } as const;
 
 const sectionClass = 'scroll-mt-20';
+
+/** The three questions the page answers, one tab each; the overview above stays for all. */
+const TABS = [
+  { key: 'systems', label: 'Clan systems' },
+  { key: 'pvm', label: 'PvM' },
+  { key: 'members', label: 'Members' },
+] as const;
+
+type InsightsTab = (typeof TABS)[number]['key'];
+
+const DEFAULT_TAB: InsightsTab = 'systems';
+
+const isInsightsTab = (value: string | null): value is InsightsTab =>
+  TABS.some(option => option.key === value);
+
+/** Which tab each section lives on, for the overview bars' click-through. */
+const TAB_BY_SECTION: Record<string, InsightsTab> = {
+  [SECTION_IDS.bounties]: 'systems',
+  [SECTION_IDS.systems]: 'systems',
+  [SECTION_IDS.pvm]: 'pvm',
+  [SECTION_IDS.skilling]: 'pvm',
+  [SECTION_IDS.months]: 'members',
+  [SECTION_IDS.tenure]: 'members',
+  [SECTION_IDS.notParticipating]: 'members',
+  [SECTION_IDS.playing]: 'members',
+  [SECTION_IDS.quiet]: 'members',
+};
+
+// Square, flat tabs: the active one gets the red fill the design system uses for selection.
+const tabTriggerClass =
+  'rounded-none px-3 text-base text-gray-400 hover:text-gray-100 data-[state=active]:bg-sanguine-red/10 data-[state=active]:text-gray-100 data-[state=active]:before:bg-sanguine-red';
 
 const headerCellClass = 'text-osrs-orange';
 const tableToggleClass = 'cursor-pointer select-none text-sm text-gray-500';
@@ -592,10 +633,15 @@ const signed = (value: number) => `${value > 0 ? '+' : ''}${value}%`;
 interface IInGameSplitBarProps {
   skilling: SkillingRead;
   rosterSize: number;
+  onSelect: (targetId: string) => void;
 }
 
 /** PvMing / skilling / no gains, as the in-game twin of the clan-systems bar above it. */
-function InGameSplitBar({ skilling, rosterSize }: IInGameSplitBarProps) {
+function InGameSplitBar({
+  skilling,
+  rosterSize,
+  onSelect,
+}: IInGameSplitBarProps) {
   const { result, failure, loading, retry } = skilling;
   const percent = (part: number) =>
     rosterSize === 0 ? '0%' : `${Math.round((part / rosterSize) * 100)}%`;
@@ -637,6 +683,7 @@ function InGameSplitBar({ skilling, rosterSize }: IInGameSplitBarProps) {
           },
         ]}
         formatValue={value => `${value.toLocaleString()} (${percent(value)})`}
+        onSelect={onSelect}
       />
     </Box>
   );
@@ -658,7 +705,6 @@ function SkillingOnlySection({ skilling }: ISkillingOnlySectionProps) {
   return (
     <>
       <SubsectionHeading
-        id={SECTION_IDS.skilling}
         title="Skilling only"
         hint={
           result
@@ -826,6 +872,105 @@ function InactiveTable({ rows, memberName, inGame }: IInactiveTableProps) {
   );
 }
 
+interface IActivityByMonthSectionProps {
+  clanFlows: IMonthlyFlow[];
+}
+
+/** Lives on the Members tab so its WOM reads fire only when someone opens it. */
+function ActivityByMonthSection({ clanFlows }: IActivityByMonthSectionProps) {
+  const months = useMonthsRead();
+  return (
+    <Box id={SECTION_IDS.months} className={sectionClass}>
+      <SectionHeading
+        title="Activity by month"
+        summary={
+          <Text size="2" className="text-gray-400">
+            last {MONTHS_SHOWN} months
+          </Text>
+        }
+      />
+      <Note>
+        Active share is the percent of the roster that played (any xp gained,
+        per Wise Old Man) or touched a clan system in the month. Churn is people
+        active the month before but not this one; reactivation is the reverse.
+        The current month is partial.
+      </Note>
+      {months.failure && !months.result && (
+        <Box py="2">
+          <Retry
+            message={months.failure}
+            loading={months.loading}
+            onRetry={months.retry}
+          />
+        </Box>
+      )}
+      <SmallMultiples
+        series={[
+          ...(months.result
+            ? [
+                {
+                  key: 'ingame',
+                  title: 'Played, share of roster',
+                  points: months.result.months.map(row => ({
+                    label: row.label.slice(0, 3),
+                    value: row.activeShare ?? 0,
+                  })),
+                },
+              ]
+            : []),
+          {
+            key: 'systems',
+            title: 'Touched a clan system, share of roster',
+            points: clanFlows.map(row => ({
+              label: row.label.slice(0, 3),
+              value: row.activeShare ?? 0,
+            })),
+          },
+        ]}
+        max={100}
+        formatValue={value => `${value}%`}
+      />
+      {!months.result && !months.failure && (
+        <Text as="p" size="2" className="mt-1 text-gray-500">
+          Reading Wise Old Man for the in-game months…
+        </Text>
+      )}
+      <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-2">
+        {months.result && (
+          <Box>
+            <Text as="p" size="2" className="mb-1 text-gray-300">
+              In-game, month over month
+            </Text>
+            <DivergingBars
+              points={months.result.months.map(row => ({
+                label: row.label.slice(0, 3),
+                up: row.reactivated,
+                down: row.churned,
+              }))}
+              upLabel="Came back"
+              downLabel="Went quiet"
+            />
+          </Box>
+        )}
+        <Box>
+          <Text as="p" size="2" className="mb-1 text-gray-300">
+            Clan systems, month over month
+          </Text>
+          <DivergingBars
+            points={clanFlows.map(row => ({
+              label: row.label.slice(0, 3),
+              up: row.reactivated,
+              down: row.churned,
+            }))}
+            upLabel="Came back"
+            downLabel="Went quiet"
+          />
+        </Box>
+      </div>
+    </Box>
+  );
+}
+
 export default function AdminInsights() {
   const {
     days,
@@ -844,7 +989,34 @@ export default function AdminInsights() {
   } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   const skilling = useSkillingRead(days);
-  const months = useMonthsRead();
+  const tabParam = searchParams.get('tab');
+  const tab: InsightsTab = isInsightsTab(tabParam) ? tabParam : DEFAULT_TAB;
+  const [pendingSection, setPendingSection] = useState<string | null>(null);
+  const selectTab = (next: InsightsTab) =>
+    setSearchParams(
+      { ...Object.fromEntries(searchParams), tab: next },
+      { preventScrollReset: true },
+    );
+  // Switch to the section's tab first; the scroll happens once that tab has rendered.
+  const goTo = (sectionId: string) => {
+    const target = TAB_BY_SECTION[sectionId] ?? DEFAULT_TAB;
+    setPendingSection(sectionId);
+    if (target !== tab) {
+      selectTab(target);
+    }
+  };
+  useEffect(() => {
+    if (pendingSection && TAB_BY_SECTION[pendingSection] === tab) {
+      // Two frames later: after the tab's content has laid out and after the router's own
+      // scroll handling for the navigation, which would otherwise cancel the jump.
+      const frame = requestAnimationFrame(() =>
+        requestAnimationFrame(() => jumpToSection(pendingSection)),
+      );
+      setPendingSection(null);
+      return () => cancelAnimationFrame(frame);
+    }
+    return undefined;
+  }, [pendingSection, tab]);
   const [measured, setMeasured] = useState<
     Record<string, IBountyScorecardResult>
   >({});
@@ -949,198 +1121,413 @@ export default function AdminInsights() {
             },
           ]}
           formatValue={value => `${value.toLocaleString()} (${percent(value)})`}
+          onSelect={goTo}
         />
-        <InGameSplitBar skilling={skilling} rosterSize={rosterSize} />
+        <InGameSplitBar
+          skilling={skilling}
+          rosterSize={rosterSize}
+          onSelect={goTo}
+        />
       </Flex>
 
-      <Box id={SECTION_IDS.bounties} className={sectionClass}>
-        <SectionHeading
-          title="Bounty lift"
-          summary={
-            <Text size="2" className="text-gray-400">
-              {bounties.length} posted
-            </Text>
-          }
-        />
-        <Note>
-          Did it: members whose WOM kill count for the boss moved between the
-          daily update before the bounty opened and the one after it closed.
-          Before: the same span of time immediately prior. Lift: the difference.
-          A tilde marks a window still waiting on the next update.
-        </Note>
-        {measuredBounties.length > 0 && (
-          <Box mb="4">
-            <Flex gap="4" wrap="wrap" mb="2">
-              <Figure label="Measured" value={measuredBounties.length} />
-              {liftSample.length > 0 && (
-                <Figure label="Median lift" value={signed(medianLift)} />
-              )}
-              {adjustedSample.length > 0 && (
-                <Figure
-                  label="Median lift, PvM-adjusted"
-                  value={signed(medianAdjusted)}
-                />
-              )}
-            </Flex>
-            <DumbbellChart
-              rows={measuredBounties.map(({ bounty, result }) => ({
-                key: bounty.id,
-                label: bounty.bossDisplayName,
-                sublabel: dayjs(bounty.postedAt).format('MMM D'),
-                before: result.scorecard.baselineParticipants,
-                after: result.scorecard.participants,
-              }))}
-              beforeLabel="Members killing it before"
-              afterLabel="During the bounty"
-            />
-            <Text as="p" size="2" className="mt-2 text-gray-500">
-              Single bounties on small counts are noise; read the medians, and
-              the adjusted one removes whatever all PvM did between the two
-              windows.
-            </Text>
-          </Box>
-        )}
-        {bounties.length === 0 ? (
-          <NoData />
-        ) : (
-          <Table.Root size="2">
-            <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeaderCell className={headerCellClass}>
-                  Bounty
-                </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell
-                  className={`${numberHeaderClass} hidden sm:table-cell`}
-                >
-                  Claims
-                </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell className={numberHeaderClass}>
-                  Did it
-                </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell
-                  className={`${numberHeaderClass} hidden sm:table-cell`}
-                >
-                  Before
-                </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell className={numberHeaderClass}>
-                  Lift
-                </Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell
-                  className={`${numberHeaderClass} hidden md:table-cell`}
-                >
-                  Hours
-                </Table.ColumnHeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {bounties.map((bounty, index) => (
-                <BountyRow
-                  key={bounty.id}
-                  bounty={bounty}
-                  autoLoad={index < AUTO_MEASURED_BOUNTIES}
-                  onMeasured={onMeasured}
-                />
-              ))}
-            </Table.Body>
-          </Table.Root>
-        )}
-      </Box>
+      <Tabs.Root
+        value={tab}
+        onValueChange={value => selectTab(value as InsightsTab)}
+      >
+        <Tabs.List className="mb-4 border-b border-gray-700 shadow-none">
+          {TABS.map(option => (
+            <Tabs.Trigger
+              key={option.key}
+              value={option.key}
+              className={tabTriggerClass}
+            >
+              {option.label}
+            </Tabs.Trigger>
+          ))}
+        </Tabs.List>
 
-      <Box mt="8" id={SECTION_IDS.systems} className={sectionClass}>
-        <SectionHeading title="Systems engagement" />
-        <Note>
-          Counts are actions, never points: one per drop posted, competition
-          placing, Slayer spin or completion, bounty won, and per participant of
-          each approved raid or PB, in the last {days} days. A system that
-          launched inside the period shows how many days it was live; actions
-          per week in the table view is over live days only.
-        </Note>
-        {activeMembers === 0 ? (
-          <NoData />
-        ) : (
-          <Flex direction="column" gap="4">
-            <Box>
+        <Tabs.Content value="systems">
+          <Box id={SECTION_IDS.bounties} className={sectionClass}>
+            <SectionHeading
+              title="Bounty lift"
+              summary={
+                <Text size="2" className="text-gray-400">
+                  {bounties.length} posted
+                </Text>
+              }
+            />
+            <Note>
+              Did it: members whose WOM kill count for the boss moved between
+              the daily update before the bounty opened and the one after it
+              closed. Before: the same span of time immediately prior. Lift: the
+              difference. A tilde marks a window still waiting on the next
+              update.
+            </Note>
+            {measuredBounties.length > 0 && (
+              <Box mb="4">
+                <Flex gap="4" wrap="wrap" mb="2">
+                  <Figure label="Measured" value={measuredBounties.length} />
+                  {liftSample.length > 0 && (
+                    <Figure label="Median lift" value={signed(medianLift)} />
+                  )}
+                  {adjustedSample.length > 0 && (
+                    <Figure
+                      label="Median lift, PvM-adjusted"
+                      value={signed(medianAdjusted)}
+                    />
+                  )}
+                </Flex>
+                <DumbbellChart
+                  rows={measuredBounties.map(({ bounty, result }) => ({
+                    key: bounty.id,
+                    label: bounty.bossDisplayName,
+                    sublabel: dayjs(bounty.postedAt).format('MMM D'),
+                    before: result.scorecard.baselineParticipants,
+                    after: result.scorecard.participants,
+                  }))}
+                  beforeLabel="Members killing it before"
+                  afterLabel="During the bounty"
+                />
+                <Text as="p" size="2" className="mt-2 text-gray-500">
+                  Single bounties on small counts are noise; read the medians,
+                  and the adjusted one removes whatever all PvM did between the
+                  two windows.
+                </Text>
+              </Box>
+            )}
+            {bounties.length === 0 ? (
+              <NoData />
+            ) : (
+              <Table.Root size="2">
+                <Table.Header>
+                  <Table.Row>
+                    <Table.ColumnHeaderCell className={headerCellClass}>
+                      Bounty
+                    </Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell
+                      className={`${numberHeaderClass} hidden sm:table-cell`}
+                    >
+                      Claims
+                    </Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell className={numberHeaderClass}>
+                      Did it
+                    </Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell
+                      className={`${numberHeaderClass} hidden sm:table-cell`}
+                    >
+                      Before
+                    </Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell className={numberHeaderClass}>
+                      Lift
+                    </Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell
+                      className={`${numberHeaderClass} hidden md:table-cell`}
+                    >
+                      Hours
+                    </Table.ColumnHeaderCell>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {bounties.map((bounty, index) => (
+                    <BountyRow
+                      key={bounty.id}
+                      bounty={bounty}
+                      autoLoad={index < AUTO_MEASURED_BOUNTIES}
+                      onMeasured={onMeasured}
+                    />
+                  ))}
+                </Table.Body>
+              </Table.Root>
+            )}
+          </Box>
+
+          <Box mt="8" id={SECTION_IDS.systems} className={sectionClass}>
+            <SectionHeading title="Systems engagement" />
+            <Note>
+              Counts are actions, never points: one per drop posted, competition
+              placing, Slayer spin or completion, bounty won, and per
+              participant of each approved raid or PB, in the last {days} days.
+              A system that launched inside the period shows how many days it
+              was live; actions per week in the table view is over live days
+              only.
+            </Note>
+            {activeMembers === 0 ? (
+              <NoData />
+            ) : (
+              <Flex direction="column" gap="4">
+                <Box>
+                  <SubsectionHeading
+                    title="Reach among active players"
+                    hint={`of the ${activeInGameCount} members WOM saw play this period; drops are auto-posted, so they measure playing, not engaging`}
+                  />
+                  <div className="grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-2">
+                    <Box>
+                      <Text as="p" size="2" className="mb-1 text-gray-500">
+                        Used the system, as a share of active players
+                      </Text>
+                      <HorizontalBars
+                        rows={reachOrder.map(row => ({
+                          label: ENGAGEMENT_SYSTEM_LABELS[row.system],
+                          value: row.reach ?? 0,
+                          annotation: row.passive ? 'passive' : '',
+                        }))}
+                        max={100}
+                        formatValue={value => `${value}%`}
+                      />
+                    </Box>
+                    <Box>
+                      <Text as="p" size="2" className="mb-1 text-gray-500">
+                        Came back: share of last period&apos;s users active
+                        again
+                      </Text>
+                      <HorizontalBars
+                        rows={reachOrder.map(row => ({
+                          label: ENGAGEMENT_SYSTEM_LABELS[row.system],
+                          value: row.repeat ?? 0,
+                          annotation:
+                            row.repeat === null
+                              ? 'no users before'
+                              : `of ${row.previousUsers}`,
+                        }))}
+                        max={100}
+                        formatValue={value => `${value}%`}
+                      />
+                    </Box>
+                  </div>
+                  <details className="mt-2">
+                    <summary className={tableToggleClass}>Table view</summary>
+                    <Table.Root size="2">
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.ColumnHeaderCell className={headerCellClass}>
+                            System
+                          </Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell className={numberHeaderClass}>
+                            Members
+                          </Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell className={numberHeaderClass}>
+                            Actions
+                          </Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell className={numberHeaderClass}>
+                            Live days
+                          </Table.ColumnHeaderCell>
+                          <Table.ColumnHeaderCell className={numberHeaderClass}>
+                            Actions/wk
+                          </Table.ColumnHeaderCell>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {bySystem.map(row => (
+                          <Table.Row
+                            key={row.system}
+                            className={zebraStripeClass}
+                          >
+                            <Table.Cell className="text-gray-300">
+                              {ENGAGEMENT_SYSTEM_LABELS[row.system]}
+                            </Table.Cell>
+                            <Table.Cell className={numberCellClass}>
+                              <Count value={row.members} />
+                              {row.members > 0 && (
+                                <Text size="1" className="ml-1 text-gray-500">
+                                  {percent(row.members)}
+                                </Text>
+                              )}
+                            </Table.Cell>
+                            <Table.Cell className={numberCellClass}>
+                              <Count value={row.events} />
+                            </Table.Cell>
+                            <Table.Cell className={numberCellClass}>
+                              <Count value={row.liveDays} />
+                            </Table.Cell>
+                            <Table.Cell className={numberCellClass}>
+                              <Count value={row.actionsPerWeek} />
+                            </Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table.Root>
+                  </details>
+                </Box>
+                <Box>
+                  <SubsectionHeading
+                    title="Top by system"
+                    hint={`the ${TOP_PER_SYSTEM} busiest members of each this period`}
+                  />
+                  <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {ENGAGEMENT_SYSTEMS.map(system => (
+                      <Box key={system}>
+                        <Text
+                          as="p"
+                          size="2"
+                          className="border-b border-gray-800 pb-1 text-gray-300"
+                        >
+                          {ENGAGEMENT_SYSTEM_LABELS[system]}{' '}
+                          <span className="text-gray-500">
+                            {ENGAGEMENT_SYSTEM_UNITS[system]}
+                          </span>
+                        </Text>
+                        {topBySystem[system].length === 0 ? (
+                          <Text as="p" size="2" className="py-1 text-gray-600">
+                            Nothing interesting happens.
+                          </Text>
+                        ) : (
+                          <ol className="mt-1">
+                            {topBySystem[system].map((leader, index) => (
+                              <li
+                                key={leader.discordId}
+                                className={`flex items-baseline justify-between gap-3 py-0.5 ${zebraStripeClass}`}
+                              >
+                                <Text size="2">
+                                  <span className="mr-2 text-gray-500">
+                                    {index + 1}
+                                  </span>
+                                  <Link
+                                    to={`/users/${leader.discordId}`}
+                                    className={proseLinkClass}
+                                  >
+                                    {memberName(leader.discordId)}
+                                  </Link>
+                                </Text>
+                                <Text
+                                  size="2"
+                                  className="tabular-nums text-gray-100"
+                                >
+                                  {leader.events.toLocaleString()}
+                                </Text>
+                              </li>
+                            ))}
+                          </ol>
+                        )}
+                      </Box>
+                    ))}
+                  </div>
+                </Box>
+                <Box>
+                  <SubsectionHeading
+                    title="Most engaged"
+                    hint={`top ${Math.min(mostEngaged.length, MOST_ENGAGED_SHOWN)}, by systems touched, then actions`}
+                  />
+                  <Table.Root size="2">
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.ColumnHeaderCell className={numberHeaderClass}>
+                          #
+                        </Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell className={headerCellClass}>
+                          Member
+                        </Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell
+                          className={`${headerCellClass} hidden sm:table-cell`}
+                        >
+                          Systems
+                        </Table.ColumnHeaderCell>
+                        <Table.ColumnHeaderCell className={numberHeaderClass}>
+                          Actions
+                        </Table.ColumnHeaderCell>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {mostEngaged.map((row, index) => (
+                        <Table.Row
+                          key={row.discordId}
+                          className={zebraStripeClass}
+                        >
+                          <Table.Cell
+                            className={`${numberCellClass} text-gray-500`}
+                          >
+                            {index + 1}
+                          </Table.Cell>
+                          <Table.Cell>
+                            <Link
+                              to={`/users/${row.discordId}`}
+                              className={proseLinkClass}
+                            >
+                              {memberName(row.discordId)}
+                            </Link>
+                            <Text
+                              size="1"
+                              className="ml-1 text-gray-500 sm:hidden"
+                            >
+                              {row.systems.length} of{' '}
+                              {ENGAGEMENT_SYSTEMS.length}
+                            </Text>
+                          </Table.Cell>
+                          <Table.Cell className="hidden text-gray-400 sm:table-cell">
+                            {row.systems
+                              .map(
+                                (system: EngagementSystem) =>
+                                  ENGAGEMENT_SYSTEM_SHORT_LABELS[system],
+                              )
+                              .join(', ')}
+                          </Table.Cell>
+                          <Table.Cell className={numberCellClass}>
+                            <Count value={row.events} />
+                          </Table.Cell>
+                        </Table.Row>
+                      ))}
+                    </Table.Body>
+                  </Table.Root>
+                </Box>
+              </Flex>
+            )}
+
+            <Box mt="4">
               <SubsectionHeading
-                title="Reach among active players"
-                hint={`of the ${activeInGameCount} members WOM saw play this period; drops are auto-posted, so they measure playing, not engaging`}
+                title="Month by month"
+                hint="distinct members per system on a shared scale; the number is this month so far"
               />
-              <div className="grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-2">
-                <Box>
-                  <Text as="p" size="2" className="mb-1 text-gray-500">
-                    Used the system, as a share of active players
-                  </Text>
-                  <HorizontalBars
-                    rows={reachOrder.map(row => ({
-                      label: ENGAGEMENT_SYSTEM_LABELS[row.system],
-                      value: row.reach ?? 0,
-                      annotation: row.passive ? 'passive' : '',
-                    }))}
-                    max={100}
-                    formatValue={value => `${value}%`}
-                  />
-                </Box>
-                <Box>
-                  <Text as="p" size="2" className="mb-1 text-gray-500">
-                    Came back: share of last period&apos;s users active again
-                  </Text>
-                  <HorizontalBars
-                    rows={reachOrder.map(row => ({
-                      label: ENGAGEMENT_SYSTEM_LABELS[row.system],
-                      value: row.repeat ?? 0,
-                      annotation:
-                        row.repeat === null
-                          ? 'no users before'
-                          : `of ${row.previousUsers}`,
-                    }))}
-                    max={100}
-                    formatValue={value => `${value}%`}
-                  />
-                </Box>
-              </div>
+              <SmallMultiples
+                series={ENGAGEMENT_SYSTEMS.map(system => ({
+                  key: system,
+                  title: ENGAGEMENT_SYSTEM_LABELS[system],
+                  points: series.map(row => ({
+                    label: row.label.slice(0, 3),
+                    value: row.members[system],
+                  })),
+                }))}
+                max={Math.max(
+                  ...series.flatMap(row =>
+                    ENGAGEMENT_SYSTEMS.map(system => row.members[system]),
+                  ),
+                )}
+              />
               <details className="mt-2">
                 <summary className={tableToggleClass}>Table view</summary>
                 <Table.Root size="2">
                   <Table.Header>
                     <Table.Row>
                       <Table.ColumnHeaderCell className={headerCellClass}>
-                        System
+                        Month
                       </Table.ColumnHeaderCell>
+                      {ENGAGEMENT_SYSTEMS.map(system => (
+                        <Table.ColumnHeaderCell
+                          key={system}
+                          className={`${numberHeaderClass} ${monthColumnClass(system)}`}
+                        >
+                          {ENGAGEMENT_SYSTEM_SHORT_LABELS[system]}
+                        </Table.ColumnHeaderCell>
+                      ))}
                       <Table.ColumnHeaderCell className={numberHeaderClass}>
-                        Members
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell className={numberHeaderClass}>
-                        Actions
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell className={numberHeaderClass}>
-                        Live days
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell className={numberHeaderClass}>
-                        Actions/wk
+                        Active
                       </Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
-                    {bySystem.map(row => (
-                      <Table.Row key={row.system} className={zebraStripeClass}>
+                    {series.map(row => (
+                      <Table.Row key={row.month} className={zebraStripeClass}>
                         <Table.Cell className="text-gray-300">
-                          {ENGAGEMENT_SYSTEM_LABELS[row.system]}
+                          {row.label}
                         </Table.Cell>
+                        {ENGAGEMENT_SYSTEMS.map(system => (
+                          <Table.Cell
+                            key={system}
+                            className={`${numberCellClass} ${monthColumnClass(system)}`}
+                          >
+                            <Count value={row.members[system]} />
+                          </Table.Cell>
+                        ))}
                         <Table.Cell className={numberCellClass}>
-                          <Count value={row.members} />
-                          {row.members > 0 && (
-                            <Text size="1" className="ml-1 text-gray-500">
-                              {percent(row.members)}
-                            </Text>
-                          )}
-                        </Table.Cell>
-                        <Table.Cell className={numberCellClass}>
-                          <Count value={row.events} />
-                        </Table.Cell>
-                        <Table.Cell className={numberCellClass}>
-                          <Count value={row.liveDays} />
-                        </Table.Cell>
-                        <Table.Cell className={numberCellClass}>
-                          <Count value={row.actionsPerWeek} />
+                          <Count value={row.activeMembers} />
                         </Table.Cell>
                       </Table.Row>
                     ))}
@@ -1148,419 +1535,175 @@ export default function AdminInsights() {
                 </Table.Root>
               </details>
             </Box>
-            <Box>
-              <SubsectionHeading
-                title="Top by system"
-                hint={`the ${TOP_PER_SYSTEM} busiest members of each this period`}
-              />
-              <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-                {ENGAGEMENT_SYSTEMS.map(system => (
-                  <Box key={system}>
-                    <Text
-                      as="p"
-                      size="2"
-                      className="border-b border-gray-800 pb-1 text-gray-300"
-                    >
-                      {ENGAGEMENT_SYSTEM_LABELS[system]}{' '}
-                      <span className="text-gray-500">
-                        {ENGAGEMENT_SYSTEM_UNITS[system]}
-                      </span>
+          </Box>
+        </Tabs.Content>
+
+        <Tabs.Content value="pvm">
+          <PvmActivitySection days={days} />
+          <Box mt="8" id={SECTION_IDS.skilling} className={sectionClass}>
+            <SectionHeading title="Skilling only" />
+            <Note>
+              Online this period but under the PvM floor. Tenure cohorts, with
+              PvM rates by join date, are on the{' '}
+              <button
+                type="button"
+                className={proseLinkClass}
+                onClick={() => goTo(SECTION_IDS.tenure)}
+              >
+                Members tab
+              </button>
+              .
+            </Note>
+            <SkillingOnlySection skilling={skilling} />
+          </Box>
+        </Tabs.Content>
+
+        <Tabs.Content value="members">
+          <ActivityByMonthSection clanFlows={clanFlows} />
+          <Box mt="8" id={SECTION_IDS.tenure} className={sectionClass}>
+            <SectionHeading title="By tenure" />
+            <Note>
+              The same rates for members by when they joined, over the last{' '}
+              {days} days. The newest cohort is partly survivorship (members who
+              joined and left are already off the roster), so read gaps as large
+              or small, not exact.
+            </Note>
+            {skilling.failure && !skilling.result ? (
+              <Box py="2">
+                <Retry
+                  message={skilling.failure}
+                  loading={skilling.loading}
+                  onRetry={skilling.retry}
+                />
+              </Box>
+            ) : !skilling.result ? (
+              <Text as="p" size="2" className="py-2 text-gray-500">
+                Reading Wise Old Man…
+              </Text>
+            ) : (
+              <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+                {[
+                  {
+                    key: 'active',
+                    title: 'Active in-game',
+                    value: (cohort: (typeof skilling.result.tenure)[number]) =>
+                      cohort.activeShare ?? 0,
+                    percent: true,
+                  },
+                  {
+                    key: 'systems',
+                    title: 'Touched a clan system',
+                    value: (cohort: (typeof skilling.result.tenure)[number]) =>
+                      cohort.usedSystemShare ?? 0,
+                    percent: true,
+                  },
+                  {
+                    key: 'floor',
+                    title: `At or above ${skilling.result.floor} EHB, of active`,
+                    value: (cohort: (typeof skilling.result.tenure)[number]) =>
+                      cohort.aboveFloorShare ?? 0,
+                    percent: true,
+                  },
+                  {
+                    key: 'median',
+                    title: 'Median EHB gained, of active',
+                    value: (cohort: (typeof skilling.result.tenure)[number]) =>
+                      cohort.medianEhbActive,
+                    percent: false,
+                  },
+                ].map(metric => (
+                  <Box key={metric.key}>
+                    <Text as="p" size="2" className="mb-1 text-gray-300">
+                      {metric.title}
                     </Text>
-                    {topBySystem[system].length === 0 ? (
-                      <Text as="p" size="2" className="py-1 text-gray-600">
-                        Nothing interesting happens.
-                      </Text>
-                    ) : (
-                      <ol className="mt-1">
-                        {topBySystem[system].map((leader, index) => (
-                          <li
-                            key={leader.discordId}
-                            className={`flex items-baseline justify-between gap-3 py-0.5 ${zebraStripeClass}`}
-                          >
-                            <Text size="2">
-                              <span className="mr-2 text-gray-500">
-                                {index + 1}
-                              </span>
-                              <Link
-                                to={`/users/${leader.discordId}`}
-                                className={proseLinkClass}
-                              >
-                                {memberName(leader.discordId)}
-                              </Link>
-                            </Text>
-                            <Text
-                              size="2"
-                              className="tabular-nums text-gray-100"
-                            >
-                              {leader.events.toLocaleString()}
-                            </Text>
-                          </li>
-                        ))}
-                      </ol>
-                    )}
+                    <HorizontalBars
+                      rows={(skilling.result?.tenure ?? []).map(cohort => ({
+                        label: cohort.label.replace('Joined ', ''),
+                        value: metric.value(cohort),
+                        annotation: `n=${cohort.members}`,
+                      }))}
+                      max={metric.percent ? 100 : undefined}
+                      formatValue={value =>
+                        metric.percent ? `${value}%` : value.toLocaleString()
+                      }
+                      labelWidth={150}
+                    />
                   </Box>
                 ))}
               </div>
-            </Box>
-            <Box>
-              <SubsectionHeading
-                title="Most engaged"
-                hint={`top ${Math.min(mostEngaged.length, MOST_ENGAGED_SHOWN)}, by systems touched, then actions`}
-              />
-              <Table.Root size="2">
-                <Table.Header>
-                  <Table.Row>
-                    <Table.ColumnHeaderCell className={numberHeaderClass}>
-                      #
-                    </Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell className={headerCellClass}>
-                      Member
-                    </Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell
-                      className={`${headerCellClass} hidden sm:table-cell`}
-                    >
-                      Systems
-                    </Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell className={numberHeaderClass}>
-                      Actions
-                    </Table.ColumnHeaderCell>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {mostEngaged.map((row, index) => (
-                    <Table.Row key={row.discordId} className={zebraStripeClass}>
-                      <Table.Cell
-                        className={`${numberCellClass} text-gray-500`}
-                      >
-                        {index + 1}
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Link
-                          to={`/users/${row.discordId}`}
-                          className={proseLinkClass}
-                        >
-                          {memberName(row.discordId)}
-                        </Link>
-                        <Text size="1" className="ml-1 text-gray-500 sm:hidden">
-                          {row.systems.length} of {ENGAGEMENT_SYSTEMS.length}
-                        </Text>
-                      </Table.Cell>
-                      <Table.Cell className="hidden text-gray-400 sm:table-cell">
-                        {row.systems
-                          .map(
-                            (system: EngagementSystem) =>
-                              ENGAGEMENT_SYSTEM_SHORT_LABELS[system],
-                          )
-                          .join(', ')}
-                      </Table.Cell>
-                      <Table.Cell className={numberCellClass}>
-                        <Count value={row.events} />
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Root>
-            </Box>
-          </Flex>
-        )}
-
-        <Box mt="4">
-          <SubsectionHeading
-            title="Month by month"
-            hint="distinct members per system on a shared scale; the number is this month so far"
-          />
-          <SmallMultiples
-            series={ENGAGEMENT_SYSTEMS.map(system => ({
-              key: system,
-              title: ENGAGEMENT_SYSTEM_LABELS[system],
-              points: series.map(row => ({
-                label: row.label.slice(0, 3),
-                value: row.members[system],
-              })),
-            }))}
-            max={Math.max(
-              ...series.flatMap(row =>
-                ENGAGEMENT_SYSTEMS.map(system => row.members[system]),
-              ),
             )}
-          />
-          <details className="mt-2">
-            <summary className={tableToggleClass}>Table view</summary>
-            <Table.Root size="2">
-              <Table.Header>
-                <Table.Row>
-                  <Table.ColumnHeaderCell className={headerCellClass}>
-                    Month
-                  </Table.ColumnHeaderCell>
-                  {ENGAGEMENT_SYSTEMS.map(system => (
-                    <Table.ColumnHeaderCell
-                      key={system}
-                      className={`${numberHeaderClass} ${monthColumnClass(system)}`}
-                    >
-                      {ENGAGEMENT_SYSTEM_SHORT_LABELS[system]}
-                    </Table.ColumnHeaderCell>
-                  ))}
-                  <Table.ColumnHeaderCell className={numberHeaderClass}>
-                    Active
-                  </Table.ColumnHeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {series.map(row => (
-                  <Table.Row key={row.month} className={zebraStripeClass}>
-                    <Table.Cell className="text-gray-300">
-                      {row.label}
-                    </Table.Cell>
-                    {ENGAGEMENT_SYSTEMS.map(system => (
-                      <Table.Cell
-                        key={system}
-                        className={`${numberCellClass} ${monthColumnClass(system)}`}
-                      >
-                        <Count value={row.members[system]} />
-                      </Table.Cell>
-                    ))}
-                    <Table.Cell className={numberCellClass}>
-                      <Count value={row.activeMembers} />
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Root>
-          </details>
-        </Box>
-      </Box>
-
-      <PvmActivitySection days={days} />
-
-      <Box mt="8" id={SECTION_IDS.months} className={sectionClass}>
-        <SectionHeading
-          title="Activity by month"
-          summary={
-            <Text size="2" className="text-gray-400">
-              last {MONTHS_SHOWN} months
-            </Text>
-          }
-        />
-        <Note>
-          Active share is the percent of the roster that played (any xp gained,
-          per Wise Old Man) or touched a clan system in the month. Churn is
-          people active the month before but not this one; reactivation is the
-          reverse. The current month is partial.
-        </Note>
-        {months.failure && !months.result && (
-          <Box py="2">
-            <Retry
-              message={months.failure}
-              loading={months.loading}
-              onRetry={months.retry}
-            />
           </Box>
-        )}
-        <SmallMultiples
-          series={[
-            ...(months.result
-              ? [
-                  {
-                    key: 'ingame',
-                    title: 'Played, share of roster',
-                    points: months.result.months.map(row => ({
-                      label: row.label.slice(0, 3),
-                      value: row.activeShare ?? 0,
-                    })),
-                  },
-                ]
-              : []),
-            {
-              key: 'systems',
-              title: 'Touched a clan system, share of roster',
-              points: clanFlows.map(row => ({
-                label: row.label.slice(0, 3),
-                value: row.activeShare ?? 0,
-              })),
-            },
-          ]}
-          max={100}
-          formatValue={value => `${value}%`}
-        />
-        {!months.result && !months.failure && (
-          <Text as="p" size="2" className="mt-1 text-gray-500">
-            Reading Wise Old Man for the in-game months…
-          </Text>
-        )}
-        <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-2">
-          {months.result && (
-            <Box>
-              <Text as="p" size="2" className="mb-1 text-gray-300">
-                In-game, month over month
-              </Text>
-              <DivergingBars
-                points={months.result.months.map(row => ({
-                  label: row.label.slice(0, 3),
-                  up: row.reactivated,
-                  down: row.churned,
-                }))}
-                upLabel="Came back"
-                downLabel="Went quiet"
-              />
-            </Box>
-          )}
-          <Box>
-            <Text as="p" size="2" className="mb-1 text-gray-300">
-              Clan systems, month over month
-            </Text>
-            <DivergingBars
-              points={clanFlows.map(row => ({
-                label: row.label.slice(0, 3),
-                up: row.reactivated,
-                down: row.churned,
-              }))}
-              upLabel="Came back"
-              downLabel="Went quiet"
-            />
-          </Box>
-        </div>
-      </Box>
-
-      <Box mt="8" id={SECTION_IDS.tenure} className={sectionClass}>
-        <SectionHeading title="By tenure" />
-        <Note>
-          The same rates for members by when they joined, over the last {days}{' '}
-          days. The newest cohort is partly survivorship (members who joined and
-          left are already off the roster), so read gaps as large or small, not
-          exact.
-        </Note>
-        {skilling.failure && !skilling.result ? (
-          <Box py="2">
-            <Retry
-              message={skilling.failure}
-              loading={skilling.loading}
-              onRetry={skilling.retry}
-            />
-          </Box>
-        ) : !skilling.result ? (
-          <Text as="p" size="2" className="py-2 text-gray-500">
-            Reading Wise Old Man…
-          </Text>
-        ) : (
-          <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-            {[
-              {
-                key: 'active',
-                title: 'Active in-game',
-                value: (cohort: (typeof skilling.result.tenure)[number]) =>
-                  cohort.activeShare ?? 0,
-                percent: true,
-              },
-              {
-                key: 'systems',
-                title: 'Touched a clan system',
-                value: (cohort: (typeof skilling.result.tenure)[number]) =>
-                  cohort.usedSystemShare ?? 0,
-                percent: true,
-              },
-              {
-                key: 'floor',
-                title: `At or above ${skilling.result.floor} EHB, of active`,
-                value: (cohort: (typeof skilling.result.tenure)[number]) =>
-                  cohort.aboveFloorShare ?? 0,
-                percent: true,
-              },
-              {
-                key: 'median',
-                title: 'Median EHB gained, of active',
-                value: (cohort: (typeof skilling.result.tenure)[number]) =>
-                  cohort.medianEhbActive,
-                percent: false,
-              },
-            ].map(metric => (
-              <Box key={metric.key}>
-                <Text as="p" size="2" className="mb-1 text-gray-300">
-                  {metric.title}
-                </Text>
-                <HorizontalBars
-                  rows={(skilling.result?.tenure ?? []).map(cohort => ({
-                    label: cohort.label.replace('Joined ', ''),
-                    value: metric.value(cohort),
-                    annotation: `n=${cohort.members}`,
-                  }))}
-                  max={metric.percent ? 100 : undefined}
-                  formatValue={value =>
-                    metric.percent ? `${value}%` : value.toLocaleString()
-                  }
-                  labelWidth={150}
-                />
-              </Box>
-            ))}
-          </div>
-        )}
-      </Box>
-
-      <Box mt="8" id={SECTION_IDS.notParticipating} className={sectionClass}>
-        <SectionHeading
-          title="Not participating"
-          summary={
-            <Text size="2" className="text-gray-400">
-              {idleCount} of {rosterSize} members
-            </Text>
-          }
-        />
-        <Note>
-          Members with no clan-system event in the last {days} days, plus
-          members who were online but did no PvM. In-game: days since Wise Old
-          Man last saw any account of theirs change. Clan activity: days since
-          their last event, within the last {MONTHS_SHOWN} months. EHP and EHB:
-          efficient hours played and bossed, gained this period.
-        </Note>
-        <SubsectionHeading
-          id={SECTION_IDS.playing}
-          title="Playing, not participating"
-          hint="active in-game this period, nothing in clan systems"
-          summary={
-            <Text size="2" className="text-gray-400">
-              {inactivity.playingNotParticipating.length}
-            </Text>
-          }
-        />
-        <InactiveTable
-          rows={inactivity.playingNotParticipating}
-          memberName={memberName}
-          inGame
-        />
-        <SubsectionHeading
-          id={SECTION_IDS.quiet}
-          title="Gone quiet"
-          hint="nothing in-game or in clan systems this period"
-          summary={
-            <Text size="2" className="text-gray-400">
-              {inactivity.goneQuiet.length}
-            </Text>
-          }
-        />
-        <InactiveTable
-          rows={inactivity.goneQuiet}
-          memberName={memberName}
-          inGame
-        />
-        <SkillingOnlySection skilling={skilling} />
-        {inactivity.notOnWom.length > 0 && (
-          <>
-            <SubsectionHeading
-              title="Not on Wise Old Man"
-              hint="no account of theirs is in the group, so in-game is unknown"
+          <Box
+            mt="8"
+            id={SECTION_IDS.notParticipating}
+            className={sectionClass}
+          >
+            <SectionHeading
+              title="Not participating"
               summary={
                 <Text size="2" className="text-gray-400">
-                  {inactivity.notOnWom.length}
+                  {idleCount} of {rosterSize} members
+                </Text>
+              }
+            />
+            <Note>
+              Members with no clan-system event in the last {days} days, plus
+              members who were online but did no PvM. In-game: days since Wise
+              Old Man last saw any account of theirs change. Clan activity: days
+              since their last event, within the last {MONTHS_SHOWN} months. EHP
+              and EHB: efficient hours played and bossed, gained this period.
+            </Note>
+            <SubsectionHeading
+              id={SECTION_IDS.playing}
+              title="Playing, not participating"
+              hint="active in-game this period, nothing in clan systems"
+              summary={
+                <Text size="2" className="text-gray-400">
+                  {inactivity.playingNotParticipating.length}
                 </Text>
               }
             />
             <InactiveTable
-              rows={inactivity.notOnWom}
+              rows={inactivity.playingNotParticipating}
               memberName={memberName}
-              inGame={false}
+              inGame
             />
-          </>
-        )}
-      </Box>
+            <SubsectionHeading
+              id={SECTION_IDS.quiet}
+              title="Gone quiet"
+              hint="nothing in-game or in clan systems this period"
+              summary={
+                <Text size="2" className="text-gray-400">
+                  {inactivity.goneQuiet.length}
+                </Text>
+              }
+            />
+            <InactiveTable
+              rows={inactivity.goneQuiet}
+              memberName={memberName}
+              inGame
+            />
+            {inactivity.notOnWom.length > 0 && (
+              <>
+                <SubsectionHeading
+                  title="Not on Wise Old Man"
+                  hint="no account of theirs is in the group, so in-game is unknown"
+                  summary={
+                    <Text size="2" className="text-gray-400">
+                      {inactivity.notOnWom.length}
+                    </Text>
+                  }
+                />
+                <InactiveTable
+                  rows={inactivity.notOnWom}
+                  memberName={memberName}
+                  inGame={false}
+                />
+              </>
+            )}
+          </Box>
+        </Tabs.Content>
+      </Tabs.Root>
     </Box>
   );
 }
