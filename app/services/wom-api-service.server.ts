@@ -89,7 +89,10 @@ export interface IMemberGain {
 
 interface IGainsCacheEntry {
   fetchedAt: number;
-  rows: IMemberGain[];
+  /** When this entry stops being served; Infinity for a settled window. */
+  expiresAt: number;
+  /** The read itself, so concurrent callers for one window share a single WOM walk. */
+  rows: Promise<IMemberGain[]>;
 }
 
 // WOM's documented page size ceiling for group gains. In practice the endpoint ignores
@@ -105,6 +108,9 @@ const GAINS_MAX_PAGES = 20;
 // from re-walking the group on every view — WOM is a volunteer project and we don't hammer it.
 const GAINS_SETTLE_MS = 24 * 60 * 60 * 1000;
 const GAINS_LIVE_TTL_MS = 15 * 60 * 1000;
+// Live keys embed their 15-minute bucket, so every bucket adds keys that will never be read
+// again; expired entries are dropped on each write, and the total is capped, oldest first.
+const GAINS_MAX_ENTRIES = 64;
 const gainsCache = remember(
   'womGains',
   () => new Map<string, IGainsCacheEntry>(),
@@ -159,16 +165,34 @@ export const getGroupGainsForWindow = async (
 ): Promise<IMemberGain[]> => {
   const key = `${metric}|${startDate.toISOString()}|${endDate.toISOString()}`;
   const now = Date.now();
-  const settled = endDate.getTime() <= now - GAINS_SETTLE_MS;
   const cached = gainsCache.get(key);
-  if (cached && (settled || now - cached.fetchedAt < GAINS_LIVE_TTL_MS)) {
+  if (cached && now < cached.expiresAt) {
     return cached.rows;
   }
-  const rows = [
-    ...(
-      await fetchGainsPages(metric, startDate, endDate, 0, new Map())
-    ).values(),
-  ];
-  gainsCache.set(key, { fetchedAt: now, rows });
+  const settled = endDate.getTime() <= now - GAINS_SETTLE_MS;
+  const rows = fetchGainsPages(metric, startDate, endDate, 0, new Map()).then(
+    pages => [...pages.values()],
+  );
+  // A failed read must not be served from cache; drop it so the next caller retries.
+  rows.catch(() => gainsCache.delete(key));
+  pruneGainsCache(now);
+  gainsCache.set(key, {
+    fetchedAt: now,
+    expiresAt: settled ? Infinity : now + GAINS_LIVE_TTL_MS,
+    rows,
+  });
   return rows;
+};
+
+/** Drops expired entries, then the oldest beyond the cap, before a new entry goes in. */
+const pruneGainsCache = (now: number) => {
+  const expired = [...gainsCache.entries()]
+    .filter(([, entry]) => entry.expiresAt <= now)
+    .map(([key]) => key);
+  expired.forEach(key => gainsCache.delete(key));
+  const overflow = [...gainsCache.entries()]
+    .sort(([, a], [, b]) => a.fetchedAt - b.fetchedAt)
+    .slice(0, Math.max(0, gainsCache.size - (GAINS_MAX_ENTRIES - 1)))
+    .map(([key]) => key);
+  overflow.forEach(key => gainsCache.delete(key));
 };

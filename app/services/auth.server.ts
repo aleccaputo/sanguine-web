@@ -154,6 +154,16 @@ export const requireModerator = async (
   request: Request,
 ): Promise<ISessionUser> => {
   const user = await requireStaff(request);
+  if (typeof user.isModerator !== 'boolean') {
+    // Minted before isModerator existed: not a denial, just a cookie that predates the flag.
+    // Clear it and send them through login so the real roles get stamped.
+    audit('auth.stale_session', {
+      discordId: user.discordId,
+      username: user.username,
+      path: new URL(request.url).pathname,
+    });
+    throw await authenticator.logout(request, { redirectTo: '/login' });
+  }
   if (!user.isModerator) {
     audit('auth.denied', {
       discordId: user.discordId,

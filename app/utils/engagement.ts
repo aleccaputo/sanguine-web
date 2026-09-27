@@ -195,11 +195,16 @@ export interface IEngagementSummary {
 const inWindow = (events: IEngagementEvent[], start: string, end: string) =>
   events.filter(event => event.at >= start && event.at < end);
 
-const groupByMember = (events: IEngagementEvent[]) =>
-  events.reduce<Map<string, IEngagementEvent[]>>(
-    (acc, event) =>
-      acc.set(event.discordId, [...(acc.get(event.discordId) ?? []), event]),
-    new Map(),
+const distinct = <T>(values: T[]): T[] => [...new Set(values)];
+
+const groupByMember = (
+  events: IEngagementEvent[],
+): Map<string, IEngagementEvent[]> =>
+  new Map(
+    distinct(events.map(event => event.discordId)).map(discordId => [
+      discordId,
+      events.filter(event => event.discordId === discordId),
+    ]),
   );
 
 /** Which systems saw activity, and who touched how many of them, within [start, end). */
@@ -339,6 +344,22 @@ export const PVM_METRICS: { metric: string; label: string }[] = [
 
 export const PVM_PERIOD_DAYS = [7, 30, 90] as const;
 
+export const DEFAULT_PVM_PERIOD_DAYS = 30;
+
+/** The page and its resource routes read ?days the same way: a listed period, else the default. */
+export const parsePvmPeriodDays = (value: string | null): number => {
+  const days = Number(value);
+  return (PVM_PERIOD_DAYS as readonly number[]).includes(days)
+    ? days
+    : DEFAULT_PVM_PERIOD_DAYS;
+};
+
+/**
+ * What a WOM-backed resource route answers with: the result, or a failure the page can show
+ * in place (a retry state) instead of throwing into the nearest error boundary.
+ */
+export type FetchOutcome<T> = ({ ok: true } & T) | { ok: false; error: string };
+
 // ---- Inactivity ----
 
 export interface IMemberActivityInput {
@@ -379,12 +400,12 @@ const daysBetween = (from: string | null, now: Date): number | null =>
 export const lastEventAtByMember = (
   events: IEngagementEvent[],
 ): Map<string, string> =>
-  events.reduce<Map<string, string>>((acc, event) => {
-    const current = acc.get(event.discordId);
-    return current === undefined || event.at > current
-      ? acc.set(event.discordId, event.at)
-      : acc;
-  }, new Map());
+  // Ascending by time, so the Map constructor's last-entry-wins keeps each member's latest.
+  new Map(
+    [...events]
+      .sort((a, b) => a.at.localeCompare(b.at))
+      .map(event => [event.discordId, event.at]),
+  );
 
 /**
  * Splits the members with no clan-system event since `start` by what WOM says they did in-game
@@ -447,19 +468,17 @@ export interface IPlayerGainLike extends IMemberGainLike {
  */
 export const sumGainsByPlayer = <T extends IPlayerGainLike>(
   lists: T[][],
-): IPlayerGainLike[] => [
-  ...lists
-    .flat()
-    .reduce<Map<string, IPlayerGainLike>>((acc, row) => {
-      const current = acc.get(row.username);
-      return acc.set(row.username, {
-        username: row.username,
-        displayName: current?.displayName ?? row.displayName,
-        gained: (current?.gained ?? 0) + row.gained,
-      });
-    }, new Map())
-    .values(),
-];
+): IPlayerGainLike[] => {
+  const rows = lists.flat();
+  return distinct(rows.map(row => row.username)).map(username => {
+    const own = rows.filter(row => row.username === username);
+    return {
+      username,
+      displayName: own[0].displayName,
+      gained: own.reduce((sum, row) => sum + row.gained, 0),
+    };
+  });
+};
 
 // ---- Skilling only ----
 

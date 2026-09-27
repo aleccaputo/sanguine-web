@@ -1,14 +1,13 @@
 import { Metric } from '@wise-old-man/utils';
-import { getBounties } from '~/data/bounties';
+import { getBounties, getBountyById } from '~/data/bounties';
 import { getPersonalBestsSince } from '~/data/personal-bests';
-import { getAuditDataForDateRange } from '~/data/points-audit';
+import { getAuditEventsSince } from '~/data/points-audit';
 import { getRaidCompletionsSince } from '~/data/raid-completions';
 import { getSpinsSince } from '~/data/slayer';
-import { getAllUserAlts } from '~/data/user';
 import {
-  getUsersWithNicknames,
-  ISanguineUserWithNickname,
-} from '~/services/sanguine-service.server';
+  getRsnMemberBridge,
+  IRsnMemberBridge,
+} from '~/services/member-lookup.server';
 import {
   getClanFromWom,
   getGroupGainsForWindow,
@@ -19,7 +18,9 @@ import {
   IBountyScorecard,
   IBountyWindow,
   IEngagementEvent,
+  IMemberGainLike,
   ALL_RAIDS_METRIC,
+  FetchOutcome,
   IPvmActivity,
   ISkillingMember,
   PVM_METRICS,
@@ -89,8 +90,7 @@ export const getBountyScorecard = async (
   bountyId: string,
   now: Date = bucketedNow(),
 ): Promise<IBountyScorecardResult | null> => {
-  const rows = await getBounties();
-  const bounty = rows.find(row => row.id === bountyId);
+  const bounty = await getBountyById(bountyId);
   if (!bounty) {
     return null;
   }
@@ -130,7 +130,7 @@ export const getEngagementEvents = async (
   since: string,
 ): Promise<IEngagementEvent[]> => {
   const [audits, spins, bounties, raids, personalBests] = await Promise.all([
-    getAuditDataForDateRange(since, new Date().toISOString()),
+    getAuditEventsSince(since),
     getSpinsSince(since),
     getBounties(),
     getRaidCompletionsSince(since),
@@ -238,56 +238,49 @@ export interface IInGameActivity {
  * no extra WOM calls. Accounts map to members through nicknames and registered alts, the same
  * bridge the collection log uses; members with no account in the group are simply absent.
  */
-type UserAlt = Awaited<ReturnType<typeof getAllUserAlts>>[number];
-
-/** Normalized RSN (nickname or registered alt) to the owning member's discordId. */
-const discordIdByRsnFor = (
-  users: ISanguineUserWithNickname[],
-  alts: UserAlt[],
-): Map<string, string> =>
-  new Map([
-    ...users
-      .filter(user => user.nickname)
-      .map(
-        user => [normalizeRsn(user.nickname ?? ''), user.discordId] as const,
-      ),
-    ...alts.map(alt => [normalizeRsn(alt.altName), alt.discordId] as const),
-  ]);
-
 export const getInGameActivityByDiscordId = async (
-  users: ISanguineUserWithNickname[],
+  bridge: IRsnMemberBridge,
 ): Promise<Map<string, IInGameActivity>> => {
-  const [alts, memberships] = await Promise.all([
-    getAllUserAlts(),
-    getClanFromWom(),
-  ]);
+  const memberships = await getClanFromWom();
+  const { discordIdByRsn, users } = bridge;
   const named = users.filter(user => user.nickname);
-  const discordIdByRsn = discordIdByRsnFor(users, alts);
   const mainRsnByDiscordId = new Map(
     named.map(user => [user.discordId, normalizeRsn(user.nickname ?? '')]),
   );
-  return memberships.reduce<Map<string, IInGameActivity>>((acc, membership) => {
+  // Each account in the group, tagged with the member it belongs to (unmapped ones dropped).
+  const accounts = memberships.flatMap(membership => {
     const rsn = normalizeRsn(membership.player.displayName);
     const discordId = discordIdByRsn.get(rsn);
-    if (discordId === undefined) {
-      return acc;
-    }
-    const changedAt = membership.player.lastChangedAt
-      ? new Date(membership.player.lastChangedAt).toISOString()
-      : null;
-    const current = acc.get(discordId);
-    const latest = [current?.lastChangedAt ?? null, changedAt]
-      .filter((value): value is string => value !== null)
-      .sort()
-      .at(-1);
-    return acc.set(discordId, {
-      lastChangedAt: latest ?? null,
-      role:
-        current === undefined || mainRsnByDiscordId.get(discordId) === rsn
-          ? membership.role
-          : current.role,
-    });
-  }, new Map());
+    return discordId === undefined
+      ? []
+      : [
+          {
+            discordId,
+            rsn,
+            role: membership.role,
+            changedAt: membership.player.lastChangedAt
+              ? new Date(membership.player.lastChangedAt).toISOString()
+              : null,
+          },
+        ];
+  });
+  return new Map(
+    [...new Set(accounts.map(account => account.discordId))].map(discordId => {
+      const own = accounts.filter(account => account.discordId === discordId);
+      const main = own.find(
+        account => mainRsnByDiscordId.get(discordId) === account.rsn,
+      );
+      const latest = own
+        .map(account => account.changedAt)
+        .filter((value): value is string => value !== null)
+        .sort()
+        .at(-1);
+      return [
+        discordId,
+        { lastChangedAt: latest ?? null, role: (main ?? own[0]).role },
+      ];
+    }),
+  );
 };
 
 export interface ISkillingRow extends ISkillingMember {
@@ -313,21 +306,30 @@ export const getSkillingOnly = async (
   now: Date = bucketedNow(),
 ): Promise<ISkillingResult> => {
   const start = new Date(now.getTime() - days * DAY_MS);
-  const users = await getUsersWithNicknames();
-  const [inGame, alts, ehb, ehp] = await Promise.all([
-    getInGameActivityByDiscordId(users),
-    getAllUserAlts(),
+  const [bridge, ehb, ehp] = await Promise.all([
+    getRsnMemberBridge(),
     getGroupGainsForWindow(Metric.EHB, start, now),
     getGroupGainsForWindow(Metric.EHP, start, now),
   ]);
-  const discordIdByRsn = discordIdByRsnFor(users, alts);
-  const gainedByMember = (gains: { displayName: string; gained: number }[]) =>
-    gains.reduce<Map<string, number>>((acc, gain) => {
+  const inGame = await getInGameActivityByDiscordId(bridge);
+  const { discordIdByRsn, users } = bridge;
+  // Sum each metric's gains per member across their main and alts.
+  const gainedByMember = (gains: IMemberGainLike[]): Map<string, number> => {
+    const owned = gains.flatMap(gain => {
       const discordId = discordIdByRsn.get(normalizeRsn(gain.displayName));
       return discordId === undefined
-        ? acc
-        : acc.set(discordId, (acc.get(discordId) ?? 0) + gain.gained);
-    }, new Map());
+        ? []
+        : [{ discordId, gained: gain.gained }];
+    });
+    return new Map(
+      [...new Set(owned.map(gain => gain.discordId))].map(discordId => [
+        discordId,
+        owned
+          .filter(gain => gain.discordId === discordId)
+          .reduce((sum, gain) => sum + gain.gained, 0),
+      ]),
+    );
+  };
   const ehbByMember = gainedByMember(ehb);
   const ehpByMember = gainedByMember(ehp);
   const nameByDiscordId = new Map(
@@ -355,4 +357,20 @@ export const getSkillingOnly = async (
       name: nameByDiscordId.get(row.discordId) ?? null,
     })),
   };
+};
+
+/**
+ * Runs a WOM-backed read for a resource route, turning a failure into a payload the page can
+ * render as a retry state. Wise Old Man is a volunteer service; a 429 or a timeout must not
+ * unmount the whole insights page through the root error boundary.
+ */
+export const womOutcome = async <T extends object>(
+  read: () => Promise<T>,
+): Promise<FetchOutcome<T>> => {
+  try {
+    return { ok: true, ...(await read()) };
+  } catch (error) {
+    console.error('insights: Wise Old Man read failed', error);
+    return { ok: false, error: 'Wise Old Man did not answer.' };
+  }
 };

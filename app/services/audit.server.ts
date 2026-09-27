@@ -9,6 +9,7 @@ export const audit = (
     | 'auth.login'
     | 'auth.login_failed'
     | 'auth.denied'
+    | 'auth.stale_session'
     | 'auth.logout'
     | 'admin.action',
   details: Record<string, unknown>,

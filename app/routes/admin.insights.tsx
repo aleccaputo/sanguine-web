@@ -1,8 +1,10 @@
 import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import {
+  isRouteErrorResponse,
   Link,
   useFetcher,
   useLoaderData,
+  useRouteError,
   useSearchParams,
 } from '@remix-run/react';
 import { Box, Flex, Heading, Select, Table, Text } from '@radix-ui/themes';
@@ -22,7 +24,7 @@ import {
   getInGameActivityByDiscordId,
 } from '~/services/engagement-service.server';
 import type { IBountyListing } from '~/services/engagement-service.server';
-import { getUsersWithNicknames } from '~/services/sanguine-service.server';
+import { getRsnMemberBridge } from '~/services/member-lookup.server';
 import { BOUNTY_STATUS } from '~/utils/bounty';
 import { rankLabel } from '~/utils/clan-ranks';
 import {
@@ -33,6 +35,7 @@ import {
   IInactiveMember,
   lastEventAtByMember,
   monthlyEngagementSeries,
+  parsePvmPeriodDays,
   PVM_METRICS,
   PVM_PERIOD_DAYS,
   summarizeEngagement,
@@ -52,27 +55,29 @@ const MOST_ENGAGED_SHOWN = 25;
 // costs a bounded number of WOM reads.
 const AUTO_MEASURED_BOUNTIES = 2;
 
-const parseDays = (value: string | null): number => {
-  const days = Number(value);
-  return (PVM_PERIOD_DAYS as readonly number[]).includes(days) ? days : 30;
-};
-
 // Everything except the WOM gains, which the two resource routes serve on demand. The cached
 // WOM membership list is read once for in-game activity.
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireModerator(request);
-  const days = parseDays(new URL(request.url).searchParams.get('days'));
+  const days = parsePvmPeriodDays(
+    new URL(request.url).searchParams.get('days'),
+  );
   const now = new Date();
   const windowStart = new Date(now.getTime() - days * DAY_MS).toISOString();
   const historyStart = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (MONTHS_SHOWN - 1), 1),
   ).toISOString();
-  const [events, bounties, users] = await Promise.all([
+  const [allEvents, bounties, bridge] = await Promise.all([
     getEngagementEvents(historyStart),
     getBountyListings(),
-    getUsersWithNicknames(),
+    getRsnMemberBridge(),
   ]);
-  const inGame = await getInGameActivityByDiscordId(users);
+  const { users } = bridge;
+  // Audit rows outlive membership; only count events by people still on the roster so the
+  // shares add up and the boards never list someone who has left.
+  const rosterIds = new Set(users.map(user => user.discordId));
+  const events = allEvents.filter(event => rosterIds.has(event.discordId));
+  const inGame = await getInGameActivityByDiscordId(bridge);
   const lastEvents = lastEventAtByMember(events);
   const summary = summarizeEngagement(events, windowStart, now.toISOString());
   const inactivity = summarizeInactivity(
@@ -106,21 +111,34 @@ const tableToggleClass = 'cursor-pointer select-none text-sm text-gray-500';
 const numberCellClass = 'text-right tabular-nums';
 const numberHeaderClass = `${headerCellClass} text-right`;
 
-const Count = ({ value }: { value: number }) => (
+interface ICountProps {
+  value: number;
+}
+
+const Count = ({ value }: ICountProps) => (
   <span className={value === 0 ? 'text-gray-600' : 'text-gray-100'}>
     {value.toLocaleString()}
   </span>
 );
 
+interface IFigureProps {
+  label: string;
+  value: ReactNode;
+}
+
 /** "label value" pair for the figure strips: gray label, white number. */
-const Figure = ({ label, value }: { label: string; value: ReactNode }) => (
+const Figure = ({ label, value }: IFigureProps) => (
   <span className="whitespace-nowrap text-gray-400">
     {label} <span className="text-gray-100">{value}</span>
   </span>
 );
 
+interface INoteProps {
+  children: ReactNode;
+}
+
 /** One line under a heading saying what the numbers are. */
-const Note = ({ children }: { children: ReactNode }) => (
+const Note = ({ children }: INoteProps) => (
   <Text as="p" size="2" className="mb-2 mt-1 text-gray-500">
     {children}
   </Text>
@@ -128,8 +146,26 @@ const Note = ({ children }: { children: ReactNode }) => (
 
 const NoData = () => (
   <Text as="p" size="2" className="py-4 text-gray-600">
-    No data in this period.
+    Nothing interesting happens.
   </Text>
+);
+
+interface IRetryProps {
+  message: string;
+  onRetry: () => void;
+  loading: boolean;
+}
+
+/** In-place failure for a WOM-backed section or row: what went wrong and a way to try again. */
+const Retry = ({ message, onRetry, loading }: IRetryProps) => (
+  <Flex align="center" gap="3">
+    <Text size="2" className="text-gray-500">
+      {message}
+    </Text>
+    <Button type="button" size="sm" loading={loading} onClick={onRetry}>
+      Retry
+    </Button>
+  </Flex>
 );
 
 const formatGain = (metric: string, value: number) =>
@@ -182,7 +218,8 @@ function BountyRow({ bounty, autoLoad }: IBountyRowProps) {
   const fetcher = useFetcher<typeof bountyScorecardLoader>();
   const href = `/admin/insights/bounty/${bounty.id}`;
   const loading = fetcher.state !== 'idle';
-  const result = fetcher.data;
+  const result = fetcher.data?.ok ? fetcher.data.result : undefined;
+  const failure = fetcher.data?.ok === false ? fetcher.data.error : null;
 
   useEffect(() => {
     if (autoLoad && fetcher.state === 'idle' && fetcher.data === undefined) {
@@ -234,9 +271,10 @@ function BountyRow({ bounty, autoLoad }: IBountyRowProps) {
           type="button"
           size="sm"
           loading={loading}
+          title={failure ?? undefined}
           onClick={() => fetcher.load(href)}
         >
-          Measure
+          {failure ? 'Retry' : 'Measure'}
         </Button>
       </Table.Cell>
       <Table.Cell className="hidden sm:table-cell" />
@@ -294,7 +332,8 @@ function PvmActivitySection({ days }: IPvmActivitySectionProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
 
-  const result = fetcher.data;
+  const result = fetcher.data?.ok ? fetcher.data : undefined;
+  const failure = fetcher.data?.ok === false ? fetcher.data.error : null;
   const loading = fetcher.state !== 'idle';
 
   return (
@@ -318,7 +357,15 @@ function PvmActivitySection({ days }: IPvmActivitySectionProps) {
         Wise Old Man gains on {label.toLowerCase()} over the last {days} days.
         Members whose number moved at all count as active.
       </Note>
-      {!result ? (
+      {failure && !result ? (
+        <Box py="2">
+          <Retry
+            message={failure}
+            loading={loading}
+            onRetry={() => fetcher.load(href)}
+          />
+        </Box>
+      ) : !result ? (
         <Text as="p" size="2" className="py-4 text-gray-500">
           {loading ? 'Reading Wise Old Man…' : 'Pick a metric.'}
         </Text>
@@ -416,7 +463,8 @@ function SkillingOnlySection({ days }: ISkillingOnlySectionProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
 
-  const result = fetcher.data;
+  const result = fetcher.data?.ok ? fetcher.data : undefined;
+  const failure = fetcher.data?.ok === false ? fetcher.data.error : null;
   const loading = fetcher.state !== 'idle';
   const hours = (value: number) =>
     value.toLocaleString(undefined, {
@@ -441,7 +489,15 @@ function SkillingOnlySection({ days }: ISkillingOnlySectionProps) {
           ) : undefined
         }
       />
-      {!result ? (
+      {failure && !result ? (
+        <Box py="2">
+          <Retry
+            message={failure}
+            loading={loading}
+            onRetry={() => fetcher.load(href)}
+          />
+        </Box>
+      ) : !result ? (
         <Text as="p" size="2" className="py-2 text-gray-500">
           {loading ? 'Reading Wise Old Man…' : ''}
         </Text>
@@ -986,6 +1042,36 @@ export default function AdminInsights() {
           </>
         )}
       </Box>
+    </Box>
+  );
+}
+
+/** Keeps a failure on this screen inside the admin chrome instead of the site-wide error page. */
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const message = isRouteErrorResponse(error)
+    ? `${error.status} ${error.statusText}`
+    : error instanceof Error
+      ? error.message
+      : 'Something went wrong.';
+  return (
+    <Box>
+      <Heading size="7" className="font-normal text-gray-100">
+        Clan insights
+      </Heading>
+      <Text as="p" size="3" className="mt-2 text-gray-400">
+        The page could not load: {message}
+      </Text>
+      <Text as="p" size="3" className="mt-2">
+        <Link to="/admin/insights" className={proseLinkClass}>
+          Try again
+        </Link>
+        {' or '}
+        <Link to="/admin" className={proseLinkClass}>
+          back to admin
+        </Link>
+        .
+      </Text>
     </Box>
   );
 }

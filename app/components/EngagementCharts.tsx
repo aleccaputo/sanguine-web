@@ -39,8 +39,12 @@ interface ITooltipRow {
   value: string;
 }
 
+interface ITooltipBoxProps {
+  rows: ITooltipRow[];
+}
+
 /** Dark, square tooltip: value leads, label follows. */
-const TooltipBox = ({ rows }: { rows: ITooltipRow[] }) => (
+const TooltipBox = ({ rows }: ITooltipBoxProps) => (
   <Box className="rounded-sm border border-gray-700 bg-[#1a1a1e] px-2 py-1 text-sm shadow-none">
     {rows.map(row => (
       <Flex key={row.label} gap="2" align="baseline">

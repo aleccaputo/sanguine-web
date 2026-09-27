@@ -49,3 +49,12 @@ export const getClanDropsPaginated = async (
     totalPages: Math.ceil(totalCount / pageSize),
   };
 };
+
+export const getAuditEventsSince = async (since: string) =>
+  MOCK_DROPS.filter(d => d.createdAt >= since).map(
+    ({ type, destinationDiscordId, createdAt }) => ({
+      type,
+      destinationDiscordId,
+      createdAt,
+    }),
+  );
