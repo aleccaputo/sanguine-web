@@ -18,6 +18,12 @@ export interface ISessionUser {
   username: string;
   avatarUrl: string | null;
   isStaff: boolean;
+  /**
+   * Admin, moderator, or owner: the staff roles minus event team. Gates the screens that
+   * show member-level data (clan insights). Stamped at login like isStaff, so a session
+   * minted before the flag existed reads as false until the member logs in again.
+   */
+  isModerator: boolean;
 }
 
 // Same posture as the events API's token check: refuse to boot in production rather
@@ -41,13 +47,18 @@ export const sessionStorage = createCookieSessionStorage({
   },
 });
 
-// Any of these roles counts as event staff; unset vars are ignored.
-const staffRoleIds = [
+// Moderator-level roles; unset vars are ignored.
+const moderatorRoleIds = [
   process.env.ADMIN_ROLE_ID,
   process.env.MOD_ROLE_ID,
   process.env.OWNER_ROLE_ID,
-  process.env.EVENT_TEAM_ROLE_ID,
 ].filter((id): id is string => !!id);
+
+// Any of these roles counts as event staff: the moderator roles plus event team.
+const staffRoleIds = [
+  ...moderatorRoleIds,
+  ...[process.env.EVENT_TEAM_ROLE_ID].filter((id): id is string => !!id),
+];
 
 // Sentinel carried through remix-auth's error flash so /login can tell "wrong
 // role" apart from a genuinely failed OAuth exchange.
@@ -70,9 +81,17 @@ authenticator.use(
         const member = await getGuildMember(profile.id);
         const isStaff =
           !!member && member.roles.some(role => staffRoleIds.includes(role));
+        const isModerator =
+          !!member &&
+          member.roles.some(role => moderatorRoleIds.includes(role));
         const username = member?.nick ?? profile.displayName;
         const avatarHash = profile.__json.avatar;
-        audit('auth.login', { discordId: profile.id, username, isStaff });
+        audit('auth.login', {
+          discordId: profile.id,
+          username,
+          isStaff,
+          isModerator,
+        });
         if (!isStaff) {
           throw new Error(NOT_STAFF_MESSAGE);
         }
@@ -83,6 +102,7 @@ authenticator.use(
             ? `https://cdn.discordapp.com/avatars/${profile.id}/${avatarHash}.png?size=64`
             : null,
           isStaff,
+          isModerator,
         };
       } catch (error) {
         // The denied path is already audited above as auth.login with isStaff:false.
@@ -125,5 +145,27 @@ export const requireStaff = async (request: Request): Promise<ISessionUser> => {
   return user;
 };
 
-export const getSessionUser = (request: Request): Promise<ISessionUser | null> =>
-  authenticator.isAuthenticated(request);
+/**
+ * The logged-in moderator/admin/owner, or a redirect: anonymous and non-staff go through
+ * requireStaff's handling; event team lands back on /admin with a notice. Use on every
+ * loader and action of a moderator-only screen, including its resource routes.
+ */
+export const requireModerator = async (
+  request: Request,
+): Promise<ISessionUser> => {
+  const user = await requireStaff(request);
+  if (!user.isModerator) {
+    audit('auth.denied', {
+      discordId: user.discordId,
+      username: user.username,
+      path: new URL(request.url).pathname,
+      reason: 'moderator-only',
+    });
+    throw redirect('/admin?denied=moderator');
+  }
+  return user;
+};
+
+export const getSessionUser = (
+  request: Request,
+): Promise<ISessionUser | null> => authenticator.isAuthenticated(request);

@@ -15,7 +15,7 @@ import {
   SmallMultiples,
 } from '~/components/EngagementCharts';
 import { SectionHeading, SubsectionHeading } from '~/components/SectionHeading';
-import { requireStaff } from '~/services/auth.server';
+import { requireModerator } from '~/services/auth.server';
 import {
   getBountyListings,
   getEngagementEvents,
@@ -60,7 +60,7 @@ const parseDays = (value: string | null): number => {
 // Everything except the WOM gains, which the two resource routes serve on demand. The cached
 // WOM membership list is read once for in-game activity.
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireStaff(request);
+  await requireModerator(request);
   const days = parseDays(new URL(request.url).searchParams.get('days'));
   const now = new Date();
   const windowStart = new Date(now.getTime() - days * DAY_MS).toISOString();

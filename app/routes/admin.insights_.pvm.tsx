@@ -1,5 +1,5 @@
 import { json, LoaderFunctionArgs } from '@remix-run/node';
-import { requireStaff } from '~/services/auth.server';
+import { requireModerator } from '~/services/auth.server';
 import {
   DEFAULT_PVM_METRIC,
   getPvmActivity,
@@ -11,7 +11,7 @@ import { PVM_PERIOD_DAYS } from '~/utils/engagement';
 // days, from a single (cached) WOM group-gains read. Unknown metrics and periods fall back to
 // the defaults rather than erroring, so a stale link still renders something sensible.
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireStaff(request);
+  await requireModerator(request);
   const url = new URL(request.url);
   const metricParam = url.searchParams.get('metric') ?? '';
   const metric = isPvmMetricKey(metricParam) ? metricParam : DEFAULT_PVM_METRIC;
