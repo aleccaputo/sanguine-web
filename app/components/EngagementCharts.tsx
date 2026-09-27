@@ -1,4 +1,5 @@
 import { Box, Flex, Text } from '@radix-ui/themes';
+import { Fragment } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { jumpToSection } from '~/utils/jump-to-section';
 import {
@@ -8,6 +9,7 @@ import {
   LabelList,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -345,6 +347,236 @@ export function CompositionBar({
           </Flex>
         ))}
       </Flex>
+    </Box>
+  );
+}
+
+export interface IDumbbellRow {
+  key: string;
+  label: string;
+  before: number;
+  after: number;
+  /** Small gray text after the label, e.g. a date. */
+  sublabel?: string;
+}
+
+interface IDumbbellChartProps {
+  rows: IDumbbellRow[];
+  beforeLabel: string;
+  afterLabel: string;
+}
+
+/**
+ * Before -> after per item: two markers on one track joined by a line. The "after" marker
+ * wears the series hue and the "before" marker a lighter step of it, both ringed in the surface
+ * color so they stay legible when they overlap. Values sit beside the markers; a legend names
+ * the two.
+ */
+export function DumbbellChart({
+  rows,
+  beforeLabel,
+  afterLabel,
+}: IDumbbellChartProps) {
+  const max = Math.max(1, ...rows.flatMap(row => [row.before, row.after]));
+  const at = (value: number) => `${(value / max) * 100}%`;
+  return (
+    <Box>
+      <Flex gap="4" wrap="wrap" mb="2">
+        <Flex gap="2" align="center">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-gray-500" />
+          <Text size="2" className="text-gray-400">
+            {beforeLabel}
+          </Text>
+        </Flex>
+        <Flex gap="2" align="center">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: CHART_HUE }}
+          />
+          <Text size="2" className="text-gray-400">
+            {afterLabel}
+          </Text>
+        </Flex>
+      </Flex>
+      <div className="grid grid-cols-[minmax(7rem,12rem)_1fr] gap-x-3 gap-y-2">
+        {rows.map(row => {
+          const rose = row.after >= row.before;
+          return (
+            <Fragment key={row.key}>
+              <Text size="2" className="truncate text-gray-300">
+                {row.label}
+                {row.sublabel && (
+                  <span className="ml-1 text-gray-500">{row.sublabel}</span>
+                )}
+              </Text>
+              <div
+                className="relative h-5"
+                title={`${beforeLabel} ${row.before.toLocaleString()}, ${afterLabel} ${row.after.toLocaleString()}`}
+              >
+                <div className="absolute inset-y-0 left-0 right-16 border-b border-gray-800" />
+                <div
+                  className="absolute top-1/2 h-0.5 -translate-y-1/2"
+                  style={{
+                    left: `calc(${at(Math.min(row.before, row.after))} * (100% - 4rem) / 100%)`,
+                    width: `calc(${(Math.abs(row.after - row.before) / max) * 100}% * (100% - 4rem) / 100%)`,
+                    backgroundColor: rose ? CHART_HUE : '#6B7280',
+                  }}
+                />
+                <span
+                  className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-gray-500"
+                  style={{
+                    left: `calc(${at(row.before)} * (100% - 4rem) / 100%)`,
+                    borderColor: CHART_SURFACE,
+                  }}
+                />
+                <span
+                  className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
+                  style={{
+                    left: `calc(${at(row.after)} * (100% - 4rem) / 100%)`,
+                    backgroundColor: CHART_HUE,
+                    borderColor: CHART_SURFACE,
+                  }}
+                />
+                <Text
+                  size="2"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 tabular-nums text-gray-100"
+                >
+                  <span className="text-gray-500">{row.before}</span>
+                  {' → '}
+                  {row.after}
+                </Text>
+              </div>
+            </Fragment>
+          );
+        })}
+      </div>
+    </Box>
+  );
+}
+
+export interface IFlowPoint {
+  label: string;
+  /** Drawn upward. Null draws nothing (no previous period to compare). */
+  up: number | null;
+  /** Drawn downward as a negative bar. */
+  down: number | null;
+}
+
+interface IDivergingBarsProps {
+  points: IFlowPoint[];
+  upLabel: string;
+  downLabel: string;
+}
+
+/** Validated warm/cool diverging pair on the dark surface, with the zero line as the neutral. */
+const FLOW_UP = '#3987e5';
+const FLOW_DOWN = '#c98500';
+
+/**
+ * Flows above and below a baseline per period: gains up in the cool hue, losses down in the
+ * warm one, meeting at a hairline zero. The two never stack past each other, so the eye reads
+ * the net from the bar that sticks out.
+ */
+export function DivergingBars({
+  points,
+  upLabel,
+  downLabel,
+}: IDivergingBarsProps) {
+  const data = points.map(point => ({
+    label: point.label,
+    up: point.up ?? 0,
+    down: point.down === null ? 0 : -point.down,
+  }));
+  return (
+    <Box>
+      <Flex gap="4" wrap="wrap" mb="1">
+        <Flex gap="2" align="center">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm"
+            style={{ backgroundColor: FLOW_UP }}
+          />
+          <Text size="2" className="text-gray-400">
+            {upLabel}
+          </Text>
+        </Flex>
+        <Flex gap="2" align="center">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm"
+            style={{ backgroundColor: FLOW_DOWN }}
+          />
+          <Text size="2" className="text-gray-400">
+            {downLabel}
+          </Text>
+        </Flex>
+      </Flex>
+      <ResponsiveContainer width="100%" height={160}>
+        <BarChart
+          data={data}
+          stackOffset="sign"
+          margin={{ top: 4, right: 8, bottom: 0, left: 8 }}
+          barCategoryGap={8}
+        >
+          <CartesianGrid
+            horizontal
+            vertical={false}
+            stroke={GRID}
+            strokeWidth={1}
+          />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: '#6B7280', fontSize: 12 }}
+            axisLine={false}
+            tickLine={false}
+            interval={0}
+            height={18}
+          />
+          <YAxis hide />
+          <ReferenceLine y={0} stroke="#4B5563" strokeWidth={1} />
+          <Tooltip
+            cursor={{ fill: 'rgba(226, 86, 74, 0.08)' }}
+            content={({ active, payload, label }) =>
+              active && payload && payload.length > 0 ? (
+                <TooltipBox
+                  rows={[
+                    {
+                      label: `${upLabel}, ${String(label)}`,
+                      value: String(
+                        payload.find(p => p.dataKey === 'up')?.value ?? 0,
+                      ),
+                    },
+                    {
+                      label: downLabel,
+                      value: String(
+                        Math.abs(
+                          Number(
+                            payload.find(p => p.dataKey === 'down')?.value ?? 0,
+                          ),
+                        ),
+                      ),
+                    },
+                  ]}
+                />
+              ) : null
+            }
+          />
+          <Bar
+            dataKey="up"
+            stackId="flow"
+            fill={FLOW_UP}
+            barSize={BAR_SIZE}
+            radius={[4, 4, 0, 0]}
+            isAnimationActive={false}
+          />
+          <Bar
+            dataKey="down"
+            stackId="flow"
+            fill={FLOW_DOWN}
+            barSize={BAR_SIZE}
+            radius={[0, 0, 4, 4]}
+            isAnimationActive={false}
+          />
+        </BarChart>
+      </ResponsiveContainer>
     </Box>
   );
 }

@@ -34,6 +34,16 @@ import {
   sumGainsByPlayer,
   summarizePvmActivity,
 } from '~/utils/engagement';
+import {
+  IMonthlyFlow,
+  ITenureCohort,
+  monthKey,
+  monthLabel,
+  monthlyFlows,
+  monthStarts,
+  nextMonth,
+  summarizeTenure,
+} from '~/utils/engagement-stats';
 import { getSlayerBossImageUrl } from '~/utils/slayer';
 
 // Clan insights for the admin portal. Two questions, both answered from data that already
@@ -139,25 +149,31 @@ export const getBountyScorecard = async (
   }
   const window = bountyMeasurementWindow(bounty, now);
   const metric = bounty.task.bossMetric as Metric;
-  const [bridge, during, before] = await Promise.all([
-    getRsnMemberBridge(),
-    getGroupGainsForWindow(
-      metric,
-      new Date(window.start),
-      new Date(window.end),
-    ),
-    getGroupGainsForWindow(
-      metric,
-      new Date(window.baselineStart),
-      new Date(window.baselineEnd),
-    ),
-  ]);
+  const duringWindow = [new Date(window.start), new Date(window.end)] as const;
+  const beforeWindow = [
+    new Date(window.baselineStart),
+    new Date(window.baselineEnd),
+  ] as const;
+  // Four reads, all cached once the windows settle: the boss in each window, and all PvM (EHB)
+  // in each window as the control for the clan's overall movement.
+  const [bridge, during, before, controlDuring, controlBefore] =
+    await Promise.all([
+      getRsnMemberBridge(),
+      getGroupGainsForWindow(metric, ...duringWindow),
+      getGroupGainsForWindow(metric, ...beforeWindow),
+      getGroupGainsForWindow(Metric.EHB, ...duringWindow),
+      getGroupGainsForWindow(Metric.EHB, ...beforeWindow),
+    ]);
+  const activeCount = (gains: IMemberGain[]) =>
+    foldGainsByMember(gains, bridge).filter(row => row.gained > 0).length;
   return {
     bountyId,
     window,
     scorecard: scoreBounty({
       during: foldGainsByMember(during, bridge),
       before: foldGainsByMember(before, bridge),
+      controlDuring: activeCount(controlDuring),
+      controlBefore: activeCount(controlBefore),
       claimCount: bounty.claims.length,
       postedAt: bounty.postedAt,
       closedAt: bounty.closedAt,
@@ -358,6 +374,8 @@ export interface ISkillingResult {
   rows: ISkillingRow[];
   /** The whole roster by what it gained, for the composition bar. */
   split: IInGameSplit;
+  /** The same rates by join-date cohort. */
+  tenure: ITenureCohort[];
 }
 
 /**
@@ -370,12 +388,14 @@ export const getSkillingOnly = async (
   now: Date = bucketedNow(),
 ): Promise<ISkillingResult> => {
   const start = new Date(now.getTime() - days * DAY_MS);
-  const [bridge, ehb, ehp] = await Promise.all([
+  const [bridge, ehb, ehp, events] = await Promise.all([
     getRsnMemberBridge(),
     getGroupGainsForWindow(Metric.EHB, start, now),
     getGroupGainsForWindow(Metric.EHP, start, now),
+    getEngagementEvents(start.toISOString()),
   ]);
   const inGame = await getInGameActivityByDiscordId(bridge);
+  const usedAnySystem = new Set(events.map(event => event.discordId));
   const { discordIdByRsn, roster: users } = bridge;
   // Sum each metric's gains per member across their main and alts.
   const gainedByMember = (gains: IMemberGainLike[]): Map<string, number> => {
@@ -417,7 +437,58 @@ export const getSkillingOnly = async (
       row => ({ ...row, name: nameByDiscordId.get(row.discordId) ?? null }),
     ),
     split: summarizeInGameSplit(members, floor),
+    tenure: summarizeTenure(
+      users.map(user => ({
+        discordId: user.discordId,
+        joined: user.joined,
+        activeInGame:
+          (inGame.get(user.discordId)?.lastChangedAt ?? '') >=
+          start.toISOString(),
+        usedAnySystem: usedAnySystem.has(user.discordId),
+        ehbGained: ehbByMember.get(user.discordId) ?? 0,
+      })),
+      now,
+      floor,
+    ),
   };
+};
+
+export interface IInGameMonthsResult {
+  months: IMonthlyFlow[];
+}
+
+/**
+ * Who played in each of the last `count` calendar months, from one WOM overall-experience
+ * read per month (any xp gain means they played; bossing gives xp too). Past months settle and
+ * cache for the process lifetime, so after the first view only the current month is re-read.
+ */
+export const getInGameMonths = async (
+  count: number,
+  now: Date = bucketedNow(),
+): Promise<IInGameMonthsResult> => {
+  const starts = monthStarts(count, now);
+  const [bridge, gains] = await Promise.all([
+    getRsnMemberBridge(),
+    Promise.all(
+      starts.map(start =>
+        getGroupGainsForWindow(
+          Metric.OVERALL,
+          start,
+          new Date(Math.min(nextMonth(start).getTime(), now.getTime())),
+        ),
+      ),
+    ),
+  ]);
+  const months = starts.map((start, index) => ({
+    month: monthKey(start),
+    label: monthLabel(start),
+    activeIds: new Set(
+      foldGainsByMember(gains[index], bridge)
+        .filter(row => row.gained > 0 && row.discordId)
+        .map(row => row.discordId as string),
+    ),
+  }));
+  return { months: monthlyFlows(months, bridge.roster.length) };
 };
 
 /**

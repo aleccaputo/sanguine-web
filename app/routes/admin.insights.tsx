@@ -9,10 +9,12 @@ import {
 } from '@remix-run/react';
 import { Box, Flex, Heading, Select, Table, Text } from '@radix-ui/themes';
 import dayjs from 'dayjs';
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { Button } from '~/components/button';
 import {
   CompositionBar,
+  DivergingBars,
+  DumbbellChart,
   HorizontalBars,
   SmallMultiples,
 } from '~/components/EngagementCharts';
@@ -23,7 +25,10 @@ import {
   getEngagementEvents,
   getInGameActivityByDiscordId,
 } from '~/services/engagement-service.server';
-import type { IBountyListing } from '~/services/engagement-service.server';
+import type {
+  IBountyListing,
+  IBountyScorecardResult,
+} from '~/services/engagement-service.server';
 import { getRsnMemberBridge } from '~/services/member-lookup.server';
 import { BOUNTY_STATUS } from '~/utils/bounty';
 import { rankLabel } from '~/utils/clan-ranks';
@@ -43,10 +48,17 @@ import {
   topMembersBySystem,
   summarizeInactivity,
 } from '~/utils/engagement';
+import {
+  clanSystemActiveByMonth,
+  median,
+  monthlyFlows,
+  summarizeReach,
+} from '~/utils/engagement-stats';
 import { proseLinkClass, zebraStripeClass } from '~/utils/styles';
 import type { loader as bountyScorecardLoader } from './admin.insights_.bounty.$id';
 import type { loader as pvmActivityLoader } from './admin.insights_.pvm';
 import type { loader as skillingLoader } from './admin.insights_.skilling';
+import type { loader as monthsLoader } from './admin.insights_.months';
 
 export const meta: MetaFunction = () => [{ title: 'Clan insights' }];
 
@@ -83,6 +95,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const inGame = await getInGameActivityByDiscordId(bridge);
   const lastEvents = lastEventAtByMember(events);
   const summary = summarizeEngagement(events, windowStart, now.toISOString());
+  const activeInGame = new Set(
+    users
+      .filter(
+        user =>
+          (inGame.get(user.discordId)?.lastChangedAt ?? '') >= windowStart,
+      )
+      .map(user => user.discordId),
+  );
+  const reach = summarizeReach(
+    events,
+    windowStart,
+    now.toISOString(),
+    activeInGame,
+  );
+  const clanFlows = monthlyFlows(
+    clanSystemActiveByMonth(events, MONTHS_SHOWN, now),
+    users.length,
+  );
   const inactivity = summarizeInactivity(
     users.map(user => ({
       discordId: user.discordId,
@@ -102,6 +132,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
       users.map(user => [user.discordId, user.nickname ?? null]),
     ) as Record<string, string | null>,
     bySystem: summary.bySystem,
+    reach,
+    activeInGameCount: activeInGame.size,
+    clanFlows,
     activeMembers: summary.activeMembers,
     mostEngaged: summary.byMember.slice(0, MOST_ENGAGED_SHOWN),
     topBySystem: topMembersBySystem(
@@ -125,6 +158,8 @@ const SECTION_IDS = {
   playing: 'playing',
   quiet: 'quiet',
   skilling: 'skilling',
+  months: 'months',
+  tenure: 'tenure',
 } as const;
 
 const sectionClass = 'scroll-mt-20';
@@ -247,9 +282,11 @@ const bountyStatusLabel = (bounty: IBountyListing) => {
 interface IBountyRowProps {
   bounty: IBountyListing;
   autoLoad: boolean;
+  /** Hands a finished scorecard to the page so the dumbbell and the aggregate can use it. */
+  onMeasured: (bountyId: string, result: IBountyScorecardResult) => void;
 }
 
-function BountyRow({ bounty, autoLoad }: IBountyRowProps) {
+function BountyRow({ bounty, autoLoad, onMeasured }: IBountyRowProps) {
   const fetcher = useFetcher<typeof bountyScorecardLoader>();
   const href = `/admin/insights/bounty/${bounty.id}`;
   const loading = fetcher.state !== 'idle';
@@ -261,6 +298,12 @@ function BountyRow({ bounty, autoLoad }: IBountyRowProps) {
       fetcher.load(href);
     }
   }, [autoLoad, fetcher, href]);
+
+  useEffect(() => {
+    if (result) {
+      onMeasured(bounty.id, result);
+    }
+  }, [bounty.id, onMeasured, result]);
 
   const measuredCells = result ? (
     <>
@@ -283,6 +326,16 @@ function BountyRow({ bounty, autoLoad }: IBountyRowProps) {
           <Text size="1" className="ml-1 hidden text-gray-500 sm:inline">
             {result.scorecard.liftPercent > 0 ? '+' : ''}
             {result.scorecard.liftPercent}%
+          </Text>
+        )}
+        {result.scorecard.adjustedLiftPercent !== null && (
+          <Text
+            size="1"
+            className="ml-1 hidden text-gray-500 md:inline"
+            title="Adjusted for the clan's overall PvM movement between the two windows"
+          >
+            adj {result.scorecard.adjustedLiftPercent > 0 ? '+' : ''}
+            {result.scorecard.adjustedLiftPercent}%
           </Text>
         )}
         {!result.window.settled && (
@@ -514,6 +567,27 @@ const useSkillingRead = (days: number) => {
 };
 
 type SkillingRead = ReturnType<typeof useSkillingRead>;
+
+/** One read of who played in each of the last months, for the activity-by-month charts. */
+const useMonthsRead = () => {
+  const fetcher = useFetcher<typeof monthsLoader>();
+  const href = '/admin/insights/months';
+
+  useEffect(() => {
+    fetcher.load(href);
+    // The fetcher object changes identity on every state change; only the target matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [href]);
+
+  return {
+    result: fetcher.data?.ok ? fetcher.data : undefined,
+    failure: fetcher.data?.ok === false ? fetcher.data.error : null,
+    loading: fetcher.state !== 'idle',
+    retry: () => fetcher.load(href),
+  };
+};
+
+const signed = (value: number) => `${value > 0 ? '+' : ''}${value}%`;
 
 interface IInGameSplitBarProps {
   skilling: SkillingRead;
@@ -758,6 +832,9 @@ export default function AdminInsights() {
     rosterSize,
     names,
     bySystem,
+    reach,
+    activeInGameCount,
+    clanFlows,
     activeMembers,
     mostEngaged,
     topBySystem,
@@ -767,6 +844,41 @@ export default function AdminInsights() {
   } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   const skilling = useSkillingRead(days);
+  const months = useMonthsRead();
+  const [measured, setMeasured] = useState<
+    Record<string, IBountyScorecardResult>
+  >({});
+  const onMeasured = useCallback(
+    (bountyId: string, result: IBountyScorecardResult) =>
+      setMeasured(previous =>
+        previous[bountyId] === result
+          ? previous
+          : { ...previous, [bountyId]: result },
+      ),
+    [],
+  );
+  const measuredBounties = bounties.flatMap(bounty =>
+    measured[bounty.id] ? [{ bounty, result: measured[bounty.id] }] : [],
+  );
+  const liftSample = measuredBounties.filter(
+    ({ result }) => result.scorecard.liftPercent !== null,
+  );
+  const medianLift = Math.round(
+    median(liftSample.map(({ result }) => result.scorecard.liftPercent ?? 0)),
+  );
+  const adjustedSample = liftSample.filter(
+    ({ result }) => result.scorecard.adjustedLiftPercent !== null,
+  );
+  const medianAdjusted = Math.round(
+    median(
+      adjustedSample.map(
+        ({ result }) => result.scorecard.adjustedLiftPercent ?? 0,
+      ),
+    ),
+  );
+  const reachOrder = [...reach].sort(
+    (a, b) => (b.reach ?? -1) - (a.reach ?? -1),
+  );
 
   const memberName = (discordId: string) =>
     names[discordId] ?? `Unknown (${discordId})`;
@@ -856,6 +968,38 @@ export default function AdminInsights() {
           Before: the same span of time immediately prior. Lift: the difference.
           A tilde marks a window still waiting on the next update.
         </Note>
+        {measuredBounties.length > 0 && (
+          <Box mb="4">
+            <Flex gap="4" wrap="wrap" mb="2">
+              <Figure label="Measured" value={measuredBounties.length} />
+              {liftSample.length > 0 && (
+                <Figure label="Median lift" value={signed(medianLift)} />
+              )}
+              {adjustedSample.length > 0 && (
+                <Figure
+                  label="Median lift, PvM-adjusted"
+                  value={signed(medianAdjusted)}
+                />
+              )}
+            </Flex>
+            <DumbbellChart
+              rows={measuredBounties.map(({ bounty, result }) => ({
+                key: bounty.id,
+                label: bounty.bossDisplayName,
+                sublabel: dayjs(bounty.postedAt).format('MMM D'),
+                before: result.scorecard.baselineParticipants,
+                after: result.scorecard.participants,
+              }))}
+              beforeLabel="Members killing it before"
+              afterLabel="During the bounty"
+            />
+            <Text as="p" size="2" className="mt-2 text-gray-500">
+              Single bounties on small counts are noise; read the medians, and
+              the adjusted one removes whatever all PvM did between the two
+              windows.
+            </Text>
+          </Box>
+        )}
         {bounties.length === 0 ? (
           <NoData />
         ) : (
@@ -894,6 +1038,7 @@ export default function AdminInsights() {
                   key={bounty.id}
                   bounty={bounty}
                   autoLoad={index < AUTO_MEASURED_BOUNTIES}
+                  onMeasured={onMeasured}
                 />
               ))}
             </Table.Body>
@@ -916,22 +1061,42 @@ export default function AdminInsights() {
           <Flex direction="column" gap="4">
             <Box>
               <SubsectionHeading
-                title="By system"
-                hint="members, as a share of the roster"
+                title="Reach among active players"
+                hint={`of the ${activeInGameCount} members WOM saw play this period; drops are auto-posted, so they measure playing, not engaging`}
               />
-              <HorizontalBars
-                rows={bySystem.map(row => ({
-                  label: ENGAGEMENT_SYSTEM_LABELS[row.system],
-                  value: row.members,
-                  annotation: [
-                    row.members > 0 ? percent(row.members) : '',
-                    row.launchedInWindow ? `live ${row.liveDays}d` : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' · '),
-                }))}
-                max={rosterSize}
-              />
+              <div className="grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-2">
+                <Box>
+                  <Text as="p" size="2" className="mb-1 text-gray-500">
+                    Used the system, as a share of active players
+                  </Text>
+                  <HorizontalBars
+                    rows={reachOrder.map(row => ({
+                      label: ENGAGEMENT_SYSTEM_LABELS[row.system],
+                      value: row.reach ?? 0,
+                      annotation: row.passive ? 'passive' : '',
+                    }))}
+                    max={100}
+                    formatValue={value => `${value}%`}
+                  />
+                </Box>
+                <Box>
+                  <Text as="p" size="2" className="mb-1 text-gray-500">
+                    Came back: share of last period&apos;s users active again
+                  </Text>
+                  <HorizontalBars
+                    rows={reachOrder.map(row => ({
+                      label: ENGAGEMENT_SYSTEM_LABELS[row.system],
+                      value: row.repeat ?? 0,
+                      annotation:
+                        row.repeat === null
+                          ? 'no users before'
+                          : `of ${row.previousUsers}`,
+                    }))}
+                    max={100}
+                    formatValue={value => `${value}%`}
+                  />
+                </Box>
+              </div>
               <details className="mt-2">
                 <summary className={tableToggleClass}>Table view</summary>
                 <Table.Root size="2">
@@ -1166,6 +1331,169 @@ export default function AdminInsights() {
       </Box>
 
       <PvmActivitySection days={days} />
+
+      <Box mt="8" id={SECTION_IDS.months} className={sectionClass}>
+        <SectionHeading
+          title="Activity by month"
+          summary={
+            <Text size="2" className="text-gray-400">
+              last {MONTHS_SHOWN} months
+            </Text>
+          }
+        />
+        <Note>
+          Active share is the percent of the roster that played (any xp gained,
+          per Wise Old Man) or touched a clan system in the month. Churn is
+          people active the month before but not this one; reactivation is the
+          reverse. The current month is partial.
+        </Note>
+        {months.failure && !months.result && (
+          <Box py="2">
+            <Retry
+              message={months.failure}
+              loading={months.loading}
+              onRetry={months.retry}
+            />
+          </Box>
+        )}
+        <SmallMultiples
+          series={[
+            ...(months.result
+              ? [
+                  {
+                    key: 'ingame',
+                    title: 'Played, share of roster',
+                    points: months.result.months.map(row => ({
+                      label: row.label.slice(0, 3),
+                      value: row.activeShare ?? 0,
+                    })),
+                  },
+                ]
+              : []),
+            {
+              key: 'systems',
+              title: 'Touched a clan system, share of roster',
+              points: clanFlows.map(row => ({
+                label: row.label.slice(0, 3),
+                value: row.activeShare ?? 0,
+              })),
+            },
+          ]}
+          max={100}
+          formatValue={value => `${value}%`}
+        />
+        {!months.result && !months.failure && (
+          <Text as="p" size="2" className="mt-1 text-gray-500">
+            Reading Wise Old Man for the in-game months…
+          </Text>
+        )}
+        <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-2">
+          {months.result && (
+            <Box>
+              <Text as="p" size="2" className="mb-1 text-gray-300">
+                In-game, month over month
+              </Text>
+              <DivergingBars
+                points={months.result.months.map(row => ({
+                  label: row.label.slice(0, 3),
+                  up: row.reactivated,
+                  down: row.churned,
+                }))}
+                upLabel="Came back"
+                downLabel="Went quiet"
+              />
+            </Box>
+          )}
+          <Box>
+            <Text as="p" size="2" className="mb-1 text-gray-300">
+              Clan systems, month over month
+            </Text>
+            <DivergingBars
+              points={clanFlows.map(row => ({
+                label: row.label.slice(0, 3),
+                up: row.reactivated,
+                down: row.churned,
+              }))}
+              upLabel="Came back"
+              downLabel="Went quiet"
+            />
+          </Box>
+        </div>
+      </Box>
+
+      <Box mt="8" id={SECTION_IDS.tenure} className={sectionClass}>
+        <SectionHeading title="By tenure" />
+        <Note>
+          The same rates for members by when they joined, over the last {days}{' '}
+          days. The newest cohort is partly survivorship (members who joined and
+          left are already off the roster), so read gaps as large or small, not
+          exact.
+        </Note>
+        {skilling.failure && !skilling.result ? (
+          <Box py="2">
+            <Retry
+              message={skilling.failure}
+              loading={skilling.loading}
+              onRetry={skilling.retry}
+            />
+          </Box>
+        ) : !skilling.result ? (
+          <Text as="p" size="2" className="py-2 text-gray-500">
+            Reading Wise Old Man…
+          </Text>
+        ) : (
+          <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+            {[
+              {
+                key: 'active',
+                title: 'Active in-game',
+                value: (cohort: (typeof skilling.result.tenure)[number]) =>
+                  cohort.activeShare ?? 0,
+                percent: true,
+              },
+              {
+                key: 'systems',
+                title: 'Touched a clan system',
+                value: (cohort: (typeof skilling.result.tenure)[number]) =>
+                  cohort.usedSystemShare ?? 0,
+                percent: true,
+              },
+              {
+                key: 'floor',
+                title: `At or above ${skilling.result.floor} EHB, of active`,
+                value: (cohort: (typeof skilling.result.tenure)[number]) =>
+                  cohort.aboveFloorShare ?? 0,
+                percent: true,
+              },
+              {
+                key: 'median',
+                title: 'Median EHB gained, of active',
+                value: (cohort: (typeof skilling.result.tenure)[number]) =>
+                  cohort.medianEhbActive,
+                percent: false,
+              },
+            ].map(metric => (
+              <Box key={metric.key}>
+                <Text as="p" size="2" className="mb-1 text-gray-300">
+                  {metric.title}
+                </Text>
+                <HorizontalBars
+                  rows={(skilling.result?.tenure ?? []).map(cohort => ({
+                    label: cohort.label.replace('Joined ', ''),
+                    value: metric.value(cohort),
+                    annotation: `n=${cohort.members}`,
+                  }))}
+                  max={metric.percent ? 100 : undefined}
+                  formatValue={value =>
+                    metric.percent ? `${value}%` : value.toLocaleString()
+                  }
+                  labelWidth={150}
+                />
+              </Box>
+            ))}
+          </div>
+        )}
+      </Box>
 
       <Box mt="8" id={SECTION_IDS.notParticipating} className={sectionClass}>
         <SectionHeading

@@ -63,6 +63,9 @@ export interface IMemberGainLike {
 export interface IBountyScoreInput {
   during: IMemberGainLike[];
   before: IMemberGainLike[];
+  /** Members with any EHB gain in each window: the control for the clan's overall PvM movement. */
+  controlDuring?: number;
+  controlBefore?: number;
   claimCount: number;
   postedAt: string;
   closedAt: string | null;
@@ -84,6 +87,8 @@ export interface IBountyScorecard {
   lift: number;
   /** lift over baseline, or null when nobody was killing it beforehand. */
   liftPercent: number | null;
+  /** liftPercent with the clan's overall PvM movement between the windows removed. */
+  adjustedLiftPercent: number | null;
   killsDuring: number;
   killsBefore: number;
   claimCount: number;
@@ -99,8 +104,34 @@ const sumGained = (rows: IMemberGainLike[]) =>
   rows.reduce((sum, row) => sum + row.gained, 0);
 
 /** Turns the two WOM windows and the bounty's own record into the scorecard the admin page shows. */
+/**
+ * Lift after removing the clan's overall PvM movement between the two windows: a bounty that
+ * "lifted" participants 20% while all PvM rose 20% did nothing. Null without both baselines.
+ */
+export const adjustedLiftPercent = (
+  participants: number,
+  baselineParticipants: number,
+  controlDuring: number,
+  controlBefore: number,
+): number | null =>
+  baselineParticipants === 0 || controlBefore === 0 || controlDuring === 0
+    ? null
+    : Math.round(
+        (participants / baselineParticipants / (controlDuring / controlBefore) -
+          1) *
+          100,
+      );
+
 export const scoreBounty = (
-  { during, before, claimCount, postedAt, closedAt }: IBountyScoreInput,
+  {
+    during,
+    before,
+    controlDuring,
+    controlBefore,
+    claimCount,
+    postedAt,
+    closedAt,
+  }: IBountyScoreInput,
   topLimit: number = 10,
 ): IBountyScorecard => {
   const duringGainers = gainers(during);
@@ -116,6 +147,15 @@ export const scoreBounty = (
       baselineParticipants === 0
         ? null
         : Math.round((lift / baselineParticipants) * 100),
+    adjustedLiftPercent:
+      controlDuring === undefined || controlBefore === undefined
+        ? null
+        : adjustedLiftPercent(
+            participants,
+            baselineParticipants,
+            controlDuring,
+            controlBefore,
+          ),
     killsDuring: sumGained(duringGainers),
     killsBefore: sumGained(beforeGainers),
     claimCount,
