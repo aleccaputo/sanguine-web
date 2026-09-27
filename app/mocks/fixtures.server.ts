@@ -700,7 +700,11 @@ export const buildCompetitionDetail = (id: number) => {
   };
 };
 
-export const MOCK_GROUP_MEMBERSHIPS = MOCK_USERS.map((user, idx) => ({
+// A few roster members are missing from the WOM group on purpose (the insights page lists
+// them), and in-game activity spreads over the last five months so some read as gone quiet.
+export const MOCK_GROUP_MEMBERSHIPS = MOCK_USERS.filter(
+  (_, idx) => idx % 9 !== 5,
+).map((user, idx) => ({
   playerId: idx + 1,
   groupId: GROUP_ID,
   role: user.womRole,
@@ -721,7 +725,7 @@ export const MOCK_GROUP_MEMBERSHIPS = MOCK_USERS.map((user, idx) => ({
     tt200m: 0,
     registeredAt: new Date(user.joined),
     updatedAt: new Date(),
-    lastChangedAt: new Date(),
+    lastChangedAt: faker.date.recent({ days: 150 }),
     lastImportedAt: new Date(),
   },
 }));

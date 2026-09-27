@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   bountyMeasurementWindow,
   IEngagementEvent,
+  lastEventAtByMember,
   monthlyEngagementSeries,
   scoreBounty,
+  summarizeInactivity,
   summarizeEngagement,
   summarizePvmActivity,
 } from './engagement';
@@ -221,6 +223,86 @@ describe('summarizePvmActivity', () => {
         { displayName: 'C', gained: 12 },
         { displayName: 'B', gained: 5.5 },
       ],
+    });
+  });
+});
+
+describe('lastEventAtByMember', () => {
+  it('keeps the latest timestamp per member', () => {
+    const latest = lastEventAtByMember(events);
+    expect(latest.get('1')).toBe('2026-09-03T00:00:00.000Z');
+    expect(latest.get('2')).toBe('2026-09-05T00:00:00.000Z');
+    expect(latest.get('9')).toBeUndefined();
+  });
+});
+
+describe('summarizeInactivity', () => {
+  const start = '2026-08-28T12:00:00.000Z';
+  const member = (
+    discordId: string,
+    lastClanEventAt: string | null,
+    lastInGameChangeAt: string | null,
+  ) => ({
+    discordId,
+    joined: '2025-01-01T00:00:00.000Z',
+    lastClanEventAt,
+    lastInGameChangeAt,
+    womRole: 'member',
+  });
+
+  it('leaves members with an event in the window out entirely', () => {
+    const summary = summarizeInactivity(
+      [member('active', '2026-09-10T00:00:00.000Z', null)],
+      start,
+      now,
+    );
+    expect(summary).toEqual({
+      playingNotParticipating: [],
+      goneQuiet: [],
+      notOnWom: [],
+    });
+  });
+
+  it('splits idle members by in-game activity and sorts each list usefully', () => {
+    const summary = summarizeInactivity(
+      [
+        member(
+          'playing-recent',
+          '2026-06-01T00:00:00.000Z',
+          '2026-09-26T00:00:00.000Z',
+        ),
+        member('playing-older', null, '2026-09-01T00:00:00.000Z'),
+        member(
+          'quiet-long',
+          '2026-03-01T00:00:00.000Z',
+          '2026-04-01T00:00:00.000Z',
+        ),
+        member(
+          'quiet-short',
+          '2026-08-01T00:00:00.000Z',
+          '2026-08-20T00:00:00.000Z',
+        ),
+        member('no-wom', null, null),
+      ],
+      start,
+      now,
+    );
+    expect(summary.playingNotParticipating.map(row => row.discordId)).toEqual([
+      'playing-recent',
+      'playing-older',
+    ]);
+    expect(summary.goneQuiet.map(row => row.discordId)).toEqual([
+      'quiet-long',
+      'quiet-short',
+    ]);
+    expect(summary.notOnWom.map(row => row.discordId)).toEqual(['no-wom']);
+    expect(summary.playingNotParticipating[0]).toMatchObject({
+      daysSinceClanEvent: 118,
+      daysSinceInGameChange: 1,
+    });
+    expect(summary.notOnWom[0]).toMatchObject({
+      daysSinceClanEvent: null,
+      daysSinceInGameChange: null,
     });
   });
 });

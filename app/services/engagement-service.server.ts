@@ -4,7 +4,13 @@ import { getPersonalBestsSince } from '~/data/personal-bests';
 import { getAuditDataForDateRange } from '~/data/points-audit';
 import { getRaidCompletionsSince } from '~/data/raid-completions';
 import { getSpinsSince } from '~/data/slayer';
-import { getGroupGainsForWindow } from '~/services/wom-api-service.server';
+import { getAllUserAlts } from '~/data/user';
+import type { ISanguineUserWithNickname } from '~/services/sanguine-service.server';
+import {
+  getClanFromWom,
+  getGroupGainsForWindow,
+} from '~/services/wom-api-service.server';
+import { normalizeRsn } from '~/utils/collection-log';
 import {
   bountyMeasurementWindow,
   IBountyScorecard,
@@ -196,4 +202,57 @@ export const getPvmActivity = async (
     end: now.toISOString(),
     activity: summarizePvmActivity(gains),
   };
+};
+
+export interface IInGameActivity {
+  /** Latest WOM lastChangedAt across the member's main and alts, as ISO, or null if unknown. */
+  lastChangedAt: string | null;
+  /** The main account's WOM group role, falling back to whichever account matched first. */
+  role: string;
+}
+
+/**
+ * What WOM last saw each roster member do in-game, from the (cached) group membership list:
+ * no extra WOM calls. Accounts map to members through nicknames and registered alts, the same
+ * bridge the collection log uses; members with no account in the group are simply absent.
+ */
+export const getInGameActivityByDiscordId = async (
+  users: ISanguineUserWithNickname[],
+): Promise<Map<string, IInGameActivity>> => {
+  const [alts, memberships] = await Promise.all([
+    getAllUserAlts(),
+    getClanFromWom(),
+  ]);
+  const named = users.filter(user => user.nickname);
+  const discordIdByRsn = new Map([
+    ...named.map(
+      user => [normalizeRsn(user.nickname ?? ''), user.discordId] as const,
+    ),
+    ...alts.map(alt => [normalizeRsn(alt.altName), alt.discordId] as const),
+  ]);
+  const mainRsnByDiscordId = new Map(
+    named.map(user => [user.discordId, normalizeRsn(user.nickname ?? '')]),
+  );
+  return memberships.reduce<Map<string, IInGameActivity>>((acc, membership) => {
+    const rsn = normalizeRsn(membership.player.displayName);
+    const discordId = discordIdByRsn.get(rsn);
+    if (discordId === undefined) {
+      return acc;
+    }
+    const changedAt = membership.player.lastChangedAt
+      ? new Date(membership.player.lastChangedAt).toISOString()
+      : null;
+    const current = acc.get(discordId);
+    const latest = [current?.lastChangedAt ?? null, changedAt]
+      .filter((value): value is string => value !== null)
+      .sort()
+      .at(-1);
+    return acc.set(discordId, {
+      lastChangedAt: latest ?? null,
+      role:
+        current === undefined || mainRsnByDiscordId.get(discordId) === rsn
+          ? membership.role
+          : current.role,
+    });
+  }, new Map());
 };

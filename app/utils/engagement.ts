@@ -324,3 +324,101 @@ export const PVM_METRICS: { metric: string; label: string }[] = [
 ];
 
 export const PVM_PERIOD_DAYS = [7, 30, 90] as const;
+
+// ---- Inactivity ----
+
+export interface IMemberActivityInput {
+  discordId: string;
+  joined: string;
+  /** Most recent clan-system event across the loaded history, or null when there is none. */
+  lastClanEventAt: string | null;
+  /** WOM lastChangedAt, latest across the member's accounts, or null when none is in the group. */
+  lastInGameChangeAt: string | null;
+  womRole: string | null;
+}
+
+export interface IInactiveMember extends IMemberActivityInput {
+  daysSinceClanEvent: number | null;
+  daysSinceInGameChange: number | null;
+}
+
+export interface IInactivitySummary {
+  /** In-game activity inside the window, but no clan-system event in it. The ones to pull in. */
+  playingNotParticipating: IInactiveMember[];
+  /** Neither a clan-system event nor an in-game change inside the window. */
+  goneQuiet: IInactiveMember[];
+  /** No clan-system event in the window and no account in the WOM group, so in-game is unknown. */
+  notOnWom: IInactiveMember[];
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const daysBetween = (from: string | null, now: Date): number | null =>
+  from === null
+    ? null
+    : Math.max(
+        0,
+        Math.floor((now.getTime() - new Date(from).getTime()) / DAY_MS),
+      );
+
+/** The latest event timestamp per member. */
+export const lastEventAtByMember = (
+  events: IEngagementEvent[],
+): Map<string, string> =>
+  events.reduce<Map<string, string>>((acc, event) => {
+    const current = acc.get(event.discordId);
+    return current === undefined || event.at > current
+      ? acc.set(event.discordId, event.at)
+      : acc;
+  }, new Map());
+
+/**
+ * Splits the members with no clan-system event since `start` by what WOM says they did in-game
+ * over the same window. Members with an event in the window are left out entirely.
+ */
+export const summarizeInactivity = (
+  members: IMemberActivityInput[],
+  start: string,
+  now: Date,
+): IInactivitySummary => {
+  const idle = members
+    .filter(
+      member =>
+        member.lastClanEventAt === null || member.lastClanEventAt < start,
+    )
+    .map(member => ({
+      ...member,
+      daysSinceClanEvent: daysBetween(member.lastClanEventAt, now),
+      daysSinceInGameChange: daysBetween(member.lastInGameChangeAt, now),
+    }));
+  const byLongestIdle = (a: IInactiveMember, b: IInactiveMember) =>
+    (b.daysSinceClanEvent ?? Infinity) - (a.daysSinceClanEvent ?? Infinity) ||
+    a.joined.localeCompare(b.joined);
+  return {
+    playingNotParticipating: idle
+      .filter(
+        member =>
+          member.lastInGameChangeAt !== null &&
+          member.lastInGameChangeAt >= start,
+      )
+      .sort(
+        (a, b) =>
+          (a.daysSinceInGameChange ?? 0) - (b.daysSinceInGameChange ?? 0) ||
+          byLongestIdle(a, b),
+      ),
+    goneQuiet: idle
+      .filter(
+        member =>
+          member.lastInGameChangeAt !== null &&
+          member.lastInGameChangeAt < start,
+      )
+      .sort(
+        (a, b) =>
+          (b.daysSinceInGameChange ?? 0) - (a.daysSinceInGameChange ?? 0) ||
+          byLongestIdle(a, b),
+      ),
+    notOnWom: idle
+      .filter(member => member.lastInGameChangeAt === null)
+      .sort(byLongestIdle),
+  };
+};
