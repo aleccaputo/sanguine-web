@@ -320,7 +320,7 @@ const Glossary = ({ rosterSize, days }: IGlossaryProps) => {
       <dl className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
         {terms.map(({ term, definition }) => (
           <div key={term} className="text-sm">
-            <dt className="inline text-gray-300">{term}.</dt>{' '}
+            <dt className="inline text-osrs-orange">{term}.</dt>{' '}
             <dd className="inline text-gray-500">{definition}</dd>
           </div>
         ))}
@@ -336,7 +336,7 @@ interface IReadingProps {
 /** One line under a stat saying what the number is and which way is good. */
 const Reading = ({ children }: IReadingProps) => (
   <Text as="p" size="2" className="mt-2 text-gray-500">
-    <span className="text-gray-400">Reading it:</span> {children}
+    <span className="text-osrs-orange">Reading it:</span> {children}
   </Text>
 );
 
