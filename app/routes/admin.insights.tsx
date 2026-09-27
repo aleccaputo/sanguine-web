@@ -1114,7 +1114,14 @@ export default function AdminInsights() {
           </Select.Content>
         </Select.Root>
       </Flex>
-      <Flex gap="4" wrap="wrap" mt="2" mb="3">
+      <Text as="p" size="2" className="mt-2 text-gray-500">
+        <span className="text-gray-400">Roster</span> means everyone the bot
+        currently tracks as a clan member: the same{' '}
+        {rosterSize.toLocaleString()} people the members page lists. Anyone who
+        has left is not counted, and every percentage below is a share of this
+        roster unless it says otherwise.
+      </Text>
+      <Flex gap="4" wrap="wrap" mt="3" mb="3">
         <Figure label="Roster" value={rosterSize.toLocaleString()} />
         <Figure
           label="Active in clan systems"
@@ -1126,9 +1133,8 @@ export default function AdminInsights() {
         />
       </Flex>
       <Reading>
-        Roster is members with a nickname, the same count as the members page.
-        Active in clan systems is how many of them did anything in a clan system
-        this period; higher is better. Idle is everyone else.
+        Active in clan systems is how many of the roster did anything in a clan
+        system this period; higher is better. Idle is everyone else.
       </Reading>
       <Flex direction="column" gap="4" mt="4" mb="6">
         <CompositionBar
