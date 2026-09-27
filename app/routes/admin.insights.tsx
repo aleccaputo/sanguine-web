@@ -41,6 +41,7 @@ import {
 import { proseLinkClass, zebraStripeClass } from '~/utils/styles';
 import type { loader as bountyScorecardLoader } from './admin.insights_.bounty.$id';
 import type { loader as pvmActivityLoader } from './admin.insights_.pvm';
+import type { loader as skillingLoader } from './admin.insights_.skilling';
 
 export const meta: MetaFunction = () => [{ title: 'Clan insights' }];
 
@@ -397,6 +398,119 @@ function PvmActivitySection({ days }: IPvmActivitySectionProps) {
         </Box>
       )}
     </Box>
+  );
+}
+
+interface ISkillingOnlySectionProps {
+  days: number;
+}
+
+/** Members online this period who gained almost no EHB, with the EHP that shows what they did. */
+function SkillingOnlySection({ days }: ISkillingOnlySectionProps) {
+  const fetcher = useFetcher<typeof skillingLoader>();
+  const href = `/admin/insights/skilling?days=${days}`;
+
+  useEffect(() => {
+    fetcher.load(href);
+    // The fetcher object changes identity on every state change; only the target matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [href]);
+
+  const result = fetcher.data;
+  const loading = fetcher.state !== 'idle';
+  const hours = (value: number) =>
+    value.toLocaleString(undefined, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+
+  return (
+    <>
+      <SubsectionHeading
+        title="Skilling only"
+        hint={
+          result
+            ? `active in-game, under ${hours(result.floor)} EHB gained this period`
+            : 'active in-game, almost no EHB gained this period'
+        }
+        summary={
+          result ? (
+            <Text size="2" className="text-gray-400">
+              {result.rows.length}
+            </Text>
+          ) : undefined
+        }
+      />
+      {!result ? (
+        <Text as="p" size="2" className="py-2 text-gray-500">
+          {loading ? 'Reading Wise Old Man…' : ''}
+        </Text>
+      ) : result.rows.length === 0 ? (
+        <Text as="p" size="2" className="py-2 text-gray-600">
+          Nobody.
+        </Text>
+      ) : (
+        <Table.Root size="2" className={loading ? 'opacity-60' : ''}>
+          <Table.Header>
+            <Table.Row>
+              <Table.ColumnHeaderCell className={headerCellClass}>
+                Member
+              </Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell
+                className={`${headerCellClass} hidden sm:table-cell`}
+              >
+                Rank
+              </Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell
+                className={`${numberHeaderClass} hidden md:table-cell`}
+              >
+                <span className="whitespace-nowrap">In-game</span>
+              </Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell className={numberHeaderClass}>
+                EHP
+              </Table.ColumnHeaderCell>
+              <Table.ColumnHeaderCell className={numberHeaderClass}>
+                EHB
+              </Table.ColumnHeaderCell>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {result.rows.map(row => (
+              <Table.Row key={row.discordId} className={zebraStripeClass}>
+                <Table.Cell>
+                  <Link
+                    to={`/users/${row.discordId}`}
+                    className={proseLinkClass}
+                  >
+                    {row.name ?? `Unknown (${row.discordId})`}
+                  </Link>
+                </Table.Cell>
+                <Table.Cell className="hidden text-gray-400 sm:table-cell">
+                  {row.womRole ? rankLabel(row.womRole) : ''}
+                </Table.Cell>
+                <Table.Cell
+                  className={`${numberCellClass} hidden text-gray-300 md:table-cell`}
+                >
+                  {daysAgo(row.daysSinceInGameChange)}
+                </Table.Cell>
+                <Table.Cell className={`${numberCellClass} text-gray-100`}>
+                  {hours(row.ehpGained)}
+                </Table.Cell>
+                <Table.Cell className={numberCellClass}>
+                  <span
+                    className={
+                      row.ehbGained === 0 ? 'text-gray-600' : 'text-gray-300'
+                    }
+                  >
+                    {hours(row.ehbGained)}
+                  </span>
+                </Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Root>
+      )}
+    </>
   );
 }
 
@@ -818,9 +932,11 @@ export default function AdminInsights() {
           }
         />
         <Note>
-          Members with no clan-system event in the last {days} days. In-game is
-          when Wise Old Man last saw any account of theirs change; clan activity
-          is their last event in the last {MONTHS_SHOWN} months.
+          Members with no clan-system event in the last {days} days, plus
+          members who were online but did no PvM. In-game: days since Wise Old
+          Man last saw any account of theirs change. Clan activity: days since
+          their last event, within the last {MONTHS_SHOWN} months. EHP and EHB:
+          efficient hours played and bossed, gained this period.
         </Note>
         <SubsectionHeading
           title="Playing, not participating"
@@ -850,6 +966,7 @@ export default function AdminInsights() {
           memberName={memberName}
           inGame
         />
+        <SkillingOnlySection days={days} />
         {inactivity.notOnWom.length > 0 && (
           <>
             <SubsectionHeading

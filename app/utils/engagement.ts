@@ -460,3 +460,57 @@ export const sumGainsByPlayer = <T extends IPlayerGainLike>(
     }, new Map())
     .values(),
 ];
+
+// ---- Skilling only ----
+
+/**
+ * Below this many efficient hours bossed per day of the window, a member who was active
+ * in-game counts as not doing PvM. 0.05 a day is 1.5 EHB over 30 days: a couple of short trips.
+ */
+export const PVM_FLOOR_EHB_PER_DAY = 0.05;
+
+export const pvmFloorForDays = (days: number): number =>
+  Math.round(PVM_FLOOR_EHB_PER_DAY * days * 100) / 100;
+
+export interface ISkillingInput {
+  discordId: string;
+  womRole: string | null;
+  /** WOM lastChangedAt, latest across accounts, or null when none is in the group. */
+  lastInGameChangeAt: string | null;
+  /** Summed across the member's accounts over the window. */
+  ehbGained: number;
+  ehpGained: number;
+}
+
+export interface ISkillingMember extends ISkillingInput {
+  daysSinceInGameChange: number;
+}
+
+/**
+ * Members who were active in-game in the window but gained less than `floor` EHB in it,
+ * most skilling (EHP gained) first. Clan-system activity is ignored on purpose: posting
+ * skilling drops is still not PvM.
+ */
+export const summarizeSkillingOnly = (
+  members: ISkillingInput[],
+  start: string,
+  now: Date,
+  floor: number,
+): ISkillingMember[] =>
+  members
+    .filter(
+      (member): member is ISkillingInput & { lastInGameChangeAt: string } =>
+        member.lastInGameChangeAt !== null &&
+        member.lastInGameChangeAt >= start &&
+        member.ehbGained < floor,
+    )
+    .map(member => ({
+      ...member,
+      daysSinceInGameChange: daysBetween(member.lastInGameChangeAt, now) ?? 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.ehpGained - a.ehpGained ||
+        a.ehbGained - b.ehbGained ||
+        a.discordId.localeCompare(b.discordId),
+    );

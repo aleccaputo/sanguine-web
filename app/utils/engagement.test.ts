@@ -6,6 +6,8 @@ import {
   monthlyEngagementSeries,
   scoreBounty,
   summarizeInactivity,
+  summarizeSkillingOnly,
+  pvmFloorForDays,
   sumGainsByPlayer,
   summarizeEngagement,
   summarizePvmActivity,
@@ -322,5 +324,43 @@ describe('sumGainsByPlayer', () => {
       { username: 'a', displayName: 'A', gained: 7 },
       { username: 'b', displayName: 'B', gained: 1 },
     ]);
+  });
+});
+
+describe('summarizeSkillingOnly', () => {
+  const start = '2026-08-28T12:00:00.000Z';
+  const member = (
+    discordId: string,
+    lastInGameChangeAt: string | null,
+    ehbGained: number,
+    ehpGained: number,
+  ) => ({
+    discordId,
+    womRole: 'member',
+    lastInGameChangeAt,
+    ehbGained,
+    ehpGained,
+  });
+
+  it('keeps in-game-active members under the PvM floor, most skilling first', () => {
+    const rows = summarizeSkillingOnly(
+      [
+        member('skiller', '2026-09-20T00:00:00.000Z', 0.4, 12.5),
+        member('big-skiller', '2026-09-25T00:00:00.000Z', 0, 30),
+        member('pvmer', '2026-09-20T00:00:00.000Z', 9, 2),
+        member('gone', '2026-07-01T00:00:00.000Z', 0, 0),
+        member('no-wom', null, 0, 0),
+      ],
+      start,
+      now,
+      pvmFloorForDays(30),
+    );
+    expect(rows.map(row => row.discordId)).toEqual(['big-skiller', 'skiller']);
+    expect(rows[0].daysSinceInGameChange).toBe(2);
+  });
+
+  it('scales the floor with the window', () => {
+    expect(pvmFloorForDays(30)).toBe(1.5);
+    expect(pvmFloorForDays(7)).toBe(0.35);
   });
 });

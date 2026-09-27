@@ -5,7 +5,10 @@ import { getAuditDataForDateRange } from '~/data/points-audit';
 import { getRaidCompletionsSince } from '~/data/raid-completions';
 import { getSpinsSince } from '~/data/slayer';
 import { getAllUserAlts } from '~/data/user';
-import type { ISanguineUserWithNickname } from '~/services/sanguine-service.server';
+import {
+  getUsersWithNicknames,
+  ISanguineUserWithNickname,
+} from '~/services/sanguine-service.server';
 import {
   getClanFromWom,
   getGroupGainsForWindow,
@@ -18,9 +21,12 @@ import {
   IEngagementEvent,
   ALL_RAIDS_METRIC,
   IPvmActivity,
+  ISkillingMember,
   PVM_METRICS,
+  pvmFloorForDays,
   RAID_METRICS,
   scoreBounty,
+  summarizeSkillingOnly,
   sumGainsByPlayer,
   summarizePvmActivity,
 } from '~/utils/engagement';
@@ -232,6 +238,22 @@ export interface IInGameActivity {
  * no extra WOM calls. Accounts map to members through nicknames and registered alts, the same
  * bridge the collection log uses; members with no account in the group are simply absent.
  */
+type UserAlt = Awaited<ReturnType<typeof getAllUserAlts>>[number];
+
+/** Normalized RSN (nickname or registered alt) to the owning member's discordId. */
+const discordIdByRsnFor = (
+  users: ISanguineUserWithNickname[],
+  alts: UserAlt[],
+): Map<string, string> =>
+  new Map([
+    ...users
+      .filter(user => user.nickname)
+      .map(
+        user => [normalizeRsn(user.nickname ?? ''), user.discordId] as const,
+      ),
+    ...alts.map(alt => [normalizeRsn(alt.altName), alt.discordId] as const),
+  ]);
+
 export const getInGameActivityByDiscordId = async (
   users: ISanguineUserWithNickname[],
 ): Promise<Map<string, IInGameActivity>> => {
@@ -240,12 +262,7 @@ export const getInGameActivityByDiscordId = async (
     getClanFromWom(),
   ]);
   const named = users.filter(user => user.nickname);
-  const discordIdByRsn = new Map([
-    ...named.map(
-      user => [normalizeRsn(user.nickname ?? ''), user.discordId] as const,
-    ),
-    ...alts.map(alt => [normalizeRsn(alt.altName), alt.discordId] as const),
-  ]);
+  const discordIdByRsn = discordIdByRsnFor(users, alts);
   const mainRsnByDiscordId = new Map(
     named.map(user => [user.discordId, normalizeRsn(user.nickname ?? '')]),
   );
@@ -271,4 +288,71 @@ export const getInGameActivityByDiscordId = async (
           : current.role,
     });
   }, new Map());
+};
+
+export interface ISkillingRow extends ISkillingMember {
+  name: string | null;
+}
+
+export interface ISkillingResult {
+  days: number;
+  /** EHB gained below which a member counts as not doing PvM over this window. */
+  floor: number;
+  start: string;
+  end: string;
+  rows: ISkillingRow[];
+}
+
+/**
+ * Members active in-game over the last `days` days who gained almost no efficient hours
+ * bossed: two cached WOM group reads (EHB and EHP), summed per member across their accounts,
+ * against the cached membership list for in-game activity.
+ */
+export const getSkillingOnly = async (
+  days: number,
+  now: Date = bucketedNow(),
+): Promise<ISkillingResult> => {
+  const start = new Date(now.getTime() - days * DAY_MS);
+  const users = await getUsersWithNicknames();
+  const [inGame, alts, ehb, ehp] = await Promise.all([
+    getInGameActivityByDiscordId(users),
+    getAllUserAlts(),
+    getGroupGainsForWindow(Metric.EHB, start, now),
+    getGroupGainsForWindow(Metric.EHP, start, now),
+  ]);
+  const discordIdByRsn = discordIdByRsnFor(users, alts);
+  const gainedByMember = (gains: { displayName: string; gained: number }[]) =>
+    gains.reduce<Map<string, number>>((acc, gain) => {
+      const discordId = discordIdByRsn.get(normalizeRsn(gain.displayName));
+      return discordId === undefined
+        ? acc
+        : acc.set(discordId, (acc.get(discordId) ?? 0) + gain.gained);
+    }, new Map());
+  const ehbByMember = gainedByMember(ehb);
+  const ehpByMember = gainedByMember(ehp);
+  const nameByDiscordId = new Map(
+    users.map(user => [user.discordId, user.nickname ?? null]),
+  );
+  const floor = pvmFloorForDays(days);
+  return {
+    days,
+    floor,
+    start: start.toISOString(),
+    end: now.toISOString(),
+    rows: summarizeSkillingOnly(
+      users.map(user => ({
+        discordId: user.discordId,
+        womRole: inGame.get(user.discordId)?.role ?? null,
+        lastInGameChangeAt: inGame.get(user.discordId)?.lastChangedAt ?? null,
+        ehbGained: ehbByMember.get(user.discordId) ?? 0,
+        ehpGained: ehpByMember.get(user.discordId) ?? 0,
+      })),
+      start.toISOString(),
+      now,
+      floor,
+    ).map(row => ({
+      ...row,
+      name: nameByDiscordId.get(row.discordId) ?? null,
+    })),
+  };
 };
