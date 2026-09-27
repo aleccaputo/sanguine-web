@@ -35,13 +35,11 @@ export const getSpinCountsByStatus = async (): Promise<
     {},
   );
 
-export const getCompletedTasksSince = async (since: string) =>
-  MOCK_SPINS.filter(
-    spin =>
-      spin.status === SPIN_STATUS.COMPLETED &&
-      spin.completion !== null &&
-      spin.completion.completedAt >= since,
-  ).map(spin => ({
+export const getSpinsSince = async (since: string) =>
+  MOCK_SPINS.filter(spin => spin.spunAt >= since).map(spin => ({
     discordId: spin.discordId,
-    completion: { completedAt: spin.completion?.completedAt ?? spin.spunAt },
+    spunAt: spin.spunAt,
+    completion: spin.completion
+      ? { completedAt: spin.completion.completedAt }
+      : null,
   }));

@@ -156,16 +156,14 @@ describe('summarizeEngagement', () => {
       '2026-10-01T00:00:00.000Z',
     );
     expect(summary.activeMembers).toBe(2);
-    expect(summary.bySystem.find(row => row.system === 'drops')).toEqual({
+    expect(summary.bySystem.find(row => row.system === 'drops')).toMatchObject({
       system: 'drops',
       members: 2,
       events: 3,
     });
-    expect(summary.bySystem.find(row => row.system === 'bounties')).toEqual({
-      system: 'bounties',
-      members: 0,
-      events: 0,
-    });
+    expect(
+      summary.bySystem.find(row => row.system === 'bounties'),
+    ).toMatchObject({ system: 'bounties', members: 0, events: 0 });
     expect(summary.byMember).toEqual([
       { discordId: '1', systems: ['drops', 'slayer'], events: 3 },
       { discordId: '2', systems: ['drops'], events: 1 },
@@ -411,5 +409,41 @@ describe('topMembersBySystem', () => {
     expect(top.slayer).toEqual([{ discordId: '1', events: 1 }]);
     expect(top.bounties).toEqual([]);
     expect(top.raids).toEqual([]);
+  });
+});
+
+describe('summarizeEngagement pace', () => {
+  it('measures live days from the first record and actions per live week', () => {
+    const start = '2026-09-01T00:00:00.000Z';
+    const end = '2026-10-01T00:00:00.000Z';
+    const summary = summarizeEngagement(
+      [
+        // Drops existed before the window: live for all 30 days.
+        event('drops', '1', '2026-07-01T00:00:00.000Z'),
+        event('drops', '1', '2026-09-10T00:00:00.000Z'),
+        event('drops', '2', '2026-09-20T00:00:00.000Z'),
+        // Slayer's first record is 10 days before the end: live 10 days, 5 actions.
+        ...Array.from({ length: 5 }, (_, i) =>
+          event('slayer', String(i), `2026-09-2${i + 1}T00:00:00.000Z`),
+        ),
+      ],
+      start,
+      end,
+    );
+    expect(summary.bySystem.find(row => row.system === 'drops')).toMatchObject({
+      events: 2,
+      liveDays: 30,
+      launchedInWindow: false,
+      actionsPerWeek: 0.5,
+    });
+    expect(summary.bySystem.find(row => row.system === 'slayer')).toMatchObject(
+      { events: 5, liveDays: 10, launchedInWindow: true, actionsPerWeek: 3.5 },
+    );
+    expect(summary.bySystem.find(row => row.system === 'raids')).toMatchObject({
+      events: 0,
+      liveDays: 0,
+      launchedInWindow: false,
+      actionsPerWeek: 0,
+    });
   });
 });

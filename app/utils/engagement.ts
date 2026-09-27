@@ -6,6 +6,7 @@
 export const WOM_UPDATE_INTERVAL_HOURS = 24;
 
 const HOUR_MS = 3_600_000;
+const DAY_MS = 24 * HOUR_MS;
 
 export interface IBountyWindowInput {
   postedAt: string;
@@ -162,7 +163,7 @@ export const ENGAGEMENT_SYSTEM_LABELS: Record<EngagementSystem, string> = {
 export const ENGAGEMENT_SYSTEM_UNITS: Record<EngagementSystem, string> = {
   drops: 'drops posted',
   competitions: 'placings',
-  slayer: 'tasks completed',
+  slayer: 'interactions',
   bounties: 'bounties won',
   raids: 'raids',
   personalBests: 'PBs',
@@ -192,6 +193,15 @@ export interface ISystemEngagement {
   /** Distinct members who touched the system in the window. */
   members: number;
   events: number;
+  /**
+   * Days of the window the system existed for, from its first record in the loaded history.
+   * Equals the window length for anything older than the history; 0 when nothing is on record.
+   */
+  liveDays: number;
+  /** True when the system's first record falls inside the window. */
+  launchedInWindow: boolean;
+  /** Actions per week over the live days only, so a month-old system compares with an old one. */
+  actionsPerWeek: number;
 }
 
 export interface IMemberEngagement {
@@ -259,12 +269,36 @@ export const summarizeEngagement = (
   end: string,
 ): IEngagementSummary => {
   const windowed = inWindow(events, start, end);
+  const windowDays = Math.max(
+    0,
+    (new Date(end).getTime() - new Date(start).getTime()) / DAY_MS,
+  );
   const bySystem = ENGAGEMENT_SYSTEMS.map(system => {
     const rows = windowed.filter(event => event.system === system);
+    // Launch = the system's earliest record anywhere in the loaded history, not just the window.
+    const firstAt = events
+      .filter(event => event.system === system)
+      .map(event => event.at)
+      .sort()
+      .at(0);
+    const launchedInWindow = firstAt !== undefined && firstAt > start;
+    const liveDays =
+      firstAt === undefined
+        ? 0
+        : launchedInWindow
+          ? Math.max(
+              0,
+              (new Date(end).getTime() - new Date(firstAt).getTime()) / DAY_MS,
+            )
+          : windowDays;
     return {
       system,
       members: new Set(rows.map(row => row.discordId)).size,
       events: rows.length,
+      liveDays: Math.round(liveDays),
+      launchedInWindow,
+      actionsPerWeek:
+        liveDays === 0 ? 0 : Math.round((rows.length / liveDays) * 7 * 10) / 10,
     };
   });
   const byMember = [...groupByMember(windowed).entries()]
@@ -436,8 +470,6 @@ export interface IInactivitySummary {
   /** No clan-system event in the window and no account in the WOM group, so in-game is unknown. */
   notOnWom: IInactiveMember[];
 }
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const daysBetween = (from: string | null, now: Date): number | null =>
   from === null

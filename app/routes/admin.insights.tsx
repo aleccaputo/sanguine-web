@@ -905,8 +905,10 @@ export default function AdminInsights() {
         <SectionHeading title="Systems engagement" />
         <Note>
           Counts are actions, never points: one per drop posted, competition
-          placing, Slayer task completed, bounty won, and per participant of
-          each approved raid or PB, in the last {days} days.
+          placing, Slayer spin or completion, bounty won, and per participant of
+          each approved raid or PB, in the last {days} days. A system that
+          launched inside the period shows how many days it was live; actions
+          per week in the table view is over live days only.
         </Note>
         {activeMembers === 0 ? (
           <NoData />
@@ -921,7 +923,12 @@ export default function AdminInsights() {
                 rows={bySystem.map(row => ({
                   label: ENGAGEMENT_SYSTEM_LABELS[row.system],
                   value: row.members,
-                  annotation: row.members > 0 ? percent(row.members) : '',
+                  annotation: [
+                    row.members > 0 ? percent(row.members) : '',
+                    row.launchedInWindow ? `live ${row.liveDays}d` : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · '),
                 }))}
                 max={rosterSize}
               />
@@ -938,6 +945,12 @@ export default function AdminInsights() {
                       </Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell className={numberHeaderClass}>
                         Actions
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell className={numberHeaderClass}>
+                        Live days
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell className={numberHeaderClass}>
+                        Actions/wk
                       </Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
@@ -957,6 +970,12 @@ export default function AdminInsights() {
                         </Table.Cell>
                         <Table.Cell className={numberCellClass}>
                           <Count value={row.events} />
+                        </Table.Cell>
+                        <Table.Cell className={numberCellClass}>
+                          <Count value={row.liveDays} />
+                        </Table.Cell>
+                        <Table.Cell className={numberCellClass}>
+                          <Count value={row.actionsPerWeek} />
                         </Table.Cell>
                       </Table.Row>
                     ))}

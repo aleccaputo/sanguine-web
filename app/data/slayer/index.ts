@@ -40,14 +40,16 @@ export const getSpinCountsByStatus = async (): Promise<
 };
 
 /**
- * Every task completed on or after `since` (ISO). Completions, not spins: a spin that was
- * rerolled, replaced, or expired is a task handed out, not a task done.
+ * Every task handed out on or after `since` (ISO), with its completion time when it was done.
+ * Spins, rerolls, and completions are all a member choosing to use the feature, which is what
+ * engagement counting cares about.
  */
-export const getCompletedTasksSince = (since: string) =>
+export const getSpinsSince = (since: string) =>
   prisma.wheelSpins.findMany({
-    where: {
-      status: SPIN_STATUS.COMPLETED,
-      completion: { is: { completedAt: { gte: since } } },
+    where: { spunAt: { gte: since } },
+    select: {
+      discordId: true,
+      spunAt: true,
+      completion: { select: { completedAt: true } },
     },
-    select: { discordId: true, completion: { select: { completedAt: true } } },
   });

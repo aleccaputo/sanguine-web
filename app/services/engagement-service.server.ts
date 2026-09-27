@@ -3,7 +3,7 @@ import { getBounties, getBountyById } from '~/data/bounties';
 import { getPersonalBestsSince } from '~/data/personal-bests';
 import { getAuditEventsSince } from '~/data/points-audit';
 import { getRaidCompletionsSince } from '~/data/raid-completions';
-import { getCompletedTasksSince } from '~/data/slayer';
+import { getSpinsSince } from '~/data/slayer';
 import {
   getRsnMemberBridge,
   IRsnMemberBridge,
@@ -167,15 +167,15 @@ export const getBountyScorecard = async (
 };
 
 /**
- * Every system touch on or after `since`: one event per drop posted, competition placing, task
- * completed, bounty claim, and per participant of each raid or PB submission.
+ * Every system touch on or after `since`: one event per drop posted, competition placing, Slayer
+ * spin or completion, bounty claim, and per participant of each raid or PB submission.
  */
 export const getEngagementEvents = async (
   since: string,
 ): Promise<IEngagementEvent[]> => {
   const [audits, spins, bounties, raids, personalBests] = await Promise.all([
     getAuditEventsSince(since),
-    getCompletedTasksSince(since),
+    getSpinsSince(since),
     getBounties(),
     getRaidCompletionsSince(since),
     getPersonalBestsSince(since),
@@ -195,8 +195,10 @@ export const getEngagementEvents = async (
         discordId: audit.destinationDiscordId,
         at: audit.createdAt,
       })),
-    ...spins.flatMap(spin =>
-      spin.completion
+    // A spin (or reroll) is one interaction; finishing the task is another.
+    ...spins.flatMap(spin => [
+      { system: 'slayer' as const, discordId: spin.discordId, at: spin.spunAt },
+      ...(spin.completion
         ? [
             {
               system: 'slayer' as const,
@@ -204,8 +206,8 @@ export const getEngagementEvents = async (
               at: spin.completion.completedAt,
             },
           ]
-        : [],
-    ),
+        : []),
+    ]),
     ...bounties.flatMap(bounty =>
       bounty.claims
         .filter(claim => claim.claimedAt >= since)
