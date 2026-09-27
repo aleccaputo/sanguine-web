@@ -741,11 +741,6 @@ export default function AdminInsights() {
               label: 'Gone quiet',
               value: inactivity.goneQuiet.length,
             },
-            {
-              key: 'nowom',
-              label: 'Not on WOM',
-              value: inactivity.notOnWom.length,
-            },
           ]}
           formatValue={value => `${value.toLocaleString()} (${percent(value)})`}
         />
