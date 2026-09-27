@@ -11,6 +11,7 @@ import {
   pvmFloorForDays,
   sumGainsByPlayer,
   summarizeEngagement,
+  topMembersBySystem,
   summarizePvmActivity,
 } from './engagement';
 
@@ -395,5 +396,20 @@ describe('summarizeInGameSplit', () => {
         1.5,
       ),
     ).toEqual({ pvming: 1, skilling: 2, noGains: 1, unknown: 1 });
+  });
+});
+
+describe('topMembersBySystem', () => {
+  it('ranks members within each system and caps the list', () => {
+    const top = topMembersBySystem(
+      events,
+      '2026-09-01T00:00:00.000Z',
+      '2026-10-01T00:00:00.000Z',
+      1,
+    );
+    expect(top.drops).toEqual([{ discordId: '1', events: 2 }]);
+    expect(top.slayer).toEqual([{ discordId: '1', events: 1 }]);
+    expect(top.bounties).toEqual([]);
+    expect(top.raids).toEqual([]);
   });
 });

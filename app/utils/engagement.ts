@@ -214,6 +214,34 @@ const groupByMember = (
     ]),
   );
 
+export interface ISystemLeader {
+  discordId: string;
+  events: number;
+}
+
+/** The busiest members of each system within [start, end), most events first, capped. */
+export const topMembersBySystem = (
+  events: IEngagementEvent[],
+  start: string,
+  end: string,
+  limit: number,
+): Record<EngagementSystem, ISystemLeader[]> => {
+  const windowed = inWindow(events, start, end);
+  return Object.fromEntries(
+    ENGAGEMENT_SYSTEMS.map(system => {
+      const rows = windowed.filter(event => event.system === system);
+      const leaders = [...groupByMember(rows).entries()]
+        .map(([discordId, own]) => ({ discordId, events: own.length }))
+        .sort(
+          (a, b) =>
+            b.events - a.events || a.discordId.localeCompare(b.discordId),
+        )
+        .slice(0, limit);
+      return [system, leaders];
+    }),
+  ) as Record<EngagementSystem, ISystemLeader[]>;
+};
+
 /** Which systems saw activity, and who touched how many of them, within [start, end). */
 export const summarizeEngagement = (
   events: IEngagementEvent[],

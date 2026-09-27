@@ -39,6 +39,7 @@ import {
   PVM_METRICS,
   PVM_PERIOD_DAYS,
   summarizeEngagement,
+  topMembersBySystem,
   summarizeInactivity,
 } from '~/utils/engagement';
 import { proseLinkClass, zebraStripeClass } from '~/utils/styles';
@@ -51,6 +52,7 @@ export const meta: MetaFunction = () => [{ title: 'Clan insights' }];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MONTHS_SHOWN = 6;
 const MOST_ENGAGED_SHOWN = 25;
+const TOP_PER_SYSTEM = 5;
 // How many bounty scorecards load on their own before the rest wait for a click, so a visit
 // costs a bounded number of WOM reads.
 const AUTO_MEASURED_BOUNTIES = 2;
@@ -101,6 +103,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     bySystem: summary.bySystem,
     activeMembers: summary.activeMembers,
     mostEngaged: summary.byMember.slice(0, MOST_ENGAGED_SHOWN),
+    topBySystem: topMembersBySystem(
+      events,
+      windowStart,
+      now.toISOString(),
+      TOP_PER_SYSTEM,
+    ),
     series: monthlyEngagementSeries(events, MONTHS_SHOWN, now),
     bounties,
     inactivity,
@@ -751,6 +759,7 @@ export default function AdminInsights() {
     bySystem,
     activeMembers,
     mostEngaged,
+    topBySystem,
     series,
     bounties,
     inactivity,
@@ -901,8 +910,8 @@ export default function AdminInsights() {
         {activeMembers === 0 ? (
           <NoData />
         ) : (
-          <Flex direction={{ initial: 'column', lg: 'row' }} gap="6">
-            <Box className="lg:w-2/5">
+          <Flex direction="column" gap="4">
+            <Box>
               <SubsectionHeading
                 title="By system"
                 hint="members, as a share of the roster"
@@ -954,7 +963,58 @@ export default function AdminInsights() {
                 </Table.Root>
               </details>
             </Box>
-            <Box className="lg:w-3/5">
+            <Box>
+              <SubsectionHeading
+                title="Top by system"
+                hint={`the ${TOP_PER_SYSTEM} busiest members of each, by events this period`}
+              />
+              <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+                {ENGAGEMENT_SYSTEMS.map(system => (
+                  <Box key={system}>
+                    <Text
+                      as="p"
+                      size="2"
+                      className="border-b border-gray-800 pb-1 text-gray-300"
+                    >
+                      {ENGAGEMENT_SYSTEM_LABELS[system]}
+                    </Text>
+                    {topBySystem[system].length === 0 ? (
+                      <Text as="p" size="2" className="py-1 text-gray-600">
+                        Nothing interesting happens.
+                      </Text>
+                    ) : (
+                      <ol className="mt-1">
+                        {topBySystem[system].map((leader, index) => (
+                          <li
+                            key={leader.discordId}
+                            className={`flex items-baseline justify-between gap-3 py-0.5 ${zebraStripeClass}`}
+                          >
+                            <Text size="2">
+                              <span className="mr-2 text-gray-500">
+                                {index + 1}
+                              </span>
+                              <Link
+                                to={`/users/${leader.discordId}`}
+                                className={proseLinkClass}
+                              >
+                                {memberName(leader.discordId)}
+                              </Link>
+                            </Text>
+                            <Text
+                              size="2"
+                              className="tabular-nums text-gray-100"
+                            >
+                              {leader.events.toLocaleString()}
+                            </Text>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </Box>
+                ))}
+              </div>
+            </Box>
+            <Box>
               <SubsectionHeading
                 title="Most engaged"
                 hint={`top ${Math.min(mostEngaged.length, MOST_ENGAGED_SHOWN)}, by systems touched then events`}

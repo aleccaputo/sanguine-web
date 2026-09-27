@@ -31,9 +31,9 @@ export const CHART_HUE = '#E2564A';
 export const COMPOSITION_HUES = ['#E2564A', '#3987e5', '#c98500', '#199e70'];
 
 const GRID = '#1F2937';
-const TICK = { fill: '#9CA3AF', fontSize: 13 };
-const VALUE_LABEL = { fill: '#E5E7EB', fontSize: 13 };
-const BAR_SIZE = 18;
+const TICK = { fill: '#9CA3AF', fontSize: 14 };
+const VALUE_LABEL = { fill: '#E5E7EB', fontSize: 14 };
+const BAR_SIZE = 20;
 
 interface ITooltipRow {
   label: string;
@@ -43,6 +43,31 @@ interface ITooltipRow {
 interface ITooltipBoxProps {
   rows: ITooltipRow[];
 }
+
+interface ITipLabelProps {
+  x?: number | string;
+  y?: number | string;
+  width?: number | string;
+  height?: number | string;
+  value?: number | string;
+}
+
+/**
+ * Value at the bar tip as one SVG text run. Recharts' own label component word-wraps to the
+ * space it thinks it has, which split "34 11%" onto two lines in a narrow chart.
+ */
+const TipLabel = ({ x, y, width, height, value }: ITipLabelProps) => (
+  <text
+    x={Number(x) + Number(width) + 6}
+    y={Number(y) + Number(height) / 2}
+    dominantBaseline="central"
+    fill={VALUE_LABEL.fill}
+    fontSize={VALUE_LABEL.fontSize}
+    style={{ whiteSpace: 'pre' }}
+  >
+    {value}
+  </text>
+);
 
 /** Dark, square tooltip: value leads, label follows. */
 const TooltipBox = ({ rows }: ITooltipBoxProps) => (
@@ -79,7 +104,7 @@ export function HorizontalBars({
   formatValue = value => value.toLocaleString(),
   labelWidth = 120,
 }: IHorizontalBarsProps) {
-  const height = rows.length * (BAR_SIZE + 12) + 8;
+  const height = rows.length * (BAR_SIZE + 14) + 8;
   const data = rows.map(row => ({
     ...row,
     tip: row.annotation
@@ -91,7 +116,7 @@ export function HorizontalBars({
       <BarChart
         data={data}
         layout="vertical"
-        margin={{ top: 0, right: 72, bottom: 0, left: 0 }}
+        margin={{ top: 0, right: 88, bottom: 0, left: 0 }}
         barCategoryGap={12}
       >
         <XAxis type="number" hide domain={[0, max ?? 'auto']} />
@@ -126,7 +151,7 @@ export function HorizontalBars({
           radius={[0, 4, 4, 0]}
           isAnimationActive={false}
         >
-          <LabelList dataKey="tip" position="right" style={VALUE_LABEL} />
+          <LabelList dataKey="tip" content={TipLabel} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
