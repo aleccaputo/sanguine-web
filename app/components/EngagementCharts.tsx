@@ -371,8 +371,8 @@ interface IDumbbellChartProps {
 
 /**
  * Before -> after per item: two markers on one track joined by a line. The "after" marker
- * wears the series hue and the "before" marker a lighter step of it, both ringed in the surface
- * color so they stay legible when they overlap. Values sit beside the markers; a legend names
+ * wears the series hue; the "before" marker is gray and a step larger, drawn underneath, so an
+ * unchanged item reads as a gray ring around the red dot instead of vanishing. Values sit beside the markers; a legend names
  * the two.
  */
 export function DumbbellChart({
@@ -381,7 +381,9 @@ export function DumbbellChart({
   afterLabel,
 }: IDumbbellChartProps) {
   const max = Math.max(1, ...rows.flatMap(row => [row.before, row.after]));
-  const at = (value: number) => `${(value / max) * 100}%`;
+  // A unitless fraction of the track; multiplying a number by a length is valid calc(), while
+  // multiplying or dividing percentages by each other is not and silently drops the rule.
+  const at = (value: number) => `calc(${value / max} * (100% - 4rem))`;
   return (
     <Box>
       <Flex gap="4" wrap="wrap" mb="2">
@@ -420,22 +422,22 @@ export function DumbbellChart({
                 <div
                   className="absolute top-1/2 h-0.5 -translate-y-1/2"
                   style={{
-                    left: `calc(${at(Math.min(row.before, row.after))} * (100% - 4rem) / 100%)`,
-                    width: `calc(${(Math.abs(row.after - row.before) / max) * 100}% * (100% - 4rem) / 100%)`,
+                    left: at(Math.min(row.before, row.after)),
+                    width: at(Math.abs(row.after - row.before)),
                     backgroundColor: rose ? CHART_HUE : '#6B7280',
                   }}
                 />
                 <span
-                  className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-gray-500"
+                  className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-gray-500"
                   style={{
-                    left: `calc(${at(row.before)} * (100% - 4rem) / 100%)`,
+                    left: at(row.before),
                     borderColor: CHART_SURFACE,
                   }}
                 />
                 <span
                   className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
                   style={{
-                    left: `calc(${at(row.after)} * (100% - 4rem) / 100%)`,
+                    left: at(row.after),
                     backgroundColor: CHART_HUE,
                     borderColor: CHART_SURFACE,
                   }}
