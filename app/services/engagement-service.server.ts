@@ -1,3 +1,4 @@
+import { remember } from '@epic-web/remember';
 import { Metric } from '@wise-old-man/utils';
 import { getBounties, getBountyById } from '~/data/bounties';
 import { getPersonalBestsSince } from '~/data/personal-bests';
@@ -182,11 +183,44 @@ export const getBountyScorecard = async (
   };
 };
 
+interface IEventsCacheEntry {
+  since: string;
+  fetchedAt: number;
+  events: IEngagementEvent[];
+}
+
+// The six-month audit read is a multi-second collection scan on the live database, and the page
+// loader runs on every period change while the skilling route needs the same rows for a narrower
+// window. One process-wide copy, a few minutes old at most, serves any window inside it.
+const EVENTS_CACHE_TTL_MS = 5 * 60 * 1000;
+const eventsCache = remember('engagementEvents', () => ({
+  entry: null as IEventsCacheEntry | null,
+}));
+
 /**
  * Every system touch on or after `since`: one event per drop posted, competition placing, Slayer
- * spin or completion, bounty claim, and per participant of each raid or PB submission.
+ * spin or completion, bounty claim, and per participant of each raid or PB submission. Served
+ * from a short-lived process cache when a fresh read already covers the window.
  */
 export const getEngagementEvents = async (
+  since: string,
+): Promise<IEngagementEvent[]> => {
+  const cached = eventsCache.entry;
+  if (
+    cached &&
+    cached.since <= since &&
+    Date.now() - cached.fetchedAt < EVENTS_CACHE_TTL_MS
+  ) {
+    return cached.since === since
+      ? cached.events
+      : cached.events.filter(event => event.at >= since);
+  }
+  const events = await readEngagementEvents(since);
+  eventsCache.entry = { since, fetchedAt: Date.now(), events };
+  return events;
+};
+
+const readEngagementEvents = async (
   since: string,
 ): Promise<IEngagementEvent[]> => {
   const [audits, spins, bounties, raids, personalBests] = await Promise.all([

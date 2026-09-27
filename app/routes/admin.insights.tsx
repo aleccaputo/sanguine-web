@@ -202,6 +202,10 @@ const TAB_BY_SECTION: Record<string, InsightsTab> = {
   [SECTION_IDS.quiet]: 'members',
 };
 
+// A tab you have opened stays mounted (forceMount) so its fetched data survives switching away
+// and back; Radix leaves force-mounted panels visible, so inactive ones hide themselves.
+const tabContentClass = 'data-[state=inactive]:hidden';
+
 // Square, flat tabs: the active one gets the red fill the design system uses for selection.
 const tabTriggerClass =
   'rounded-none px-3 text-base text-gray-400 hover:text-gray-100 data-[state=active]:bg-sanguine-red/10 data-[state=active]:text-gray-100 data-[state=active]:before:bg-sanguine-red';
@@ -1103,14 +1107,29 @@ export default function AdminInsights() {
   } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   const skilling = useSkillingRead(days);
-  const tabParam = searchParams.get('tab');
-  const tab: InsightsTab = isInsightsTab(tabParam) ? tabParam : DEFAULT_TAB;
+  // The tab is client state mirrored into the URL with replaceState rather than a router
+  // navigation: a navigation would re-run the loader's multi-second database reads for what is
+  // only a change of view. The period select still navigates, since the loader must re-aggregate.
+  const [tab, setTab] = useState<InsightsTab>(() => {
+    const initial = searchParams.get('tab');
+    return isInsightsTab(initial) ? initial : DEFAULT_TAB;
+  });
+  const [visitedTabs, setVisitedTabs] = useState<InsightsTab[]>([tab]);
   const [pendingSection, setPendingSection] = useState<string | null>(null);
-  const selectTab = (next: InsightsTab) =>
-    setSearchParams(
-      { ...Object.fromEntries(searchParams), tab: next },
-      { preventScrollReset: true },
+  const selectTab = (next: InsightsTab) => {
+    setTab(next);
+    setVisitedTabs(previous =>
+      previous.includes(next) ? previous : [...previous, next],
     );
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', next);
+    window.history.replaceState(window.history.state, '', url);
+  };
+  const selectDays = (value: string) => {
+    const next = new URLSearchParams(window.location.search);
+    next.set('days', value);
+    setSearchParams(next, { preventScrollReset: true });
+  };
   // Switch to the section's tab first; the scroll happens once that tab has rendered.
   const goTo = (sectionId: string) => {
     const target = TAB_BY_SECTION[sectionId] ?? DEFAULT_TAB;
@@ -1181,15 +1200,7 @@ export default function AdminInsights() {
         <Heading size="7" className="font-normal text-gray-100">
           Clan insights
         </Heading>
-        <Select.Root
-          value={String(days)}
-          onValueChange={value =>
-            setSearchParams(
-              { ...Object.fromEntries(searchParams), days: value },
-              { preventScrollReset: true },
-            )
-          }
-        >
+        <Select.Root value={String(days)} onValueChange={selectDays}>
           <Select.Trigger color="gray" />
           <Select.Content position="popper">
             {PVM_PERIOD_DAYS.map(option => (
@@ -1272,7 +1283,11 @@ export default function AdminInsights() {
           ))}
         </Tabs.List>
 
-        <Tabs.Content value="systems">
+        <Tabs.Content
+          value="systems"
+          forceMount={visitedTabs.includes('systems') ? true : undefined}
+          className={tabContentClass}
+        >
           <Box id={SECTION_IDS.bounties} className={sectionClass}>
             <SectionHeading
               title="Bounty lift"
@@ -1675,7 +1690,11 @@ export default function AdminInsights() {
           </Box>
         </Tabs.Content>
 
-        <Tabs.Content value="pvm">
+        <Tabs.Content
+          value="pvm"
+          forceMount={visitedTabs.includes('pvm') ? true : undefined}
+          className={tabContentClass}
+        >
           <PvmActivitySection days={days} />
           <Box mt="8" id={SECTION_IDS.skilling} className={sectionClass}>
             <SectionHeading title="Skilling only" />
@@ -1697,7 +1716,11 @@ export default function AdminInsights() {
           </Box>
         </Tabs.Content>
 
-        <Tabs.Content value="members">
+        <Tabs.Content
+          value="members"
+          forceMount={visitedTabs.includes('members') ? true : undefined}
+          className={tabContentClass}
+        >
           <ActivityByMonthSection clanFlows={clanFlows} />
           <Box mt="8" id={SECTION_IDS.tenure} className={sectionClass}>
             <SectionHeading title="By tenure" />
