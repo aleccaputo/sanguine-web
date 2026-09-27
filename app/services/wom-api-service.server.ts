@@ -1,6 +1,7 @@
 import {
   CompetitionResponse,
   GroupDetailsResponse,
+  Metric,
   WOMClient,
 } from '@wise-old-man/utils';
 import { remember } from '@epic-web/remember';
@@ -73,4 +74,86 @@ export const getClanFromWom = async (id: number = groupId) => {
     console.info('wom member cache hit');
     return womMemberCache;
   }
+};
+
+// ---- Group gains over a window (clan insights) ----
+
+/** One member's movement on a metric between two snapshots. */
+export interface IMemberGain {
+  username: string;
+  displayName: string;
+  start: number;
+  end: number;
+  gained: number;
+}
+
+interface IGainsCacheEntry {
+  fetchedAt: number;
+  rows: IMemberGain[];
+}
+
+// WOM's page size ceiling for group gains.
+const GAINS_PAGE_SIZE = 50;
+// A window whose end is at least this far in the past can't change any more (the bot's daily
+// update after it has already landed), so its rows are kept for the life of the process.
+// Anything more recent is re-read after a short TTL. Both exist to keep the admin insights page
+// from re-walking the group on every view — WOM is a volunteer project and we don't hammer it.
+const GAINS_SETTLE_MS = 24 * 60 * 60 * 1000;
+const GAINS_LIVE_TTL_MS = 15 * 60 * 1000;
+const gainsCache = remember(
+  'womGains',
+  () => new Map<string, IGainsCacheEntry>(),
+);
+
+const fetchGainsPage = async (
+  metric: Metric,
+  startDate: Date,
+  endDate: Date,
+  offset: number,
+): Promise<IMemberGain[]> => {
+  const page = await client.groups.getGroupGains(
+    groupId,
+    { metric, startDate, endDate },
+    { limit: GAINS_PAGE_SIZE, offset },
+  );
+  const rows = page.map(row => ({
+    username: row.player.username,
+    displayName: row.player.displayName,
+    start: row.data.start,
+    end: row.data.end,
+    gained: row.data.gained,
+  }));
+  // Pages come back sorted by gain, so once a page is short there's nothing after it.
+  return page.length < GAINS_PAGE_SIZE
+    ? rows
+    : [
+        ...rows,
+        ...(await fetchGainsPage(
+          metric,
+          startDate,
+          endDate,
+          offset + GAINS_PAGE_SIZE,
+        )),
+      ];
+};
+
+/**
+ * Every group member's delta on one metric between two instants, walking WOM's pages in
+ * sequence. Settled windows are cached for the process lifetime; live ones for a few minutes.
+ */
+export const getGroupGainsForWindow = async (
+  metric: Metric,
+  startDate: Date,
+  endDate: Date,
+): Promise<IMemberGain[]> => {
+  const key = `${metric}|${startDate.toISOString()}|${endDate.toISOString()}`;
+  const now = Date.now();
+  const settled = endDate.getTime() <= now - GAINS_SETTLE_MS;
+  const cached = gainsCache.get(key);
+  if (cached && (settled || now - cached.fetchedAt < GAINS_LIVE_TTL_MS)) {
+    return cached.rows;
+  }
+  const rows = await fetchGainsPage(metric, startDate, endDate, 0);
+  gainsCache.set(key, { fetchedAt: now, rows });
+  return rows;
 };

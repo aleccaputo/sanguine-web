@@ -33,6 +33,11 @@ const mockAliases = mockMode
       mockAlias('~/data/slayer', './app/mocks/slayer/index.ts'),
       mockAlias('~/data/bounties', './app/mocks/bounties/index.ts'),
       mockAlias(
+        '~/data/raid-completions',
+        './app/mocks/raid-completions/index.ts',
+      ),
+      mockAlias('~/data/personal-bests', './app/mocks/personal-bests/index.ts'),
+      mockAlias(
         '~/data/monthly-winners',
         './app/mocks/monthly-winners/index.ts',
       ),

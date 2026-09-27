@@ -71,6 +71,26 @@ export default function AdminIndex() {
             start the race, and fix moves when something goes sideways.
           </Text>
         </Link>
+        <Link
+          to="/admin/insights"
+          className="group block border-b border-gray-800 py-3 hover:bg-sanguine-red/[0.04]"
+        >
+          <Flex align="baseline" justify="between" gap="3" wrap="wrap">
+            <Text
+              size="5"
+              className="text-sanguine-bright group-hover:text-white"
+            >
+              Clan insights
+            </Text>
+            <Text size="4" className="text-gray-400">
+              derived live, nothing stored
+            </Text>
+          </Flex>
+          <Text as="p" size="4" className="mt-1 text-gray-500">
+            Did each bounty get people killing the boss, who is engaging with
+            which clan systems, and who is doing PvM, per Wise Old Man.
+          </Text>
+        </Link>
         <div className="border-b border-gray-800 py-3">
           <Flex align="baseline" justify="between" gap="3" wrap="wrap">
             <Text size="5" className="text-gray-500">

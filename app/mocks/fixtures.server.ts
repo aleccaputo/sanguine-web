@@ -725,3 +725,109 @@ export const MOCK_GROUP_MEMBERSHIPS = MOCK_USERS.map((user, idx) => ({
     lastImportedAt: new Date(),
   },
 }));
+
+// ---- Raid completions and personal bests (participation only drives the insights page) ----
+
+export type MockRaidCompletion = {
+  id: string;
+  raidDisplayName: string;
+  participantDiscordIds: string[];
+  rotwApplied: boolean;
+  awards: {
+    discordId: string;
+    basePoints: number;
+    bonusPoints: number;
+    newTeammateDiscordIds: string[];
+    rotwApplied: boolean;
+    capped: boolean;
+    totalPoints: number;
+  }[];
+  approvedAt: string;
+};
+
+const RAID_DISPLAY_NAMES = [
+  'Chambers Of Xeric',
+  'Theatre Of Blood',
+  'Tombs Of Amascut Expert',
+  'Theatre Of Blood Hard Mode',
+];
+
+const buildRaidCompletions = (): MockRaidCompletion[] =>
+  Array.from({ length: 40 }, () => {
+    const participants = faker.helpers.arrayElements(MOCK_USERS, {
+      min: 2,
+      max: 5,
+    });
+    const rotwApplied = faker.datatype.boolean(0.3);
+    return {
+      id: objectId(),
+      raidDisplayName: faker.helpers.arrayElement(RAID_DISPLAY_NAMES),
+      participantDiscordIds: participants.map(user => user.discordId),
+      rotwApplied,
+      awards: participants.map(user => ({
+        discordId: user.discordId,
+        basePoints: 2,
+        bonusPoints: 0,
+        newTeammateDiscordIds: [],
+        rotwApplied,
+        capped: false,
+        totalPoints: rotwApplied ? 4 : 2,
+      })),
+      approvedAt: faker.date
+        .between({ from: '2026-01-01', to: '2026-09-20' })
+        .toISOString(),
+    };
+  });
+
+export const MOCK_RAID_COMPLETIONS: MockRaidCompletion[] =
+  buildRaidCompletions();
+
+export type MockPersonalBest = {
+  id: string;
+  bossName: string;
+  raidLevel?: number;
+  scale: number;
+  categoryKey: string;
+  timeDisplay: string;
+  timeSeconds: number;
+  isPreciseTime: boolean;
+  effectiveTimeSeconds: number;
+  participantDiscordIds: string[];
+  participantAltNames: string[];
+  proofMessageUrl?: string;
+  createdAt: string;
+};
+
+const PB_CATEGORIES: [bossName: string, scale: number][] = [
+  ['Theatre of Blood', 5],
+  ['Chambers of Xeric', 3],
+  ['Tombs of Amascut', 1],
+  ['Vorkath', 1],
+  ['Zulrah', 1],
+];
+
+const buildPersonalBests = (): MockPersonalBest[] =>
+  Array.from({ length: 30 }, () => {
+    const [bossName, scale] = faker.helpers.arrayElement(PB_CATEGORIES);
+    const participants = faker.helpers.arrayElements(MOCK_USERS, scale);
+    const timeSeconds = faker.number.int({ min: 60, max: 1500 });
+    const minutes = Math.floor(timeSeconds / 60);
+    const seconds = timeSeconds % 60;
+    return {
+      id: objectId(),
+      bossName,
+      scale,
+      categoryKey: `${bossName.toLowerCase().replace(/\s+/g, '_')}:${scale}`,
+      timeDisplay: `${minutes}:${String(seconds).padStart(2, '0')}.0`,
+      timeSeconds,
+      isPreciseTime: true,
+      effectiveTimeSeconds: timeSeconds,
+      participantDiscordIds: participants.map(user => user.discordId),
+      participantAltNames: participants.map(() => ''),
+      createdAt: faker.date
+        .between({ from: '2026-01-01', to: '2026-09-20' })
+        .toISOString(),
+    };
+  });
+
+export const MOCK_PERSONAL_BESTS: MockPersonalBest[] = buildPersonalBests();

@@ -34,3 +34,8 @@ export const getSpinCountsByStatus = async (): Promise<
     }),
     {},
   );
+
+export const getSpinsSince = async (since: string) =>
+  MOCK_SPINS.filter(spin => spin.spunAt >= since).map(
+    ({ discordId, spunAt, status }) => ({ discordId, spunAt, status }),
+  );

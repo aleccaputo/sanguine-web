@@ -45,3 +45,23 @@ export const getRaidCompletionsForDiscordId = async (
   });
   return rows;
 };
+
+export interface IRaidCompletionParticipation {
+  raidDisplayName: string;
+  participantDiscordIds: string[];
+  approvedAt: string;
+}
+
+// Every approved raid on or after `since` (ISO), participants only — the engagement view
+// counts who took part, not what they were paid.
+export const getRaidCompletionsSince = async (
+  since: string,
+): Promise<IRaidCompletionParticipation[]> =>
+  prisma.raidCompletions.findMany({
+    where: { approvedAt: { gte: since } },
+    select: {
+      raidDisplayName: true,
+      participantDiscordIds: true,
+      approvedAt: true,
+    },
+  });
