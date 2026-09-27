@@ -242,8 +242,8 @@ export const getInGameActivityByDiscordId = async (
   bridge: IRsnMemberBridge,
 ): Promise<Map<string, IInGameActivity>> => {
   const memberships = await getClanFromWom();
-  const { discordIdByRsn, users } = bridge;
-  const named = users.filter(user => user.nickname);
+  const { discordIdByRsn, roster: users } = bridge;
+  const named = users;
   const mainRsnByDiscordId = new Map(
     named.map(user => [user.discordId, normalizeRsn(user.nickname ?? '')]),
   );
@@ -312,7 +312,7 @@ export const getSkillingOnly = async (
     getGroupGainsForWindow(Metric.EHP, start, now),
   ]);
   const inGame = await getInGameActivityByDiscordId(bridge);
-  const { discordIdByRsn, users } = bridge;
+  const { discordIdByRsn, roster: users } = bridge;
   // Sum each metric's gains per member across their main and alts.
   const gainedByMember = (gains: IMemberGainLike[]): Map<string, number> => {
     const owned = gains.flatMap(gain => {

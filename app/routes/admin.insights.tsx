@@ -72,7 +72,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     getBountyListings(),
     getRsnMemberBridge(),
   ]);
-  const { users } = bridge;
+  const users = bridge.roster;
   // Audit rows outlive membership; only count events by people still on the roster so the
   // shares add up and the boards never list someone who has left.
   const rosterIds = new Set(users.map(user => user.discordId));

@@ -11,8 +11,12 @@ export interface IRsnMemberBridge {
   discordIdByRsn: Map<string, string>;
   /** Normalized WOM display name to the account's clan role. */
   roleByRsn: Map<string, string>;
-  /** The roster the bridge was built from, so callers don't fetch it again. */
-  users: ISanguineUserWithNickname[];
+  /**
+   * The current roster: Users docs that carry a nickname, the same definition the members
+   * page uses. Docs without one are stale (people who have left) and would otherwise inflate
+   * counts and read as "not on WOM".
+   */
+  roster: ISanguineUserWithNickname[];
 }
 
 /**
@@ -41,5 +45,9 @@ export const getRsnMemberBridge = async (): Promise<IRsnMemberBridge> => {
       member.role,
     ]),
   );
-  return { discordIdByRsn, roleByRsn, users };
+  return {
+    discordIdByRsn,
+    roleByRsn,
+    roster: users.filter(user => user.nickname),
+  };
 };
