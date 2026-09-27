@@ -25,6 +25,7 @@ const groupId = parseInt(process.env.WOM_GROUP_ID ?? '18435', 10);
 const client = remember('wom', () => {
   return new WOMClient({
     apiKey: process.env.WOM_API_KEY,
+    userAgent: 'sanguine-osrs.com - Clan Website (sanguine.pvm@gmail.com)',
   });
 });
 
