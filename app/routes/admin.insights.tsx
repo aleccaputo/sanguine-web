@@ -51,6 +51,7 @@ import {
   monthlyEngagementSeries,
   parsePvmPeriodDays,
   PVM_METRICS,
+  pvmFloorForDays,
   PVM_PERIOD_DAYS,
   summarizeEngagement,
   topMembersBySystem,
@@ -242,6 +243,91 @@ const Note = ({ children }: INoteProps) => (
     {children}
   </Text>
 );
+
+interface IGlossaryProps {
+  rosterSize: number;
+  days: number;
+}
+
+/**
+ * The terms every tab leans on, defined once under the title. Section-specific ones (reach,
+ * repeat, lift) are explained where they appear.
+ */
+const Glossary = ({ rosterSize, days }: IGlossaryProps) => {
+  const floor = pvmFloorForDays(days);
+  const terms: { term: string; definition: string }[] = [
+    {
+      term: 'Roster',
+      definition: `Everyone the bot currently tracks as a clan member: the same ${rosterSize.toLocaleString()} people the members page lists. Leavers are not counted. Every percentage is a share of the roster unless it says otherwise.`,
+    },
+    {
+      term: 'Period',
+      definition: `The last ${days} days, from the selector. Every figure uses it unless it names another span.`,
+    },
+    {
+      term: 'Clan systems',
+      definition:
+        'The six things the bot tracks outside the game: drops posted, competition placings, Sanguine Slayer, bounties, raid submissions, and personal bests.',
+    },
+    {
+      term: 'Action',
+      definition:
+        'One use of a clan system: a drop posted, a placing, a Slayer spin or completion, a bounty won, or taking part in an approved raid or PB. Never points.',
+    },
+    {
+      term: 'Engaged',
+      definition: 'Did at least one action in the period.',
+    },
+    {
+      term: 'Idle',
+      definition:
+        'Did no action in the period. Split below by what Wise Old Man saw them do in-game.',
+    },
+    {
+      term: 'In-game active',
+      definition:
+        'Wise Old Man saw any of their accounts change in the period. Registered alts count for their owner.',
+    },
+    {
+      term: 'Playing, not participating',
+      definition:
+        'Idle, but in-game active. The people an event should be pulling in.',
+    },
+    {
+      term: 'Gone quiet',
+      definition: 'Idle and not in-game active either.',
+    },
+    {
+      term: 'Not on WOM',
+      definition:
+        'No account of theirs is in the Wise Old Man group, so nothing in-game can be seen. Usually a nickname or WOM entry to fix.',
+    },
+    {
+      term: 'EHB and EHP',
+      definition:
+        'Efficient hours bossed and efficient hours played, per Wise Old Man: PvM effort and skilling effort in comparable hours.',
+    },
+    {
+      term: 'PvM floor',
+      definition: `${floor} EHB over this period (0.05 a day). At or above it counts as PvMing; below it, with any gain at all, counts as skilling.`,
+    },
+  ];
+  return (
+    <details className="mt-3">
+      <summary className="cursor-pointer select-none text-sm text-gray-400">
+        Terms used on this page
+      </summary>
+      <dl className="mt-2 grid grid-cols-1 gap-x-8 gap-y-1 sm:grid-cols-2">
+        {terms.map(({ term, definition }) => (
+          <div key={term} className="text-sm">
+            <dt className="inline text-gray-300">{term}.</dt>{' '}
+            <dd className="inline text-gray-500">{definition}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  );
+};
 
 interface IReadingProps {
   children: ReactNode;
@@ -1117,10 +1203,11 @@ export default function AdminInsights() {
       <Text as="p" size="2" className="mt-2 text-gray-500">
         <span className="text-gray-400">Roster</span> means everyone the bot
         currently tracks as a clan member: the same{' '}
-        {rosterSize.toLocaleString()} people the members page lists. Anyone who
-        has left is not counted, and every percentage below is a share of this
-        roster unless it says otherwise.
+        {rosterSize.toLocaleString()} people the members page lists. Leavers and
+        Discord guests are not counted, and every percentage below is a share of
+        this roster unless it says otherwise.
       </Text>
+      <Glossary rosterSize={rosterSize} days={days} />
       <Flex gap="4" wrap="wrap" mt="3" mb="3">
         <Figure label="Roster" value={rosterSize.toLocaleString()} />
         <Figure
