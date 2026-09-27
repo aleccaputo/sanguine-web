@@ -258,7 +258,7 @@ const Glossary = ({ rosterSize, days }: IGlossaryProps) => {
   const terms: { term: string; definition: string }[] = [
     {
       term: 'Roster',
-      definition: `Everyone the bot currently tracks as a clan member: the same ${rosterSize.toLocaleString()} people the members page lists. Leavers are not counted. Every percentage is a share of the roster unless it says otherwise.`,
+      definition: `Everyone the bot currently tracks as a clan member: the same ${rosterSize.toLocaleString()} people the members page lists. Leavers and Discord guests are not counted. Every percentage is a share of the roster unless it says otherwise.`,
     },
     {
       term: 'Period',
@@ -313,7 +313,7 @@ const Glossary = ({ rosterSize, days }: IGlossaryProps) => {
     },
   ];
   return (
-    <details className="mt-3">
+    <details className="mt-3" open>
       <summary className="cursor-pointer select-none text-sm text-gray-400">
         Terms used on this page
       </summary>
@@ -1200,13 +1200,6 @@ export default function AdminInsights() {
           </Select.Content>
         </Select.Root>
       </Flex>
-      <Text as="p" size="2" className="mt-2 text-gray-500">
-        <span className="text-gray-400">Roster</span> means everyone the bot
-        currently tracks as a clan member: the same{' '}
-        {rosterSize.toLocaleString()} people the members page lists. Leavers and
-        Discord guests are not counted, and every percentage below is a share of
-        this roster unless it says otherwise.
-      </Text>
       <Glossary rosterSize={rosterSize} days={days} />
       <Flex gap="4" wrap="wrap" mt="3" mb="3">
         <Figure label="Roster" value={rosterSize.toLocaleString()} />
