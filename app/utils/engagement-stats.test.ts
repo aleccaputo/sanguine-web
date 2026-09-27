@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { IEngagementEvent } from './engagement';
 import {
+  activationFunnel,
   adjustedLiftPercent,
   clanSystemActiveByMonth,
+  ehbDistribution,
+  firstActionByMember,
+  retentionByJoinAge,
+  slayerFunnel,
   median,
   monthlyFlows,
   share,
@@ -176,5 +181,89 @@ describe('adjustedLiftPercent', () => {
   it('has no value without both baselines', () => {
     expect(adjustedLiftPercent(3, 0, 100, 100)).toBeNull();
     expect(adjustedLiftPercent(3, 2, 100, 0)).toBeNull();
+  });
+});
+
+describe('retentionByJoinAge', () => {
+  it('buckets joiners by age and reports who stayed and who plays', () => {
+    const member = (
+      discordId: string,
+      joined: string,
+      onRoster: boolean,
+      activeInGame: boolean,
+    ) => ({ discordId, joined, onRoster, activeInGame });
+    const buckets = retentionByJoinAge(
+      [
+        member('a', '2026-09-01T00:00:00.000Z', true, true),
+        member('b', '2026-08-15T00:00:00.000Z', false, false),
+        member('c', '2026-05-01T00:00:00.000Z', true, false),
+        member('d', '2024-01-01T00:00:00.000Z', true, true),
+      ],
+      now,
+    );
+    expect(buckets.map(bucket => bucket.joined)).toEqual([2, 1, 0, 0, 1]);
+    expect(buckets[0]).toMatchObject({ retained: 50, active: 50 });
+    expect(buckets[1]).toMatchObject({ retained: 100, active: 0 });
+    expect(buckets[2]).toMatchObject({ retained: null, active: null });
+    expect(buckets[4]).toMatchObject({ retained: 100, active: 100 });
+  });
+});
+
+describe('activationFunnel and firstActionByMember', () => {
+  it('measures days from join to first action, ignoring actions before the join', () => {
+    const first = firstActionByMember([
+      event('drops', 'a', '2026-09-10T00:00:00.000Z'),
+      event('drops', 'a', '2026-09-03T00:00:00.000Z'),
+      event('raids', 'b', '2026-09-20T00:00:00.000Z'),
+      event('drops', 'd', '2026-08-01T00:00:00.000Z'),
+    ]);
+    expect(first.get('a')).toBe('2026-09-03T00:00:00.000Z');
+    const funnel = activationFunnel(
+      [
+        { discordId: 'a', joined: '2026-09-01T00:00:00.000Z' },
+        { discordId: 'b', joined: '2026-09-01T00:00:00.000Z' },
+        { discordId: 'c', joined: '2026-09-01T00:00:00.000Z' },
+        { discordId: 'd', joined: '2026-09-01T00:00:00.000Z' },
+      ],
+      first,
+    );
+    expect(funnel).toEqual({
+      joined: 4,
+      within7Days: 1,
+      within30Days: 2,
+      ever: 2,
+      medianDaysToFirstAction: 10.5,
+    });
+  });
+});
+
+describe('ehbDistribution', () => {
+  it('counts members per bucket and reports the median', () => {
+    const distribution = ehbDistribution([5, 150, 150, 400, 900, 2000]);
+    expect(distribution.buckets.map(bucket => bucket.members)).toEqual([
+      1, 2, 1, 1, 1,
+    ]);
+    expect(distribution.members).toBe(6);
+    expect(distribution.median).toBe(275);
+  });
+});
+
+describe('slayerFunnel', () => {
+  it('reports completion rate and spins per completion', () => {
+    const funnel = slayerFunnel([
+      { status: 'COMPLETED', spinType: 'INITIAL' },
+      { status: 'REPLACED', spinType: 'INITIAL' },
+      { status: 'REPLACED', spinType: 'REROLL' },
+      { status: 'ACTIVE', spinType: 'REROLL' },
+    ]);
+    expect(funnel).toEqual({
+      spins: 4,
+      initialSpins: 2,
+      completed: 1,
+      replaced: 2,
+      completionRate: 25,
+      spinsPerCompletion: 4,
+    });
+    expect(slayerFunnel([]).spinsPerCompletion).toBeNull();
   });
 });

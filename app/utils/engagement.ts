@@ -203,7 +203,7 @@ export const ENGAGEMENT_SYSTEM_LABELS: Record<EngagementSystem, string> = {
 export const ENGAGEMENT_SYSTEM_UNITS: Record<EngagementSystem, string> = {
   drops: 'drops posted',
   competitions: 'placings',
-  slayer: 'interactions',
+  slayer: 'tasks completed',
   bounties: 'bounties won',
   raids: 'raids',
   personalBests: 'PBs',
@@ -410,6 +410,8 @@ export interface IPvmActivity {
   /** Members whose metric moved at all in the window. */
   activeMembers: number;
   totalGained: number;
+  /** The typical active member's gain; unlike the total, a few grinders can't drag it. */
+  medianGained: number;
   /** Gainers by amount, most first. */
   top: IBountyParticipant[];
 }
@@ -420,9 +422,17 @@ export const summarizePvmActivity = (
   topLimit: number = 15,
 ): IPvmActivity => {
   const rows = gainers(gains);
+  const sorted = rows.map(row => row.gained).sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
   return {
     activeMembers: rows.length,
     totalGained: sumGained(rows),
+    medianGained:
+      sorted.length === 0
+        ? 0
+        : sorted.length % 2 === 1
+          ? sorted[mid]
+          : (sorted[mid - 1] + sorted[mid]) / 2,
     top: [...rows]
       .sort((a, b) => b.gained - a.gained)
       .slice(0, topLimit)

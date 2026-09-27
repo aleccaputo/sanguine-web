@@ -50,6 +50,8 @@ export const getSpinsSince = (since: string) =>
     select: {
       discordId: true,
       spunAt: true,
+      status: true,
+      spinType: true,
       completion: { select: { completedAt: true } },
     },
   });

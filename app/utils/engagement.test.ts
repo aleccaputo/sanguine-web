@@ -222,6 +222,7 @@ describe('summarizePvmActivity', () => {
     expect(activity).toEqual({
       activeMembers: 2,
       totalGained: 17.5,
+      medianGained: 8.75,
       top: [
         { displayName: 'C', gained: 12, discordId: 'c' },
         { displayName: 'B', gained: 5.5, discordId: null },

@@ -585,3 +585,71 @@ export function DivergingBars({
     </Box>
   );
 }
+
+export interface IHistogramBucket {
+  label: string;
+  value: number;
+}
+
+interface IHistogramProps {
+  buckets: IHistogramBucket[];
+  /** Text for the tooltip and title, e.g. "members". */
+  unit: string;
+}
+
+/**
+ * A distribution: one column per ordered bucket, the count on each cap. Columns rather than
+ * bars because the buckets are an ordered scale read left to right, the one case where a
+ * vertical form beats a horizontal one.
+ */
+export function Histogram({ buckets, unit }: IHistogramProps) {
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart
+        data={buckets}
+        margin={{ top: 20, right: 8, bottom: 0, left: 8 }}
+        barCategoryGap={8}
+      >
+        <CartesianGrid
+          horizontal
+          vertical={false}
+          stroke={GRID}
+          strokeWidth={1}
+        />
+        <XAxis
+          dataKey="label"
+          tick={{ fill: '#9CA3AF', fontSize: 13 }}
+          axisLine={false}
+          tickLine={false}
+          interval={0}
+          height={20}
+        />
+        <YAxis hide />
+        <Tooltip
+          cursor={{ fill: 'rgba(226, 86, 74, 0.08)' }}
+          content={({ active, payload, label }) =>
+            active && payload && payload.length > 0 ? (
+              <TooltipBox
+                rows={[
+                  {
+                    label: `${unit}, ${String(label)}`,
+                    value: Number(payload[0].value).toLocaleString(),
+                  },
+                ]}
+              />
+            ) : null
+          }
+        />
+        <Bar
+          dataKey="value"
+          fill={CHART_HUE}
+          barSize={40}
+          radius={[4, 4, 0, 0]}
+          isAnimationActive={false}
+        >
+          <LabelList dataKey="value" position="top" style={VALUE_LABEL} />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}

@@ -261,3 +261,182 @@ export const clanSystemActiveByMonth = (
 
 // The adjusted lift lives beside scoreBounty in engagement.ts; re-exported for callers here.
 export { adjustedLiftPercent } from '~/utils/engagement';
+
+// ---- Retention by join age ----
+
+export const JOIN_AGE_BUCKETS = [
+  { key: 'lt3m', label: 'Under 3 months', minDays: 0, maxDays: 90 },
+  { key: '3to6m', label: '3 to 6 months', minDays: 90, maxDays: 180 },
+  { key: '6to12m', label: '6 to 12 months', minDays: 180, maxDays: 365 },
+  { key: '1to2y', label: '1 to 2 years', minDays: 365, maxDays: 730 },
+  { key: '2yplus', label: 'Over 2 years', minDays: 730, maxDays: Infinity },
+] as const;
+
+export interface IRetentionMember {
+  discordId: string;
+  joined: string;
+  /** Still a current member (on the roster). Leavers are false. */
+  onRoster: boolean;
+  activeInGame: boolean;
+}
+
+export interface IRetentionBucket {
+  key: (typeof JOIN_AGE_BUCKETS)[number]['key'];
+  label: string;
+  /** Everyone who joined in this age band, leavers included. */
+  joined: number;
+  stillOnRoster: number;
+  activeInGame: number;
+  /** Percent of joiners still on the roster, or null for an empty band. */
+  retained: number | null;
+  /** Percent of joiners active in-game this period. */
+  active: number | null;
+}
+
+/**
+ * A survival curve by how long ago people joined: of everyone who joined in each band, how many
+ * are still members and how many played this period. The step where retention drops is where
+ * members are lost, which is more useful than any single churn number.
+ */
+export const retentionByJoinAge = (
+  members: IRetentionMember[],
+  now: Date,
+): IRetentionBucket[] =>
+  JOIN_AGE_BUCKETS.map(bucket => {
+    const own = members.filter(member => {
+      const days = (now.getTime() - new Date(member.joined).getTime()) / DAY_MS;
+      return days >= bucket.minDays && days < bucket.maxDays;
+    });
+    const stillOnRoster = own.filter(member => member.onRoster).length;
+    const activeInGame = own.filter(member => member.activeInGame).length;
+    return {
+      key: bucket.key,
+      label: bucket.label,
+      joined: own.length,
+      stillOnRoster,
+      activeInGame,
+      retained: share(stillOnRoster, own.length),
+      active: share(activeInGame, own.length),
+    };
+  });
+
+// ---- New-member activation ----
+
+export interface IJoiner {
+  discordId: string;
+  joined: string;
+}
+
+export interface IActivationFunnel {
+  joined: number;
+  within7Days: number;
+  within30Days: number;
+  ever: number;
+  /** Median days from joining to the first clan-system action, among those who acted. */
+  medianDaysToFirstAction: number | null;
+}
+
+/**
+ * How quickly new members first touch a clan system. `firstActionAt` is each member's earliest
+ * action on record; joiners with none, or whose first action predates their join date (a
+ * re-join), count as not activated.
+ */
+export const activationFunnel = (
+  joiners: IJoiner[],
+  firstActionAt: Map<string, string>,
+): IActivationFunnel => {
+  const lags = joiners.flatMap(joiner => {
+    const first = firstActionAt.get(joiner.discordId);
+    const lag =
+      first === undefined
+        ? null
+        : (new Date(first).getTime() - new Date(joiner.joined).getTime()) /
+          DAY_MS;
+    return lag === null || lag < 0 ? [] : [lag];
+  });
+  return {
+    joined: joiners.length,
+    within7Days: lags.filter(lag => lag <= 7).length,
+    within30Days: lags.filter(lag => lag <= 30).length,
+    ever: lags.length,
+    medianDaysToFirstAction:
+      lags.length === 0 ? null : Math.round(median(lags) * 10) / 10,
+  };
+};
+
+/** Each member's earliest action, from any events list. */
+export const firstActionByMember = (
+  events: IEngagementEvent[],
+): Map<string, string> =>
+  new Map(
+    [...events]
+      .sort((a, b) => b.at.localeCompare(a.at))
+      .map(event => [event.discordId, event.at]),
+  );
+
+// ---- PvM experience distribution ----
+
+export const EHB_BUCKETS = [
+  { key: 'b0', label: '<100', min: 0, max: 100 },
+  { key: 'b100', label: '100 to 300', min: 100, max: 300 },
+  { key: 'b300', label: '300 to 700', min: 300, max: 700 },
+  { key: 'b700', label: '700 to 1,500', min: 700, max: 1500 },
+  { key: 'b1500', label: '1,500+', min: 1500, max: Infinity },
+] as const;
+
+export interface IEhbBucket {
+  key: (typeof EHB_BUCKETS)[number]['key'];
+  label: string;
+  members: number;
+}
+
+export interface IEhbDistribution {
+  buckets: IEhbBucket[];
+  members: number;
+  median: number;
+}
+
+/** How the roster's lifetime PvM experience (total EHB per member) is spread. */
+export const ehbDistribution = (totals: number[]): IEhbDistribution => ({
+  buckets: EHB_BUCKETS.map(bucket => ({
+    key: bucket.key,
+    label: bucket.label,
+    members: totals.filter(total => total >= bucket.min && total < bucket.max)
+      .length,
+  })),
+  members: totals.length,
+  median: Math.round(median(totals)),
+});
+
+// ---- Slayer funnel ----
+
+export interface ISlayerSpin {
+  status: string;
+  spinType: string;
+}
+
+export interface ISlayerFunnel {
+  spins: number;
+  /** Spins that were the first task handed out, not a reroll or swap. */
+  initialSpins: number;
+  completed: number;
+  replaced: number;
+  /** Percent of spins that ended in a completion. */
+  completionRate: number | null;
+  /** How many spins it takes, on average, to reach one completed task. */
+  spinsPerCompletion: number | null;
+}
+
+/** Spins in, tasks out: the health of the task pool and the reroll economy in two numbers. */
+export const slayerFunnel = (spins: ISlayerSpin[]): ISlayerFunnel => {
+  const completed = spins.filter(spin => spin.status === 'COMPLETED').length;
+  return {
+    spins: spins.length,
+    initialSpins: spins.filter(spin => spin.spinType === 'INITIAL').length,
+    completed,
+    replaced: spins.filter(spin => spin.status === 'REPLACED').length,
+    completionRate: share(completed, spins.length),
+    spinsPerCompletion:
+      completed === 0 ? null : Math.round((spins.length / completed) * 10) / 10,
+  };
+};

@@ -183,10 +183,22 @@ export const getBountyScorecard = async (
   };
 };
 
-interface IEventsCacheEntry {
+/** A Slayer spin as the funnel and the completions board read it. */
+export interface ISlayerSpinRow {
+  discordId: string;
+  spunAt: string;
+  status: string;
+  spinType: string;
+}
+
+interface IEngagementData {
+  events: IEngagementEvent[];
+  spins: ISlayerSpinRow[];
+}
+
+interface IEventsCacheEntry extends IEngagementData {
   since: string;
   fetchedAt: number;
-  events: IEngagementEvent[];
 }
 
 // The six-month audit read is a multi-second collection scan on the live database, and the page
@@ -202,9 +214,7 @@ const eventsCache = remember('engagementEvents', () => ({
  * spin or completion, bounty claim, and per participant of each raid or PB submission. Served
  * from a short-lived process cache when a fresh read already covers the window.
  */
-export const getEngagementEvents = async (
-  since: string,
-): Promise<IEngagementEvent[]> => {
+const getEngagementData = async (since: string): Promise<IEngagementData> => {
   const cached = eventsCache.entry;
   if (
     cached &&
@@ -212,17 +222,27 @@ export const getEngagementEvents = async (
     Date.now() - cached.fetchedAt < EVENTS_CACHE_TTL_MS
   ) {
     return cached.since === since
-      ? cached.events
-      : cached.events.filter(event => event.at >= since);
+      ? cached
+      : {
+          events: cached.events.filter(event => event.at >= since),
+          spins: cached.spins.filter(spin => spin.spunAt >= since),
+        };
   }
-  const events = await readEngagementEvents(since);
-  eventsCache.entry = { since, fetchedAt: Date.now(), events };
-  return events;
+  const data = await readEngagementData(since);
+  eventsCache.entry = { since, fetchedAt: Date.now(), ...data };
+  return data;
 };
 
-const readEngagementEvents = async (
+export const getEngagementEvents = async (
   since: string,
-): Promise<IEngagementEvent[]> => {
+): Promise<IEngagementEvent[]> => (await getEngagementData(since)).events;
+
+/** Every Slayer spin on or after `since`, from the same cached read as the events. */
+export const getSlayerSpinsSince = async (
+  since: string,
+): Promise<ISlayerSpinRow[]> => (await getEngagementData(since)).spins;
+
+const readEngagementData = async (since: string): Promise<IEngagementData> => {
   const [audits, spins, bounties, raids, personalBests] = await Promise.all([
     getAuditEventsSince(since),
     getSpinsSince(since),
@@ -230,7 +250,13 @@ const readEngagementEvents = async (
     getRaidCompletionsSince(since),
     getPersonalBestsSince(since),
   ]);
-  return [
+  const spinRows: ISlayerSpinRow[] = spins.map(spin => ({
+    discordId: spin.discordId,
+    spunAt: spin.spunAt,
+    status: spin.status,
+    spinType: spin.spinType,
+  }));
+  const events: IEngagementEvent[] = [
     ...audits
       .filter(audit => audit.type === 'AUTOMATED')
       .map(audit => ({
@@ -282,6 +308,33 @@ const readEngagementEvents = async (
       })),
     ),
   ];
+  return { events, spins: spinRows };
+};
+
+/**
+ * Each roster member's lifetime efficient hours bossed, main and registered alts summed, from
+ * the cached WOM membership list. Members with no account in the group are left out.
+ */
+export const getRosterEhbTotals = async (
+  bridge: IRsnMemberBridge,
+): Promise<Map<string, number>> => {
+  const memberships = await getClanFromWom();
+  const owned = memberships.flatMap(membership => {
+    const discordId = bridge.discordIdByRsn.get(
+      normalizeRsn(membership.player.displayName),
+    );
+    return discordId === undefined
+      ? []
+      : [{ discordId, ehb: membership.player.ehb ?? 0 }];
+  });
+  return new Map(
+    [...new Set(owned.map(account => account.discordId))].map(discordId => [
+      discordId,
+      owned
+        .filter(account => account.discordId === discordId)
+        .reduce((sum, account) => sum + account.ehb, 0),
+    ]),
+  );
 };
 
 /** A WOM metric from the menu, or the virtual "all raids" key. */

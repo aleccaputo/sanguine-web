@@ -23,6 +23,7 @@ import {
   CompositionBar,
   DivergingBars,
   DumbbellChart,
+  Histogram,
   HorizontalBars,
   SmallMultiples,
 } from '~/components/EngagementCharts';
@@ -32,12 +33,15 @@ import {
   getBountyListings,
   getEngagementEvents,
   getInGameActivityByDiscordId,
+  getRosterEhbTotals,
+  getSlayerSpinsSince,
 } from '~/services/engagement-service.server';
 import type {
   IBountyListing,
   IBountyScorecardResult,
 } from '~/services/engagement-service.server';
 import { getRsnMemberBridge } from '~/services/member-lookup.server';
+import { getAllUsers } from '~/data/user';
 import { BOUNTY_STATUS } from '~/utils/bounty';
 import { rankLabel } from '~/utils/clan-ranks';
 import {
@@ -60,7 +64,12 @@ import {
 import {
   clanSystemActiveByMonth,
   IMonthlyFlow,
+  activationFunnel,
+  ehbDistribution,
+  firstActionByMember,
   median,
+  retentionByJoinAge,
+  slayerFunnel,
   monthlyFlows,
   summarizeReach,
 } from '~/utils/engagement-stats';
@@ -104,6 +113,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const rosterIds = new Set(users.map(user => user.discordId));
   const events = allEvents.filter(event => rosterIds.has(event.discordId));
   const inGame = await getInGameActivityByDiscordId(bridge);
+  // Leavers included: retention and activation are about everyone who ever joined. The spins
+  // come from the same cached read as the events, so this costs nothing extra.
+  const [everyone, spins, ehbTotals] = await Promise.all([
+    getAllUsers(),
+    getSlayerSpinsSince(historyStart),
+    getRosterEhbTotals(bridge),
+  ]);
   const lastEvents = lastEventAtByMember(events);
   const summary = summarizeEngagement(events, windowStart, now.toISOString());
   const activeInGame = new Set(
@@ -124,6 +140,40 @@ export async function loader({ request }: LoaderFunctionArgs) {
     clanSystemActiveByMonth(events, MONTHS_SHOWN, now),
     users.length,
   );
+  const retention = retentionByJoinAge(
+    everyone.map(user => ({
+      discordId: user.discordId,
+      joined: user.joined,
+      onRoster: rosterIds.has(user.discordId),
+      activeInGame: activeInGame.has(user.discordId),
+    })),
+    now,
+  );
+  const activation = activationFunnel(
+    everyone.filter(user => user.joined >= historyStart),
+    firstActionByMember(allEvents),
+  );
+  const pvmExperience = ehbDistribution(
+    users.flatMap(user => {
+      const total = ehbTotals.get(user.discordId);
+      return total === undefined ? [] : [total];
+    }),
+  );
+  const slayer = slayerFunnel(spins);
+  // The Slayer board ranks tasks completed, not spins: rerolling is not the achievement.
+  const completedInWindow = spins.filter(
+    spin => spin.status === 'COMPLETED' && spin.spunAt >= windowStart,
+  );
+  const slayerCompleters = [...new Set(completedInWindow.map(s => s.discordId))]
+    .map(discordId => ({
+      discordId,
+      events: completedInWindow.filter(spin => spin.discordId === discordId)
+        .length,
+    }))
+    .sort(
+      (a, b) => b.events - a.events || a.discordId.localeCompare(b.discordId),
+    )
+    .slice(0, TOP_PER_SYSTEM);
   const inactivity = summarizeInactivity(
     users.map(user => ({
       discordId: user.discordId,
@@ -148,12 +198,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
     clanFlows,
     activeMembers: summary.activeMembers,
     mostEngaged: summary.byMember.slice(0, MOST_ENGAGED_SHOWN),
-    topBySystem: topMembersBySystem(
-      events,
-      windowStart,
-      now.toISOString(),
-      TOP_PER_SYSTEM,
-    ),
+    topBySystem: {
+      ...topMembersBySystem(
+        events,
+        windowStart,
+        now.toISOString(),
+        TOP_PER_SYSTEM,
+      ),
+      slayer: slayerCompleters,
+    },
+    retention,
+    activation,
+    pvmExperience,
+    slayer,
     series: monthlyEngagementSeries(events, MONTHS_SHOWN, now),
     bounties,
     inactivity,
@@ -171,6 +228,10 @@ const SECTION_IDS = {
   skilling: 'skilling',
   months: 'months',
   tenure: 'tenure',
+  retention: 'retention',
+  activation: 'activation',
+  experience: 'experience',
+  slayerFunnel: 'slayer-funnel',
 } as const;
 
 const sectionClass = 'scroll-mt-20';
@@ -200,6 +261,10 @@ const TAB_BY_SECTION: Record<string, InsightsTab> = {
   [SECTION_IDS.notParticipating]: 'members',
   [SECTION_IDS.playing]: 'members',
   [SECTION_IDS.quiet]: 'members',
+  [SECTION_IDS.retention]: 'members',
+  [SECTION_IDS.activation]: 'members',
+  [SECTION_IDS.experience]: 'pvm',
+  [SECTION_IDS.slayerFunnel]: 'systems',
 };
 
 // A tab you have opened stays mounted (forceMount) so its fetched data survives switching away
@@ -607,15 +672,19 @@ function PvmActivitySection({ days }: IPvmActivitySectionProps) {
               value={result.activity.activeMembers.toLocaleString()}
             />
             <Figure
+              label="Median per active member"
+              value={formatGain(result.metric, result.activity.medianGained)}
+            />
+            <Figure
               label="Total gained"
               value={formatGain(result.metric, result.activity.totalGained)}
             />
           </Flex>
           <Reading>
-            Active is how many members moved this metric at all. Total gained is
-            the clan&apos;s combined gain: hours for EHB, kills for a raid or
-            boss. The bars rank who gained most; a long top bar with a short
-            tail means a few members carry the number.
+            Active is how many members moved this metric at all. Median per
+            active member is what a typical one of them gained: hours for EHB,
+            kills for a raid or boss. Total gained is the clan&apos;s combined
+            gain, which a few grinders can carry; the bars show whether they do.
           </Reading>
           {result.activity.top.length === 0 ? (
             <NoData />
@@ -1104,6 +1173,10 @@ export default function AdminInsights() {
     series,
     bounties,
     inactivity,
+    retention,
+    activation,
+    pvmExperience,
+    slayer,
   } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
   const skilling = useSkillingRead(days);
@@ -1688,6 +1761,53 @@ export default function AdminInsights() {
               </details>
             </Box>
           </Box>
+          <Box mt="8" id={SECTION_IDS.slayerFunnel} className={sectionClass}>
+            <SectionHeading
+              title="Slayer task funnel"
+              summary={
+                <Text size="2" className="text-gray-400">
+                  last {MONTHS_SHOWN} months
+                </Text>
+              }
+            />
+            <Note>
+              Every task handed out over the last {MONTHS_SHOWN} months and how
+              many were finished. A spin is a first task, a reroll, a free
+              respin, or a gated swap; replaced means it was rolled away.
+            </Note>
+            <Flex gap="4" wrap="wrap" mb="2">
+              <Figure
+                label="Completion rate"
+                value={`${slayer.completionRate ?? 0}%`}
+              />
+              <Figure
+                label="Spins per completed task"
+                value={slayer.spinsPerCompletion?.toLocaleString() ?? '–'}
+              />
+              <Figure
+                label="First tasks"
+                value={slayer.initialSpins.toLocaleString()}
+              />
+            </Flex>
+            <HorizontalBars
+              rows={[
+                { label: 'Spins', value: slayer.spins },
+                { label: 'Replaced', value: slayer.replaced },
+                { label: 'Completed', value: slayer.completed },
+              ]}
+              max={Math.max(1, slayer.spins)}
+              labelWidth={100}
+            />
+            <Reading>
+              Completion rate is completed over all spins; higher means tasks
+              get done rather than rolled away. Spins per completed task is the
+              reroll cost of one finished task; a high number says the pool or
+              the reroll price needs a look. Elsewhere on this page a Slayer
+              action counts spins and completions alike, because both are a
+              member choosing to use the feature; the Top by system board ranks
+              completed tasks only.
+            </Reading>
+          </Box>
         </Tabs.Content>
 
         <Tabs.Content
@@ -1696,6 +1816,46 @@ export default function AdminInsights() {
           className={tabContentClass}
         >
           <PvmActivitySection days={days} />
+
+          <Box mt="8" id={SECTION_IDS.experience} className={sectionClass}>
+            <SectionHeading
+              title="PvM experience"
+              summary={
+                <Text size="2" className="text-gray-400">
+                  {pvmExperience.members} members on WOM
+                </Text>
+              }
+            />
+            <Note>
+              Lifetime efficient hours bossed per member, main and registered
+              alts summed, from Wise Old Man. Not tied to the period: this is
+              who the roster is, not what it did lately.
+            </Note>
+            <Flex gap="4" wrap="wrap" mb="2">
+              <Figure
+                label="Median EHB"
+                value={pvmExperience.median.toLocaleString()}
+              />
+              <Figure
+                label="Under 100 EHB"
+                value={`${pvmExperience.buckets[0].members} (${percent(pvmExperience.buckets[0].members)})`}
+              />
+            </Flex>
+            <Histogram
+              buckets={pvmExperience.buckets.map(bucket => ({
+                label: bucket.label,
+                value: bucket.members,
+              }))}
+              unit="members"
+            />
+            <Reading>
+              Columns are members per band of lifetime EHB. A tall left column
+              is a roster of early PvMers; mass on the right is an experienced
+              one. The median is the member in the middle. Read it against the
+              tenure section: if the left column is mostly recent joiners, the
+              intake is where PvM quality is set.
+            </Reading>
+          </Box>
           <Box mt="8" id={SECTION_IDS.skilling} className={sectionClass}>
             <SectionHeading title="Skilling only" />
             <Note>
@@ -1721,7 +1881,126 @@ export default function AdminInsights() {
           forceMount={visitedTabs.includes('members') ? true : undefined}
           className={tabContentClass}
         >
-          <ActivityByMonthSection clanFlows={clanFlows} />
+          <Box id={SECTION_IDS.retention} className={sectionClass}>
+            <SectionHeading title="Retention by join age" />
+            <Note>
+              Everyone who ever joined, leavers included, grouped by how long
+              ago. Still a member is the share still on the roster; active is
+              the share Wise Old Man saw play in the last {days} days.
+            </Note>
+            <SmallMultiples
+              series={[
+                {
+                  key: 'retained',
+                  title: 'Still a member, share of joiners',
+                  points: retention.map(bucket => ({
+                    label: bucket.label
+                      .replace('Under 3 months', '<3m')
+                      .replace('3 to 6 months', '3-6m')
+                      .replace('6 to 12 months', '6-12m')
+                      .replace('1 to 2 years', '1-2y')
+                      .replace('Over 2 years', '2y+'),
+                    value: bucket.retained ?? 0,
+                  })),
+                },
+                {
+                  key: 'active',
+                  title: 'Active in-game, share of joiners',
+                  points: retention.map(bucket => ({
+                    label: bucket.label
+                      .replace('Under 3 months', '<3m')
+                      .replace('3 to 6 months', '3-6m')
+                      .replace('6 to 12 months', '6-12m')
+                      .replace('1 to 2 years', '1-2y')
+                      .replace('Over 2 years', '2y+'),
+                    value: bucket.active ?? 0,
+                  })),
+                },
+              ]}
+              max={100}
+              formatValue={value => `${value}%`}
+            />
+            <Flex gap="4" wrap="wrap" mt="2">
+              {retention.map(bucket => (
+                <Figure
+                  key={bucket.key}
+                  label={bucket.label}
+                  value={`${bucket.joined} joined`}
+                />
+              ))}
+            </Flex>
+            <Reading>
+              A survival curve: the step where still a member drops is where
+              people are lost, and the gap between the two lines is members who
+              stayed but stopped playing. The rightmost point of each line is
+              the number in its title. The newest band is partly people who
+              haven&apos;t had time to leave yet.
+            </Reading>
+          </Box>
+
+          <Box mt="8" id={SECTION_IDS.activation} className={sectionClass}>
+            <SectionHeading
+              title="New members"
+              summary={
+                <Text size="2" className="text-gray-400">
+                  joined in the last {MONTHS_SHOWN} months
+                </Text>
+              }
+            />
+            <Note>
+              How quickly people who joined recently first used a clan system,
+              counted from their join date. Leavers are included so the funnel
+              is honest about who never engaged.
+            </Note>
+            <Flex gap="4" wrap="wrap" mb="2">
+              <Figure
+                label="Median days to first action"
+                value={activation.medianDaysToFirstAction ?? '–'}
+              />
+              <Figure
+                label="Never acted"
+                value={`${activation.joined - activation.ever} of ${activation.joined}`}
+              />
+            </Flex>
+            <HorizontalBars
+              rows={[
+                { label: 'Joined', value: activation.joined },
+                {
+                  label: 'Acted within 7 days',
+                  value: activation.within7Days,
+                  annotation: activation.joined
+                    ? `${Math.round((activation.within7Days / activation.joined) * 100)}%`
+                    : '',
+                },
+                {
+                  label: 'Within 30 days',
+                  value: activation.within30Days,
+                  annotation: activation.joined
+                    ? `${Math.round((activation.within30Days / activation.joined) * 100)}%`
+                    : '',
+                },
+                {
+                  label: 'Ever',
+                  value: activation.ever,
+                  annotation: activation.joined
+                    ? `${Math.round((activation.ever / activation.joined) * 100)}%`
+                    : '',
+                },
+              ]}
+              max={Math.max(1, activation.joined)}
+              labelWidth={170}
+            />
+            <Reading>
+              A funnel: each bar is a subset of the one above. The drop from
+              joined to ever is the share of new members who never touch a clan
+              system, which is the onboarding gap; the 7-day bar is how many are
+              hooked in their first week.
+            </Reading>
+          </Box>
+
+          <Box mt="8">
+            <ActivityByMonthSection clanFlows={clanFlows} />
+          </Box>
           <Box mt="8" id={SECTION_IDS.tenure} className={sectionClass}>
             <SectionHeading title="By tenure" />
             <Note>
