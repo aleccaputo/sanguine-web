@@ -9,6 +9,11 @@ import { Box, Flex, Heading, Select, Table, Text } from '@radix-ui/themes';
 import dayjs from 'dayjs';
 import { ReactNode, useEffect, useState } from 'react';
 import { Button } from '~/components/button';
+import {
+  CompositionBar,
+  HorizontalBars,
+  SmallMultiples,
+} from '~/components/EngagementCharts';
 import { SectionHeading, SubsectionHeading } from '~/components/SectionHeading';
 import { requireStaff } from '~/services/auth.server';
 import {
@@ -96,6 +101,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 const headerCellClass = 'text-osrs-orange';
+const tableToggleClass = 'cursor-pointer select-none text-sm text-gray-500';
 const numberCellClass = 'text-right tabular-nums';
 const numberHeaderClass = `${headerCellClass} text-right`;
 
@@ -330,43 +336,63 @@ function PvmActivitySection({ days }: IPvmActivitySectionProps) {
           {result.activity.top.length === 0 ? (
             <NoData />
           ) : (
-            <Table.Root size="2">
-              <Table.Header>
-                <Table.Row>
-                  <Table.ColumnHeaderCell className={numberHeaderClass}>
-                    #
-                  </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell className={headerCellClass}>
-                    Player
-                  </Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell className={numberHeaderClass}>
-                    Gained
-                  </Table.ColumnHeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {result.activity.top.map((row, index) => (
-                  <Table.Row key={row.displayName} className={zebraStripeClass}>
-                    <Table.Cell className={`${numberCellClass} text-gray-500`}>
-                      {index + 1}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <a
-                        href={`https://wiseoldman.net/players/${encodeURIComponent(row.displayName)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={proseLinkClass}
+            <>
+              <HorizontalBars
+                rows={result.activity.top.map(row => ({
+                  label: row.displayName,
+                  value: row.gained,
+                }))}
+                formatValue={value => formatGain(result.metric, value)}
+                labelWidth={150}
+              />
+              <details className="mt-2">
+                <summary className={tableToggleClass}>Table view</summary>
+                <Table.Root size="2">
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.ColumnHeaderCell className={numberHeaderClass}>
+                        #
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell className={headerCellClass}>
+                        Player
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell className={numberHeaderClass}>
+                        Gained
+                      </Table.ColumnHeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {result.activity.top.map((row, index) => (
+                      <Table.Row
+                        key={row.displayName}
+                        className={zebraStripeClass}
                       >
-                        {row.displayName}
-                      </a>
-                    </Table.Cell>
-                    <Table.Cell className={`${numberCellClass} text-gray-100`}>
-                      {formatGain(result.metric, row.gained)}
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Root>
+                        <Table.Cell
+                          className={`${numberCellClass} text-gray-500`}
+                        >
+                          {index + 1}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <a
+                            href={`https://wiseoldman.net/players/${encodeURIComponent(row.displayName)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={proseLinkClass}
+                          >
+                            {row.displayName}
+                          </a>
+                        </Table.Cell>
+                        <Table.Cell
+                          className={`${numberCellClass} text-gray-100`}
+                        >
+                          {formatGain(result.metric, row.gained)}
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table.Root>
+              </details>
+            </>
           )}
         </Box>
       )}
@@ -496,7 +522,7 @@ export default function AdminInsights() {
           </Select.Content>
         </Select.Root>
       </Flex>
-      <Flex gap="4" wrap="wrap" mt="2" mb="6">
+      <Flex gap="4" wrap="wrap" mt="2" mb="3">
         <Figure label="Roster" value={rosterSize.toLocaleString()} />
         <Figure
           label="Active in clan systems"
@@ -506,11 +532,30 @@ export default function AdminInsights() {
           label="Idle"
           value={`${idleCount.toLocaleString()} (${percent(idleCount)})`}
         />
-        <Figure
-          label="Not on WOM"
-          value={inactivity.notOnWom.length.toLocaleString()}
-        />
       </Flex>
+      <Box mb="6">
+        <CompositionBar
+          segments={[
+            { key: 'active', label: 'Engaged', value: activeMembers },
+            {
+              key: 'playing',
+              label: 'Playing, not participating',
+              value: inactivity.playingNotParticipating.length,
+            },
+            {
+              key: 'quiet',
+              label: 'Gone quiet',
+              value: inactivity.goneQuiet.length,
+            },
+            {
+              key: 'nowom',
+              label: 'Not on WOM',
+              value: inactivity.notOnWom.length,
+            },
+          ]}
+          formatValue={value => `${value.toLocaleString()} (${percent(value)})`}
+        />
+      </Box>
 
       <SectionHeading
         title="Bounty lift"
@@ -582,42 +627,56 @@ export default function AdminInsights() {
         ) : (
           <Flex direction={{ initial: 'column', lg: 'row' }} gap="6">
             <Box className="lg:w-2/5">
-              <SubsectionHeading title="By system" />
-              <Table.Root size="2">
-                <Table.Header>
-                  <Table.Row>
-                    <Table.ColumnHeaderCell className={headerCellClass}>
-                      System
-                    </Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell className={numberHeaderClass}>
-                      Members
-                    </Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell className={numberHeaderClass}>
-                      Events
-                    </Table.ColumnHeaderCell>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {bySystem.map(row => (
-                    <Table.Row key={row.system} className={zebraStripeClass}>
-                      <Table.Cell className="text-gray-300">
-                        {ENGAGEMENT_SYSTEM_LABELS[row.system]}
-                      </Table.Cell>
-                      <Table.Cell className={numberCellClass}>
-                        <Count value={row.members} />
-                        {row.members > 0 && (
-                          <Text size="1" className="ml-1 text-gray-500">
-                            {percent(row.members)}
-                          </Text>
-                        )}
-                      </Table.Cell>
-                      <Table.Cell className={numberCellClass}>
-                        <Count value={row.events} />
-                      </Table.Cell>
+              <SubsectionHeading
+                title="By system"
+                hint="members, as a share of the roster"
+              />
+              <HorizontalBars
+                rows={bySystem.map(row => ({
+                  label: ENGAGEMENT_SYSTEM_LABELS[row.system],
+                  value: row.members,
+                  annotation: row.members > 0 ? percent(row.members) : '',
+                }))}
+                max={rosterSize}
+              />
+              <details className="mt-2">
+                <summary className={tableToggleClass}>Table view</summary>
+                <Table.Root size="2">
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.ColumnHeaderCell className={headerCellClass}>
+                        System
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell className={numberHeaderClass}>
+                        Members
+                      </Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell className={numberHeaderClass}>
+                        Events
+                      </Table.ColumnHeaderCell>
                     </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Root>
+                  </Table.Header>
+                  <Table.Body>
+                    {bySystem.map(row => (
+                      <Table.Row key={row.system} className={zebraStripeClass}>
+                        <Table.Cell className="text-gray-300">
+                          {ENGAGEMENT_SYSTEM_LABELS[row.system]}
+                        </Table.Cell>
+                        <Table.Cell className={numberCellClass}>
+                          <Count value={row.members} />
+                          {row.members > 0 && (
+                            <Text size="1" className="ml-1 text-gray-500">
+                              {percent(row.members)}
+                            </Text>
+                          )}
+                        </Table.Cell>
+                        <Table.Cell className={numberCellClass}>
+                          <Count value={row.events} />
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table.Root>
+              </details>
             </Box>
             <Box className="lg:w-3/5">
               <SubsectionHeading
@@ -684,46 +743,66 @@ export default function AdminInsights() {
         <Box mt="4">
           <SubsectionHeading
             title="Month by month"
-            hint="distinct members per system"
+            hint="distinct members per system on a shared scale; the number is this month so far"
           />
-          <Table.Root size="2">
-            <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeaderCell className={headerCellClass}>
-                  Month
-                </Table.ColumnHeaderCell>
-                {ENGAGEMENT_SYSTEMS.map(system => (
-                  <Table.ColumnHeaderCell
-                    key={system}
-                    className={`${numberHeaderClass} ${monthColumnClass(system)}`}
-                  >
-                    {ENGAGEMENT_SYSTEM_SHORT_LABELS[system]}
+          <SmallMultiples
+            series={ENGAGEMENT_SYSTEMS.map(system => ({
+              key: system,
+              title: ENGAGEMENT_SYSTEM_LABELS[system],
+              points: series.map(row => ({
+                label: row.label.slice(0, 3),
+                value: row.members[system],
+              })),
+            }))}
+            max={Math.max(
+              ...series.flatMap(row =>
+                ENGAGEMENT_SYSTEMS.map(system => row.members[system]),
+              ),
+            )}
+          />
+          <details className="mt-2">
+            <summary className={tableToggleClass}>Table view</summary>
+            <Table.Root size="2">
+              <Table.Header>
+                <Table.Row>
+                  <Table.ColumnHeaderCell className={headerCellClass}>
+                    Month
                   </Table.ColumnHeaderCell>
-                ))}
-                <Table.ColumnHeaderCell className={numberHeaderClass}>
-                  Active
-                </Table.ColumnHeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {series.map(row => (
-                <Table.Row key={row.month} className={zebraStripeClass}>
-                  <Table.Cell className="text-gray-300">{row.label}</Table.Cell>
                   {ENGAGEMENT_SYSTEMS.map(system => (
-                    <Table.Cell
+                    <Table.ColumnHeaderCell
                       key={system}
-                      className={`${numberCellClass} ${monthColumnClass(system)}`}
+                      className={`${numberHeaderClass} ${monthColumnClass(system)}`}
                     >
-                      <Count value={row.members[system]} />
-                    </Table.Cell>
+                      {ENGAGEMENT_SYSTEM_SHORT_LABELS[system]}
+                    </Table.ColumnHeaderCell>
                   ))}
-                  <Table.Cell className={numberCellClass}>
-                    <Count value={row.activeMembers} />
-                  </Table.Cell>
+                  <Table.ColumnHeaderCell className={numberHeaderClass}>
+                    Active
+                  </Table.ColumnHeaderCell>
                 </Table.Row>
-              ))}
-            </Table.Body>
-          </Table.Root>
+              </Table.Header>
+              <Table.Body>
+                {series.map(row => (
+                  <Table.Row key={row.month} className={zebraStripeClass}>
+                    <Table.Cell className="text-gray-300">
+                      {row.label}
+                    </Table.Cell>
+                    {ENGAGEMENT_SYSTEMS.map(system => (
+                      <Table.Cell
+                        key={system}
+                        className={`${numberCellClass} ${monthColumnClass(system)}`}
+                      >
+                        <Count value={row.members[system]} />
+                      </Table.Cell>
+                    ))}
+                    <Table.Cell className={numberCellClass}>
+                      <Count value={row.activeMembers} />
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Root>
+          </details>
         </Box>
       </Box>
 

@@ -3,7 +3,7 @@ import { requireStaff } from '~/services/auth.server';
 import {
   DEFAULT_PVM_METRIC,
   getPvmActivity,
-  isPvmMetric,
+  isPvmMetricKey,
 } from '~/services/engagement-service.server';
 import { PVM_PERIOD_DAYS } from '~/utils/engagement';
 
@@ -14,7 +14,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   await requireStaff(request);
   const url = new URL(request.url);
   const metricParam = url.searchParams.get('metric') ?? '';
-  const metric = isPvmMetric(metricParam) ? metricParam : DEFAULT_PVM_METRIC;
+  const metric = isPvmMetricKey(metricParam) ? metricParam : DEFAULT_PVM_METRIC;
   const daysParam = Number(url.searchParams.get('days'));
   const days = (PVM_PERIOD_DAYS as readonly number[]).includes(daysParam)
     ? daysParam

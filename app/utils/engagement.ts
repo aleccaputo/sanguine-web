@@ -308,8 +308,22 @@ export const summarizePvmActivity = (
 
 /** The WOM metrics the PvM activity view can be pointed at, in menu order. Plain strings so the
  * page can render the menu without pulling the WOM client into the browser bundle. */
+/** The raid metrics "All raids" adds up: every raid and its hard-mode variant. */
+export const RAID_METRICS = [
+  'chambers_of_xeric',
+  'chambers_of_xeric_challenge_mode',
+  'theatre_of_blood',
+  'theatre_of_blood_hard_mode',
+  'tombs_of_amascut',
+  'tombs_of_amascut_expert',
+] as const;
+
+/** The virtual metric key that sums RAID_METRICS per member. */
+export const ALL_RAIDS_METRIC = 'raids';
+
 export const PVM_METRICS: { metric: string; label: string }[] = [
   { metric: 'ehb', label: 'All PvM (EHB)' },
+  { metric: ALL_RAIDS_METRIC, label: 'All raids (KC)' },
   { metric: 'chambers_of_xeric', label: 'Chambers of Xeric' },
   { metric: 'chambers_of_xeric_challenge_mode', label: 'Chambers of Xeric CM' },
   { metric: 'theatre_of_blood', label: 'Theatre of Blood' },
@@ -422,3 +436,27 @@ export const summarizeInactivity = (
       .sort(byLongestIdle),
   };
 };
+
+export interface IPlayerGainLike extends IMemberGainLike {
+  username: string;
+}
+
+/**
+ * Adds several metrics' gains together per player (by WOM username), for the "All raids" view.
+ * A player missing from one metric's list simply contributes nothing there.
+ */
+export const sumGainsByPlayer = <T extends IPlayerGainLike>(
+  lists: T[][],
+): IPlayerGainLike[] => [
+  ...lists
+    .flat()
+    .reduce<Map<string, IPlayerGainLike>>((acc, row) => {
+      const current = acc.get(row.username);
+      return acc.set(row.username, {
+        username: row.username,
+        displayName: current?.displayName ?? row.displayName,
+        gained: (current?.gained ?? 0) + row.gained,
+      });
+    }, new Map())
+    .values(),
+];

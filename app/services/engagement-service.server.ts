@@ -16,9 +16,12 @@ import {
   IBountyScorecard,
   IBountyWindow,
   IEngagementEvent,
+  ALL_RAIDS_METRIC,
   IPvmActivity,
   PVM_METRICS,
+  RAID_METRICS,
   scoreBounty,
+  sumGainsByPlayer,
   summarizePvmActivity,
 } from '~/utils/engagement';
 import { getSlayerBossImageUrl } from '~/utils/slayer';
@@ -173,14 +176,17 @@ export const getEngagementEvents = async (
   ];
 };
 
-export const isPvmMetric = (value: string): value is Metric =>
+/** A WOM metric from the menu, or the virtual "all raids" key. */
+export type PvmMetricKey = Metric | typeof ALL_RAIDS_METRIC;
+
+export const isPvmMetricKey = (value: string): value is PvmMetricKey =>
   PVM_METRICS.some(option => option.metric === value);
 
 /** What the PvM view opens on: the first menu entry, all PvM as efficient hours bossed. */
-export const DEFAULT_PVM_METRIC: Metric = Metric.EHB;
+export const DEFAULT_PVM_METRIC: PvmMetricKey = Metric.EHB;
 
 export interface IPvmActivityResult {
-  metric: Metric;
+  metric: PvmMetricKey;
   days: number;
   start: string;
   end: string;
@@ -189,12 +195,22 @@ export interface IPvmActivityResult {
 
 /** Who moved a metric over the last `days` days, from one WOM group-gains read. */
 export const getPvmActivity = async (
-  metric: Metric,
+  metric: PvmMetricKey,
   days: number,
   now: Date = bucketedNow(),
 ): Promise<IPvmActivityResult> => {
   const start = new Date(now.getTime() - days * DAY_MS);
-  const gains = await getGroupGainsForWindow(metric, start, now);
+  // "All raids" is one read per raid metric (each cached on its own), summed per player.
+  const gains =
+    metric === ALL_RAIDS_METRIC
+      ? sumGainsByPlayer(
+          await Promise.all(
+            RAID_METRICS.map(raid =>
+              getGroupGainsForWindow(raid as Metric, start, now),
+            ),
+          ),
+        )
+      : await getGroupGainsForWindow(metric, start, now);
   return {
     metric,
     days,

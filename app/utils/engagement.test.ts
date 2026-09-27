@@ -6,6 +6,7 @@ import {
   monthlyEngagementSeries,
   scoreBounty,
   summarizeInactivity,
+  sumGainsByPlayer,
   summarizeEngagement,
   summarizePvmActivity,
 } from './engagement';
@@ -304,5 +305,22 @@ describe('summarizeInactivity', () => {
       daysSinceClanEvent: null,
       daysSinceInGameChange: null,
     });
+  });
+});
+
+describe('sumGainsByPlayer', () => {
+  it('adds gains per player across metrics, keeping players missing from some lists', () => {
+    const rows = sumGainsByPlayer([
+      [
+        { username: 'a', displayName: 'A', gained: 3 },
+        { username: 'b', displayName: 'B', gained: 1 },
+      ],
+      [{ username: 'a', displayName: 'A', gained: 4 }],
+      [],
+    ]);
+    expect(rows).toEqual([
+      { username: 'a', displayName: 'A', gained: 7 },
+      { username: 'b', displayName: 'B', gained: 1 },
+    ]);
   });
 });
