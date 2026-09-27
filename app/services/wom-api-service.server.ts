@@ -92,8 +92,13 @@ interface IGainsCacheEntry {
   rows: IMemberGain[];
 }
 
-// WOM's page size ceiling for group gains.
+// WOM's documented page size ceiling for group gains. In practice the endpoint ignores
+// limit/offset when a start/end date is given and returns the whole group in one response
+// (verified 2026-09-27: 362 rows for every offset), so the walk below must stop on its own:
+// it ends on a short page, on a page it has already seen, or at a hard page cap. Never assume a
+// full page means there is more — that assumption looped forever against WOM once.
 const GAINS_PAGE_SIZE = 50;
+const GAINS_MAX_PAGES = 20;
 // A window whose end is at least this far in the past can't change any more (the bot's daily
 // update after it has already landed), so its rows are kept for the life of the process.
 // Anything more recent is re-read after a short TTL. Both exist to keep the admin insights page
@@ -105,36 +110,42 @@ const gainsCache = remember(
   () => new Map<string, IGainsCacheEntry>(),
 );
 
-const fetchGainsPage = async (
+const toMemberGain = (
+  row: Awaited<ReturnType<typeof client.groups.getGroupGains>>[number],
+): IMemberGain => ({
+  username: row.player.username,
+  displayName: row.player.displayName,
+  start: row.data.start,
+  end: row.data.end,
+  gained: row.data.gained,
+});
+
+const fetchGainsPages = async (
   metric: Metric,
   startDate: Date,
   endDate: Date,
-  offset: number,
-): Promise<IMemberGain[]> => {
+  pageIndex: number,
+  seen: ReadonlyMap<string, IMemberGain>,
+): Promise<ReadonlyMap<string, IMemberGain>> => {
   const page = await client.groups.getGroupGains(
     groupId,
     { metric, startDate, endDate },
-    { limit: GAINS_PAGE_SIZE, offset },
+    { limit: GAINS_PAGE_SIZE, offset: pageIndex * GAINS_PAGE_SIZE },
   );
-  const rows = page.map(row => ({
-    username: row.player.username,
-    displayName: row.player.displayName,
-    start: row.data.start,
-    end: row.data.end,
-    gained: row.data.gained,
-  }));
-  // Pages come back sorted by gain, so once a page is short there's nothing after it.
-  return page.length < GAINS_PAGE_SIZE
-    ? rows
-    : [
-        ...rows,
-        ...(await fetchGainsPage(
-          metric,
-          startDate,
-          endDate,
-          offset + GAINS_PAGE_SIZE,
-        )),
-      ];
+  const fresh = page.filter(row => !seen.has(row.player.username));
+  const merged = new Map([
+    ...seen,
+    ...fresh.map(row => [row.player.username, toMemberGain(row)] as const),
+  ]);
+  // A page that isn't exactly the requested size is either the last one (short) or proof the
+  // endpoint ignored pagination and sent everything (oversized) — either way, stop.
+  const exhausted =
+    page.length !== GAINS_PAGE_SIZE ||
+    fresh.length === 0 ||
+    pageIndex + 1 >= GAINS_MAX_PAGES;
+  return exhausted
+    ? merged
+    : fetchGainsPages(metric, startDate, endDate, pageIndex + 1, merged);
 };
 
 /**
@@ -153,7 +164,11 @@ export const getGroupGainsForWindow = async (
   if (cached && (settled || now - cached.fetchedAt < GAINS_LIVE_TTL_MS)) {
     return cached.rows;
   }
-  const rows = await fetchGainsPage(metric, startDate, endDate, 0);
+  const rows = [
+    ...(
+      await fetchGainsPages(metric, startDate, endDate, 0, new Map())
+    ).values(),
+  ];
   gainsCache.set(key, { fetchedAt: now, rows });
   return rows;
 };

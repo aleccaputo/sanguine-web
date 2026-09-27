@@ -46,7 +46,7 @@ const MONTHS_SHOWN = 6;
 const MOST_ENGAGED_SHOWN = 25;
 // How many bounty scorecards load on their own before the rest wait for a click, so a visit
 // costs a bounded number of WOM reads.
-const AUTO_MEASURED_BOUNTIES = 3;
+const AUTO_MEASURED_BOUNTIES = 2;
 
 const parseDays = (value: string | null): number => {
   const days = Number(value);
