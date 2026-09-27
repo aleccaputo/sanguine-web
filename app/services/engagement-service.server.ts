@@ -23,11 +23,13 @@ import {
   ALL_RAIDS_METRIC,
   FetchOutcome,
   IPvmActivity,
+  IInGameSplit,
   ISkillingMember,
   PVM_METRICS,
   pvmFloorForDays,
   RAID_METRICS,
   scoreBounty,
+  summarizeInGameSplit,
   summarizeSkillingOnly,
   sumGainsByPlayer,
   summarizePvmActivity,
@@ -346,6 +348,8 @@ export interface ISkillingResult {
   start: string;
   end: string;
   rows: ISkillingRow[];
+  /** The whole roster by what it gained, for the composition bar. */
+  split: IInGameSplit;
 }
 
 /**
@@ -388,27 +392,23 @@ export const getSkillingOnly = async (
     users.map(user => [user.discordId, user.nickname ?? null]),
   );
   const floor = pvmFloorForDays(days);
+  const members = users.map(user => ({
+    discordId: user.discordId,
+    womRole: inGame.get(user.discordId)?.role ?? null,
+    lastInGameChangeAt: inGame.get(user.discordId)?.lastChangedAt ?? null,
+    activeAlt: inGame.get(user.discordId)?.activeAlt ?? null,
+    ehbGained: ehbByMember.get(user.discordId) ?? 0,
+    ehpGained: ehpByMember.get(user.discordId) ?? 0,
+  }));
   return {
     days,
     floor,
     start: start.toISOString(),
     end: now.toISOString(),
-    rows: summarizeSkillingOnly(
-      users.map(user => ({
-        discordId: user.discordId,
-        womRole: inGame.get(user.discordId)?.role ?? null,
-        lastInGameChangeAt: inGame.get(user.discordId)?.lastChangedAt ?? null,
-        activeAlt: inGame.get(user.discordId)?.activeAlt ?? null,
-        ehbGained: ehbByMember.get(user.discordId) ?? 0,
-        ehpGained: ehpByMember.get(user.discordId) ?? 0,
-      })),
-      start.toISOString(),
-      now,
-      floor,
-    ).map(row => ({
-      ...row,
-      name: nameByDiscordId.get(row.discordId) ?? null,
-    })),
+    rows: summarizeSkillingOnly(members, start.toISOString(), now, floor).map(
+      row => ({ ...row, name: nameByDiscordId.get(row.discordId) ?? null }),
+    ),
+    split: summarizeInGameSplit(members, floor),
   };
 };
 

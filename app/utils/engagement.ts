@@ -548,3 +548,37 @@ export const summarizeSkillingOnly = (
         a.ehbGained - b.ehbGained ||
         a.discordId.localeCompare(b.discordId),
     );
+
+export interface IInGameSplit {
+  /** Gained at least the PvM floor in EHB. */
+  pvming: number;
+  /** Gained something, but under the PvM floor: skilling, or only a little PvM. */
+  skilling: number;
+  /** No EHB and no EHP gained at all. */
+  noGains: number;
+  /** No account in the WOM group, so nothing is known. Not drawn, but reported. */
+  unknown: number;
+}
+
+/** Where each roster member's time went this window, by what WOM saw them gain. */
+export const summarizeInGameSplit = (
+  members: ISkillingInput[],
+  floor: number,
+): IInGameSplit => ({
+  pvming: members.filter(
+    member => member.lastInGameChangeAt !== null && member.ehbGained >= floor,
+  ).length,
+  skilling: members.filter(
+    member =>
+      member.lastInGameChangeAt !== null &&
+      member.ehbGained < floor &&
+      member.ehbGained + member.ehpGained > 0,
+  ).length,
+  noGains: members.filter(
+    member =>
+      member.lastInGameChangeAt !== null &&
+      member.ehbGained === 0 &&
+      member.ehpGained === 0,
+  ).length,
+  unknown: members.filter(member => member.lastInGameChangeAt === null).length,
+});

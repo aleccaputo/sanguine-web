@@ -1,5 +1,6 @@
 import { Box, Flex, Text } from '@radix-ui/themes';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
+import { jumpToSection } from '~/utils/jump-to-section';
 import {
   Bar,
   BarChart,
@@ -233,9 +234,13 @@ export interface ICompositionSegment {
   key: string;
   label: string;
   value: number;
+  /** Id of the section that details this slice; the slice and its legend entry jump there. */
+  targetId?: string;
 }
 
 interface ICompositionBarProps {
+  /** What the bar splits, shown above it; needed once two bars sit together. */
+  title?: string;
   segments: ICompositionSegment[];
   /** Legend suffix per segment, e.g. a share; defaults to the count. */
   formatValue?: (value: number, total: number) => ReactNode;
@@ -246,25 +251,45 @@ interface ICompositionBarProps {
  * COMPOSITION_HUES, plus a legend that carries every value so nothing is color-only.
  */
 export function CompositionBar({
+  title,
   segments,
   formatValue = value => value.toLocaleString(),
 }: ICompositionBarProps) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
   const shown = segments.filter(segment => segment.value > 0);
+  const jump = (targetId: string) => (event: MouseEvent) => {
+    event.preventDefault();
+    jumpToSection(targetId);
+  };
   return (
     <Box>
+      {title && (
+        <Text as="p" size="2" className="mb-1 text-gray-500">
+          {title}
+        </Text>
+      )}
       <Flex gap="2px" className="h-3 w-full overflow-hidden rounded-sm">
-        {shown.map(segment => (
-          <div
-            key={segment.key}
-            title={`${segment.label}: ${segment.value.toLocaleString()}`}
-            style={{
-              width: `${(segment.value / Math.max(1, total)) * 100}%`,
-              backgroundColor:
-                COMPOSITION_HUES[segments.indexOf(segment)] ?? '#6B7280',
-            }}
-          />
-        ))}
+        {shown.map(segment => {
+          const style = {
+            width: `${(segment.value / Math.max(1, total)) * 100}%`,
+            backgroundColor:
+              COMPOSITION_HUES[segments.indexOf(segment)] ?? '#6B7280',
+          };
+          const title = `${segment.label}: ${segment.value.toLocaleString()}`;
+          return segment.targetId ? (
+            <a
+              key={segment.key}
+              href={`#${segment.targetId}`}
+              onClick={jump(segment.targetId)}
+              title={title}
+              aria-label={title}
+              className="block hover:brightness-125"
+              style={style}
+            />
+          ) : (
+            <div key={segment.key} title={title} style={style} />
+          );
+        })}
       </Flex>
       <Flex gap="4" wrap="wrap" mt="2">
         {segments.map((segment, index) => (
@@ -273,12 +298,25 @@ export function CompositionBar({
               className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
               style={{ backgroundColor: COMPOSITION_HUES[index] ?? '#6B7280' }}
             />
-            <Text size="2" className="text-gray-400">
-              {segment.label}{' '}
-              <span className="text-gray-100">
-                {formatValue(segment.value, total)}
-              </span>
-            </Text>
+            {segment.targetId ? (
+              <a
+                href={`#${segment.targetId}`}
+                onClick={jump(segment.targetId)}
+                className="text-sm text-gray-400 hover:text-white"
+              >
+                {segment.label}{' '}
+                <span className="text-gray-100">
+                  {formatValue(segment.value, total)}
+                </span>
+              </a>
+            ) : (
+              <Text size="2" className="text-gray-400">
+                {segment.label}{' '}
+                <span className="text-gray-100">
+                  {formatValue(segment.value, total)}
+                </span>
+              </Text>
+            )}
           </Flex>
         ))}
       </Flex>

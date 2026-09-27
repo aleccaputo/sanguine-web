@@ -107,6 +107,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 }
 
+/** Anchors the overview bars jump to. Sections carry scroll-mt-20 to clear the sticky nav. */
+const SECTION_IDS = {
+  bounties: 'bounties',
+  systems: 'systems',
+  pvm: 'pvm',
+  notParticipating: 'not-participating',
+  playing: 'playing',
+  quiet: 'quiet',
+  skilling: 'skilling',
+} as const;
+
+const sectionClass = 'scroll-mt-20';
+
 const headerCellClass = 'text-osrs-orange';
 const tableToggleClass = 'cursor-pointer select-none text-sm text-gray-500';
 const numberCellClass = 'text-right tabular-nums';
@@ -350,7 +363,7 @@ function PvmActivitySection({ days }: IPvmActivitySectionProps) {
   const loading = fetcher.state !== 'idle';
 
   return (
-    <Box mt="8">
+    <Box mt="8" id={SECTION_IDS.pvm} className={sectionClass}>
       <SectionHeading
         title="PvM activity"
         summary={
@@ -470,13 +483,11 @@ function PvmActivitySection({ days }: IPvmActivitySectionProps) {
   );
 }
 
-interface ISkillingOnlySectionProps {
-  days: number;
-}
+type SkillingFetcher = ReturnType<typeof useFetcher<typeof skillingLoader>>;
 
-/** Members online this period who gained almost no EHB, with the EHP that shows what they did. */
-function SkillingOnlySection({ days }: ISkillingOnlySectionProps) {
-  const fetcher = useFetcher<typeof skillingLoader>();
+/** The page owns one skilling read; the composition bar and the list both draw from it. */
+const useSkillingRead = (days: number) => {
+  const fetcher: SkillingFetcher = useFetcher<typeof skillingLoader>();
   const href = `/admin/insights/skilling?days=${days}`;
 
   useEffect(() => {
@@ -485,9 +496,76 @@ function SkillingOnlySection({ days }: ISkillingOnlySectionProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
 
-  const result = fetcher.data?.ok ? fetcher.data : undefined;
-  const failure = fetcher.data?.ok === false ? fetcher.data.error : null;
-  const loading = fetcher.state !== 'idle';
+  return {
+    result: fetcher.data?.ok ? fetcher.data : undefined,
+    failure: fetcher.data?.ok === false ? fetcher.data.error : null,
+    loading: fetcher.state !== 'idle',
+    retry: () => fetcher.load(href),
+  };
+};
+
+type SkillingRead = ReturnType<typeof useSkillingRead>;
+
+interface IInGameSplitBarProps {
+  skilling: SkillingRead;
+  rosterSize: number;
+}
+
+/** PvMing / skilling / no gains, as the in-game twin of the clan-systems bar above it. */
+function InGameSplitBar({ skilling, rosterSize }: IInGameSplitBarProps) {
+  const { result, failure, loading, retry } = skilling;
+  const percent = (part: number) =>
+    rosterSize === 0 ? '0%' : `${Math.round((part / rosterSize) * 100)}%`;
+  return !result ? (
+    <Box>
+      <Text as="p" size="2" className="mb-1 text-gray-500">
+        In-game, per Wise Old Man
+      </Text>
+      {failure ? (
+        <Retry message={failure} loading={loading} onRetry={retry} />
+      ) : (
+        <Text as="p" size="2" className="text-gray-600">
+          Reading Wise Old Man…
+        </Text>
+      )}
+    </Box>
+  ) : (
+    <Box className={loading ? 'opacity-60' : ''}>
+      <CompositionBar
+        title="In-game, per Wise Old Man"
+        segments={[
+          {
+            key: 'pvming',
+            label: 'PvMing',
+            value: result.split.pvming,
+            targetId: SECTION_IDS.pvm,
+          },
+          {
+            key: 'skilling',
+            label: 'Skilling',
+            value: result.split.skilling,
+            targetId: SECTION_IDS.skilling,
+          },
+          {
+            key: 'nogains',
+            label: 'No gains',
+            value: result.split.noGains,
+            targetId: SECTION_IDS.notParticipating,
+          },
+        ]}
+        formatValue={value => `${value.toLocaleString()} (${percent(value)})`}
+      />
+    </Box>
+  );
+}
+
+interface ISkillingOnlySectionProps {
+  skilling: SkillingRead;
+}
+
+/** Members online this period who gained almost no EHB, with the EHP that shows what they did. */
+function SkillingOnlySection({ skilling }: ISkillingOnlySectionProps) {
+  const { result, failure, loading, retry } = skilling;
   const hours = (value: number) =>
     value.toLocaleString(undefined, {
       minimumFractionDigits: 1,
@@ -497,6 +575,7 @@ function SkillingOnlySection({ days }: ISkillingOnlySectionProps) {
   return (
     <>
       <SubsectionHeading
+        id={SECTION_IDS.skilling}
         title="Skilling only"
         hint={
           result
@@ -513,11 +592,7 @@ function SkillingOnlySection({ days }: ISkillingOnlySectionProps) {
       />
       {failure && !result ? (
         <Box py="2">
-          <Retry
-            message={failure}
-            loading={loading}
-            onRetry={() => fetcher.load(href)}
-          />
+          <Retry message={failure} loading={loading} onRetry={retry} />
         </Box>
       ) : !result ? (
         <Text as="p" size="2" className="py-2 text-gray-500">
@@ -681,6 +756,7 @@ export default function AdminInsights() {
     inactivity,
   } = useLoaderData<typeof loader>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const skilling = useSkillingRead(days);
 
   const memberName = (discordId: string) =>
     names[discordId] ?? `Unknown (${discordId})`;
@@ -727,84 +803,95 @@ export default function AdminInsights() {
           value={`${idleCount.toLocaleString()} (${percent(idleCount)})`}
         />
       </Flex>
-      <Box mb="6">
+      <Flex direction="column" gap="4" mb="6">
         <CompositionBar
+          title="Clan systems"
           segments={[
-            { key: 'active', label: 'Engaged', value: activeMembers },
+            {
+              key: 'active',
+              label: 'Engaged',
+              value: activeMembers,
+              targetId: SECTION_IDS.systems,
+            },
             {
               key: 'playing',
               label: 'Playing, not participating',
               value: inactivity.playingNotParticipating.length,
+              targetId: SECTION_IDS.playing,
             },
             {
               key: 'quiet',
               label: 'Gone quiet',
               value: inactivity.goneQuiet.length,
+              targetId: SECTION_IDS.quiet,
             },
           ]}
           formatValue={value => `${value.toLocaleString()} (${percent(value)})`}
         />
+        <InGameSplitBar skilling={skilling} rosterSize={rosterSize} />
+      </Flex>
+
+      <Box id={SECTION_IDS.bounties} className={sectionClass}>
+        <SectionHeading
+          title="Bounty lift"
+          summary={
+            <Text size="2" className="text-gray-400">
+              {bounties.length} posted
+            </Text>
+          }
+        />
+        <Note>
+          Did it: members whose WOM kill count for the boss moved between the
+          daily update before the bounty opened and the one after it closed.
+          Before: the same span of time immediately prior. Lift: the difference.
+          A tilde marks a window still waiting on the next update.
+        </Note>
+        {bounties.length === 0 ? (
+          <NoData />
+        ) : (
+          <Table.Root size="2">
+            <Table.Header>
+              <Table.Row>
+                <Table.ColumnHeaderCell className={headerCellClass}>
+                  Bounty
+                </Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell
+                  className={`${numberHeaderClass} hidden sm:table-cell`}
+                >
+                  Claims
+                </Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell className={numberHeaderClass}>
+                  Did it
+                </Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell
+                  className={`${numberHeaderClass} hidden sm:table-cell`}
+                >
+                  Before
+                </Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell className={numberHeaderClass}>
+                  Lift
+                </Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell
+                  className={`${numberHeaderClass} hidden md:table-cell`}
+                >
+                  Hours
+                </Table.ColumnHeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {bounties.map((bounty, index) => (
+                <BountyRow
+                  key={bounty.id}
+                  bounty={bounty}
+                  autoLoad={index < AUTO_MEASURED_BOUNTIES}
+                />
+              ))}
+            </Table.Body>
+          </Table.Root>
+        )}
       </Box>
 
-      <SectionHeading
-        title="Bounty lift"
-        summary={
-          <Text size="2" className="text-gray-400">
-            {bounties.length} posted
-          </Text>
-        }
-      />
-      <Note>
-        Did it: members whose WOM kill count for the boss moved between the
-        daily update before the bounty opened and the one after it closed.
-        Before: the same span of time immediately prior. Lift: the difference. A
-        tilde marks a window still waiting on the next update.
-      </Note>
-      {bounties.length === 0 ? (
-        <NoData />
-      ) : (
-        <Table.Root size="2">
-          <Table.Header>
-            <Table.Row>
-              <Table.ColumnHeaderCell className={headerCellClass}>
-                Bounty
-              </Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell
-                className={`${numberHeaderClass} hidden sm:table-cell`}
-              >
-                Claims
-              </Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell className={numberHeaderClass}>
-                Did it
-              </Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell
-                className={`${numberHeaderClass} hidden sm:table-cell`}
-              >
-                Before
-              </Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell className={numberHeaderClass}>
-                Lift
-              </Table.ColumnHeaderCell>
-              <Table.ColumnHeaderCell
-                className={`${numberHeaderClass} hidden md:table-cell`}
-              >
-                Hours
-              </Table.ColumnHeaderCell>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {bounties.map((bounty, index) => (
-              <BountyRow
-                key={bounty.id}
-                bounty={bounty}
-                autoLoad={index < AUTO_MEASURED_BOUNTIES}
-              />
-            ))}
-          </Table.Body>
-        </Table.Root>
-      )}
-
-      <Box mt="8">
+      <Box mt="8" id={SECTION_IDS.systems} className={sectionClass}>
         <SectionHeading title="Systems engagement" />
         <Note>
           One event per drop posted, competition placing, Slayer task spun,
@@ -997,7 +1084,7 @@ export default function AdminInsights() {
 
       <PvmActivitySection days={days} />
 
-      <Box mt="8">
+      <Box mt="8" id={SECTION_IDS.notParticipating} className={sectionClass}>
         <SectionHeading
           title="Not participating"
           summary={
@@ -1014,6 +1101,7 @@ export default function AdminInsights() {
           efficient hours played and bossed, gained this period.
         </Note>
         <SubsectionHeading
+          id={SECTION_IDS.playing}
           title="Playing, not participating"
           hint="active in-game this period, nothing in clan systems"
           summary={
@@ -1028,6 +1116,7 @@ export default function AdminInsights() {
           inGame
         />
         <SubsectionHeading
+          id={SECTION_IDS.quiet}
           title="Gone quiet"
           hint="nothing in-game or in clan systems this period"
           summary={
@@ -1041,7 +1130,7 @@ export default function AdminInsights() {
           memberName={memberName}
           inGame
         />
-        <SkillingOnlySection days={days} />
+        <SkillingOnlySection skilling={skilling} />
         {inactivity.notOnWom.length > 0 && (
           <>
             <SubsectionHeading

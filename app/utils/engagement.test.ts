@@ -6,6 +6,7 @@ import {
   monthlyEngagementSeries,
   scoreBounty,
   summarizeInactivity,
+  summarizeInGameSplit,
   summarizeSkillingOnly,
   pvmFloorForDays,
   sumGainsByPlayer,
@@ -364,5 +365,35 @@ describe('summarizeSkillingOnly', () => {
   it('scales the floor with the window', () => {
     expect(pvmFloorForDays(30)).toBe(1.5);
     expect(pvmFloorForDays(7)).toBe(0.35);
+  });
+});
+
+describe('summarizeInGameSplit', () => {
+  it('buckets members by what they gained, leaving unknowns out of the drawn total', () => {
+    const member = (
+      discordId: string,
+      lastInGameChangeAt: string | null,
+      ehbGained: number,
+      ehpGained: number,
+    ) => ({
+      discordId,
+      womRole: 'member',
+      lastInGameChangeAt,
+      activeAlt: null,
+      ehbGained,
+      ehpGained,
+    });
+    expect(
+      summarizeInGameSplit(
+        [
+          member('pvm', '2026-09-20T00:00:00.000Z', 3, 1),
+          member('skill', '2026-09-20T00:00:00.000Z', 0, 8),
+          member('light', '2026-09-20T00:00:00.000Z', 0.5, 0),
+          member('idle', '2026-01-01T00:00:00.000Z', 0, 0),
+          member('nowom', null, 0, 0),
+        ],
+        1.5,
+      ),
+    ).toEqual({ pvming: 1, skilling: 2, noGains: 1, unknown: 1 });
   });
 });
