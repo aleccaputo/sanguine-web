@@ -243,6 +243,17 @@ const Note = ({ children }: INoteProps) => (
   </Text>
 );
 
+interface IReadingProps {
+  children: ReactNode;
+}
+
+/** One line under a stat saying what the number is and which way is good. */
+const Reading = ({ children }: IReadingProps) => (
+  <Text as="p" size="2" className="mt-2 text-gray-500">
+    <span className="text-gray-400">Reading it:</span> {children}
+  </Text>
+);
+
 const NoData = () => (
   <Text as="p" size="2" className="py-4 text-gray-600">
     Nothing interesting happens.
@@ -510,6 +521,12 @@ function PvmActivitySection({ days }: IPvmActivitySectionProps) {
               value={formatGain(result.metric, result.activity.totalGained)}
             />
           </Flex>
+          <Reading>
+            Active is how many members moved this metric at all. Total gained is
+            the clan&apos;s combined gain: hours for EHB, kills for a raid or
+            boss. The bars rank who gained most; a long top bar with a short
+            tail means a few members carry the number.
+          </Reading>
           {result.activity.top.length === 0 ? (
             <NoData />
           ) : (
@@ -685,6 +702,12 @@ function InGameSplitBar({
         formatValue={value => `${value.toLocaleString()} (${percent(value)})`}
         onSelect={onSelect}
       />
+      <Reading>
+        Percentages are of the roster. PvMing gained at least the PvM floor in
+        efficient hours bossed this period; skilling gained something but less
+        than that; no gains moved nothing. More red means more of the clan is
+        doing PvM, which is what a PvM clan wants.
+      </Reading>
     </Box>
   );
 }
@@ -895,6 +918,11 @@ function ActivityByMonthSection({ clanFlows }: IActivityByMonthSectionProps) {
         active the month before but not this one; reactivation is the reverse.
         The current month is partial.
       </Note>
+      <Reading>
+        A higher played share is good. In the flow bars, a blue bar taller than
+        the amber one means more people came back than went quiet, so the active
+        set grew; the reverse means it shrank even if the share line looks flat.
+      </Reading>
       {months.failure && !months.result && (
         <Box py="2">
           <Retry
@@ -1097,7 +1125,12 @@ export default function AdminInsights() {
           value={`${idleCount.toLocaleString()} (${percent(idleCount)})`}
         />
       </Flex>
-      <Flex direction="column" gap="4" mb="6">
+      <Reading>
+        Roster is members with a nickname, the same count as the members page.
+        Active in clan systems is how many of them did anything in a clan system
+        this period; higher is better. Idle is everyone else.
+      </Reading>
+      <Flex direction="column" gap="4" mt="4" mb="6">
         <CompositionBar
           title="Clan systems"
           segments={[
@@ -1123,6 +1156,13 @@ export default function AdminInsights() {
           formatValue={value => `${value.toLocaleString()} (${percent(value)})`}
           onSelect={goTo}
         />
+        <Reading>
+          Percentages are of the roster. Engaged did something in a clan system
+          this period. Playing, not participating were seen in-game but touched
+          nothing: the people an event should be pulling in. Gone quiet were
+          seen in neither. A bigger red share is the goal; the blue share is the
+          opportunity.
+        </Reading>
         <InGameSplitBar
           skilling={skilling}
           rosterSize={rosterSize}
@@ -1177,6 +1217,14 @@ export default function AdminInsights() {
                     />
                   )}
                 </Flex>
+                <Reading>
+                  Lift is how many more members killed the boss during the
+                  bounty than in the same span before it, as a percent of the
+                  before count. Positive means the bounty pulled people in; the
+                  adjusted figure subtracts whatever all PvM did at the same
+                  time, so it is the one to trust. Medians ignore one freak
+                  bounty either way.
+                </Reading>
                 <DumbbellChart
                   rows={measuredBounties.map(({ bounty, result }) => ({
                     key: bounty.id,
@@ -1263,7 +1311,9 @@ export default function AdminInsights() {
                   <div className="grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-2">
                     <Box>
                       <Text as="p" size="2" className="mb-1 text-gray-500">
-                        Used the system, as a share of active players
+                        Used the system, as a share of active players. Higher
+                        means more of the people actually playing chose to use
+                        it.
                       </Text>
                       <HorizontalBars
                         rows={reachOrder.map(row => ({
@@ -1277,8 +1327,9 @@ export default function AdminInsights() {
                     </Box>
                     <Box>
                       <Text as="p" size="2" className="mb-1 text-gray-500">
-                        Came back: share of last period&apos;s users active
-                        again
+                        Came back: share of last period&apos;s users who used it
+                        again. High means it is sticking; low after a launch
+                        means it was a novelty.
                       </Text>
                       <HorizontalBars
                         rows={reachOrder.map(row => ({
@@ -1351,7 +1402,7 @@ export default function AdminInsights() {
                 <Box>
                   <SubsectionHeading
                     title="Top by system"
-                    hint={`the ${TOP_PER_SYSTEM} busiest members of each this period`}
+                    hint={`the ${TOP_PER_SYSTEM} busiest members of each this period; the number is that member's actions, in the unit beside each title`}
                   />
                   <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
                     {ENGAGEMENT_SYSTEMS.map(system => (
@@ -1405,7 +1456,7 @@ export default function AdminInsights() {
                 <Box>
                   <SubsectionHeading
                     title="Most engaged"
-                    hint={`top ${Math.min(mostEngaged.length, MOST_ENGAGED_SHOWN)}, by systems touched, then actions`}
+                    hint={`top ${Math.min(mostEngaged.length, MOST_ENGAGED_SHOWN)}, by systems touched, then actions. More systems means broader engagement, not just more volume`}
                   />
                   <Table.Root size="2">
                     <Table.Header>
@@ -1474,7 +1525,7 @@ export default function AdminInsights() {
             <Box mt="4">
               <SubsectionHeading
                 title="Month by month"
-                hint="distinct members per system on a shared scale; the number is this month so far"
+                hint="distinct members per system on a shared scale; the number is this month so far. A rising line means the system is reaching more different people, not the same people more often"
               />
               <SmallMultiples
                 series={ENGAGEMENT_SYSTEMS.map(system => ({
@@ -1543,8 +1594,10 @@ export default function AdminInsights() {
           <Box mt="8" id={SECTION_IDS.skilling} className={sectionClass}>
             <SectionHeading title="Skilling only" />
             <Note>
-              Online this period but under the PvM floor. Tenure cohorts, with
-              PvM rates by join date, are on the{' '}
+              Online this period but under the PvM floor. EHP is the efficient
+              hours they gained instead: high EHP with near-zero EHB is a
+              committed skiller, not an inactive. Tenure cohorts, with PvM rates
+              by join date, are on the{' '}
               <button
                 type="button"
                 className={proseLinkClass}
@@ -1568,6 +1621,13 @@ export default function AdminInsights() {
               joined and left are already off the roster), so read gaps as large
               or small, not exact.
             </Note>
+            <Reading>
+              Active in-game and touched a clan system: higher is better, and a
+              cohort well below the others is the one drifting. At or above the
+              floor is the share of a cohort&apos;s active members doing real
+              PvM. Median EHB is the typical active member&apos;s PvM hours;
+              medians ignore the few grinders. n is the cohort size.
+            </Reading>
             {skilling.failure && !skilling.result ? (
               <Box py="2">
                 <Retry
@@ -1653,6 +1713,13 @@ export default function AdminInsights() {
               since their last event, within the last {MONTHS_SHOWN} months. EHP
               and EHB: efficient hours played and bossed, gained this period.
             </Note>
+            <Reading>
+              Days are days since, so bigger means longer gone. Playing, not
+              participating are the ones to invite to something; gone quiet are
+              the ones to check on; not on Wise Old Man are the ones whose
+              nickname or WOM entry needs fixing before anything here can see
+              them.
+            </Reading>
             <SubsectionHeading
               id={SECTION_IDS.playing}
               title="Playing, not participating"
