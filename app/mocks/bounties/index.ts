@@ -18,3 +18,6 @@ export const getBountiesForDiscordId = async (discordId: string) =>
       bounty.claims.some(claim => claim.discordId === discordId),
     ),
   );
+
+export const getBountyById = async (id: string) =>
+  MOCK_BOUNTIES.find(bounty => bounty.id === id) ?? null;

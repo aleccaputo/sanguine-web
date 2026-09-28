@@ -102,3 +102,10 @@ export const getClanDropsPaginated = async (
     totalPages: Math.ceil(totalCount / pageSize),
   };
 };
+
+/** Every audit row on or after `since` (ISO), only the fields engagement counting needs. */
+export const getAuditEventsSince = (since: string) =>
+  prisma.pointAudit.findMany({
+    where: { createdAt: { gte: since } },
+    select: { type: true, destinationDiscordId: true, createdAt: true },
+  });

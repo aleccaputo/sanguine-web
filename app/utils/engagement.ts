@@ -1,0 +1,704 @@
+// Clan engagement insights: pure aggregation over the rows the bot already writes (audits,
+// spins, bounty claims, raid and PB submissions) and the per-member deltas WOM returns for a
+// window. Nothing here is persisted; every number is derived on demand from those two sources.
+
+/** How often the bot pushes a group update to WOM, in hours. */
+export const WOM_UPDATE_INTERVAL_HOURS = 24;
+
+const HOUR_MS = 3_600_000;
+const DAY_MS = 24 * HOUR_MS;
+
+export interface IBountyWindowInput {
+  postedAt: string;
+  closedAt: string | null;
+}
+
+export interface IBountyWindow {
+  /** Measured interval, as ISO strings. */
+  start: string;
+  end: string;
+  /** The equal-length interval immediately before it. */
+  baselineStart: string;
+  baselineEnd: string;
+  /** False while the update that captures the end of the window hasn't happened yet. */
+  settled: boolean;
+}
+
+/**
+ * The WOM window a bounty is measured over. WOM deltas run from the first snapshot at or after
+ * the start to the last at or before the end, and the bot only snapshots once per update
+ * interval, so the window is padded by one interval on each side: back, so the update before the
+ * bounty opened anchors the delta, and forward, so the update after it closed captures kills late
+ * in the run. The forward pad is capped at "now" and marks the window unsettled until it passes.
+ * The baseline is the same length of time immediately before the measured start.
+ */
+export const bountyMeasurementWindow = (
+  { postedAt, closedAt }: IBountyWindowInput,
+  now: Date,
+  updateIntervalHours: number = WOM_UPDATE_INTERVAL_HOURS,
+): IBountyWindow => {
+  const pad = updateIntervalHours * HOUR_MS;
+  const start = new Date(postedAt).getTime() - pad;
+  const wantedEnd = closedAt
+    ? new Date(closedAt).getTime() + pad
+    : now.getTime();
+  const end = Math.min(wantedEnd, now.getTime());
+  const length = end - start;
+  return {
+    start: new Date(start).toISOString(),
+    end: new Date(end).toISOString(),
+    baselineStart: new Date(start - length).toISOString(),
+    baselineEnd: new Date(start).toISOString(),
+    settled: closedAt !== null && wantedEnd <= now.getTime(),
+  };
+};
+
+export interface IMemberGainLike {
+  displayName: string;
+  gained: number;
+  /** The clan member this row belongs to once accounts are folded, null for an unmapped account. */
+  discordId?: string | null;
+}
+
+export interface IBountyScoreInput {
+  during: IMemberGainLike[];
+  before: IMemberGainLike[];
+  /** Members with any EHB gain in each window: the control for the clan's overall PvM movement. */
+  controlDuring?: number;
+  controlBefore?: number;
+  claimCount: number;
+  postedAt: string;
+  closedAt: string | null;
+  status: string;
+}
+
+export interface IBountyParticipant {
+  displayName: string;
+  gained: number;
+  discordId: string | null;
+}
+
+export interface IBountyScorecard {
+  /** Members who killed the boss at least once while the bounty was measured. */
+  participants: number;
+  /** Members who killed it in the equal-length window before it opened. */
+  baselineParticipants: number;
+  /** participants minus baseline: how many extra members the bounty pulled in. */
+  lift: number;
+  /** lift over baseline, or null when nobody was killing it beforehand. */
+  liftPercent: number | null;
+  /** liftPercent with the clan's overall PvM movement between the windows removed. */
+  adjustedLiftPercent: number | null;
+  killsDuring: number;
+  killsBefore: number;
+  claimCount: number;
+  /** Hours from posting to close, or null while still open. */
+  hoursOpen: number | null;
+  /** Participants by kills, most first. */
+  topParticipants: IBountyParticipant[];
+}
+
+const gainers = (rows: IMemberGainLike[]) => rows.filter(row => row.gained > 0);
+
+const sumGained = (rows: IMemberGainLike[]) =>
+  rows.reduce((sum, row) => sum + row.gained, 0);
+
+/** Turns the two WOM windows and the bounty's own record into the scorecard the admin page shows. */
+/**
+ * Lift after removing the clan's overall PvM movement between the two windows: a bounty that
+ * "lifted" participants 20% while all PvM rose 20% did nothing. Null without both baselines.
+ */
+export const adjustedLiftPercent = (
+  participants: number,
+  baselineParticipants: number,
+  controlDuring: number,
+  controlBefore: number,
+): number | null =>
+  baselineParticipants === 0 || controlBefore === 0 || controlDuring === 0
+    ? null
+    : Math.round(
+        (participants / baselineParticipants / (controlDuring / controlBefore) -
+          1) *
+          100,
+      );
+
+export const scoreBounty = (
+  {
+    during,
+    before,
+    controlDuring,
+    controlBefore,
+    claimCount,
+    postedAt,
+    closedAt,
+  }: IBountyScoreInput,
+  topLimit: number = 10,
+): IBountyScorecard => {
+  const duringGainers = gainers(during);
+  const beforeGainers = gainers(before);
+  const participants = duringGainers.length;
+  const baselineParticipants = beforeGainers.length;
+  const lift = participants - baselineParticipants;
+  return {
+    participants,
+    baselineParticipants,
+    lift,
+    liftPercent:
+      baselineParticipants === 0
+        ? null
+        : Math.round((lift / baselineParticipants) * 100),
+    adjustedLiftPercent:
+      controlDuring === undefined || controlBefore === undefined
+        ? null
+        : adjustedLiftPercent(
+            participants,
+            baselineParticipants,
+            controlDuring,
+            controlBefore,
+          ),
+    killsDuring: sumGained(duringGainers),
+    killsBefore: sumGained(beforeGainers),
+    claimCount,
+    hoursOpen: closedAt
+      ? Math.round(
+          (new Date(closedAt).getTime() - new Date(postedAt).getTime()) /
+            HOUR_MS,
+        )
+      : null,
+    topParticipants: [...duringGainers]
+      .sort((a, b) => b.gained - a.gained)
+      .slice(0, topLimit)
+      .map(({ displayName, gained, discordId }) => ({
+        displayName,
+        gained,
+        discordId: discordId ?? null,
+      })),
+  };
+};
+
+// ---- Systems engagement ----
+
+/** The clan systems a member can engage with, in display order. */
+export const ENGAGEMENT_SYSTEMS = [
+  'drops',
+  'competitions',
+  'slayer',
+  'bounties',
+  'raids',
+  'personalBests',
+] as const;
+
+export type EngagementSystem = (typeof ENGAGEMENT_SYSTEMS)[number];
+
+export const ENGAGEMENT_SYSTEM_LABELS: Record<EngagementSystem, string> = {
+  drops: 'Drops',
+  competitions: 'Competitions',
+  slayer: 'Sanguine Slayer',
+  bounties: 'Bounties',
+  raids: 'Raid submissions',
+  personalBests: 'Personal bests',
+};
+
+/** What one event of each system is, in words that fit beside a count. */
+export const ENGAGEMENT_SYSTEM_UNITS: Record<EngagementSystem, string> = {
+  drops: 'drops posted',
+  competitions: 'placings',
+  slayer: 'tasks completed',
+  bounties: 'bounties won',
+  raids: 'raids',
+  personalBests: 'PBs',
+};
+
+/** Column-header length labels for dense tables. */
+export const ENGAGEMENT_SYSTEM_SHORT_LABELS: Record<EngagementSystem, string> =
+  {
+    drops: 'Drops',
+    competitions: 'Comps',
+    slayer: 'Slayer',
+    bounties: 'Bounties',
+    raids: 'Raids',
+    personalBests: 'PBs',
+  };
+
+/** One touch of one system by one member: a drop posted, a task spun, a claim, a submission. */
+export interface IEngagementEvent {
+  system: EngagementSystem;
+  discordId: string;
+  /** ISO-8601 UTC, so string comparison is time order. */
+  at: string;
+}
+
+export interface ISystemEngagement {
+  system: EngagementSystem;
+  /** Distinct members who touched the system in the window. */
+  members: number;
+  events: number;
+  /**
+   * Days of the window the system existed for, from its first record in the loaded history.
+   * Equals the window length for anything older than the history; 0 when nothing is on record.
+   */
+  liveDays: number;
+  /** True when the system's first record falls inside the window. */
+  launchedInWindow: boolean;
+  /** Actions per week over the live days only, so a month-old system compares with an old one. */
+  actionsPerWeek: number;
+}
+
+export interface IMemberEngagement {
+  discordId: string;
+  /** The systems touched, in display order. */
+  systems: EngagementSystem[];
+  events: number;
+}
+
+export interface IEngagementSummary {
+  bySystem: ISystemEngagement[];
+  /** Every member with at least one event, most systems first, then most events. */
+  byMember: IMemberEngagement[];
+  /** Distinct members with at least one event anywhere. */
+  activeMembers: number;
+}
+
+const inWindow = (events: IEngagementEvent[], start: string, end: string) =>
+  events.filter(event => event.at >= start && event.at < end);
+
+const distinct = <T>(values: T[]): T[] => [...new Set(values)];
+
+const groupByMember = (
+  events: IEngagementEvent[],
+): Map<string, IEngagementEvent[]> =>
+  new Map(
+    distinct(events.map(event => event.discordId)).map(discordId => [
+      discordId,
+      events.filter(event => event.discordId === discordId),
+    ]),
+  );
+
+export interface ISystemLeader {
+  discordId: string;
+  events: number;
+}
+
+/** The busiest members of each system within [start, end), most events first, capped. */
+export const topMembersBySystem = (
+  events: IEngagementEvent[],
+  start: string,
+  end: string,
+  limit: number,
+): Record<EngagementSystem, ISystemLeader[]> => {
+  const windowed = inWindow(events, start, end);
+  return Object.fromEntries(
+    ENGAGEMENT_SYSTEMS.map(system => {
+      const rows = windowed.filter(event => event.system === system);
+      const leaders = [...groupByMember(rows).entries()]
+        .map(([discordId, own]) => ({ discordId, events: own.length }))
+        .sort(
+          (a, b) =>
+            b.events - a.events || a.discordId.localeCompare(b.discordId),
+        )
+        .slice(0, limit);
+      return [system, leaders];
+    }),
+  ) as Record<EngagementSystem, ISystemLeader[]>;
+};
+
+/** Which systems saw activity, and who touched how many of them, within [start, end). */
+export const summarizeEngagement = (
+  events: IEngagementEvent[],
+  start: string,
+  end: string,
+): IEngagementSummary => {
+  const windowed = inWindow(events, start, end);
+  const windowDays = Math.max(
+    0,
+    (new Date(end).getTime() - new Date(start).getTime()) / DAY_MS,
+  );
+  const bySystem = ENGAGEMENT_SYSTEMS.map(system => {
+    const rows = windowed.filter(event => event.system === system);
+    // Launch = the system's earliest record anywhere in the loaded history, not just the window.
+    const firstAt = events
+      .filter(event => event.system === system)
+      .map(event => event.at)
+      .sort()
+      .at(0);
+    const launchedInWindow = firstAt !== undefined && firstAt > start;
+    const liveDays =
+      firstAt === undefined
+        ? 0
+        : launchedInWindow
+          ? Math.max(
+              0,
+              (new Date(end).getTime() - new Date(firstAt).getTime()) / DAY_MS,
+            )
+          : windowDays;
+    return {
+      system,
+      members: new Set(rows.map(row => row.discordId)).size,
+      events: rows.length,
+      liveDays: Math.round(liveDays),
+      launchedInWindow,
+      actionsPerWeek:
+        liveDays === 0 ? 0 : Math.round((rows.length / liveDays) * 7 * 10) / 10,
+    };
+  });
+  const byMember = [...groupByMember(windowed).entries()]
+    .map(([discordId, rows]) => ({
+      discordId,
+      systems: ENGAGEMENT_SYSTEMS.filter(system =>
+        rows.some(row => row.system === system),
+      ),
+      events: rows.length,
+    }))
+    .sort(
+      (a, b) =>
+        b.systems.length - a.systems.length ||
+        b.events - a.events ||
+        a.discordId.localeCompare(b.discordId),
+    );
+  return { bySystem, byMember, activeMembers: byMember.length };
+};
+
+export interface IMonthlyEngagement {
+  /** YYYY-MM. */
+  month: string;
+  /** e.g. "Sep 2026". */
+  label: string;
+  members: Record<EngagementSystem, number>;
+  activeMembers: number;
+}
+
+/**
+ * Distinct members per system per calendar month for the last `months` months, oldest first, the
+ * current (partial) month included. Months are UTC so they line up with the bot's timestamps.
+ */
+export const monthlyEngagementSeries = (
+  events: IEngagementEvent[],
+  months: number,
+  now: Date,
+): IMonthlyEngagement[] => {
+  const monthStart = (offset: number) =>
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1));
+  return Array.from({ length: months }, (_, index) =>
+    monthStart(index - (months - 1)),
+  ).map(start => {
+    const end = new Date(
+      Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1),
+    );
+    const summary = summarizeEngagement(
+      events,
+      start.toISOString(),
+      end.toISOString(),
+    );
+    return {
+      month: start.toISOString().slice(0, 7),
+      label: start.toLocaleDateString('en-US', {
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }),
+      members: Object.fromEntries(
+        summary.bySystem.map(row => [row.system, row.members]),
+      ) as Record<EngagementSystem, number>,
+      activeMembers: summary.activeMembers,
+    };
+  });
+};
+
+// ---- PvM activity (WOM) ----
+
+export interface IPvmActivity {
+  /** Members whose metric moved at all in the window. */
+  activeMembers: number;
+  totalGained: number;
+  /** The typical active member's gain; unlike the total, a few grinders can't drag it. */
+  medianGained: number;
+  /** Gainers by amount, most first. */
+  top: IBountyParticipant[];
+}
+
+/** Who did the content in a window, from one metric's group gains. */
+export const summarizePvmActivity = (
+  gains: IMemberGainLike[],
+  topLimit: number = 15,
+): IPvmActivity => {
+  const rows = gainers(gains);
+  const sorted = rows.map(row => row.gained).sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return {
+    activeMembers: rows.length,
+    totalGained: sumGained(rows),
+    medianGained:
+      sorted.length === 0
+        ? 0
+        : sorted.length % 2 === 1
+          ? sorted[mid]
+          : (sorted[mid - 1] + sorted[mid]) / 2,
+    top: [...rows]
+      .sort((a, b) => b.gained - a.gained)
+      .slice(0, topLimit)
+      .map(({ displayName, gained, discordId }) => ({
+        displayName,
+        gained,
+        discordId: discordId ?? null,
+      })),
+  };
+};
+
+/** The WOM metrics the PvM activity view can be pointed at, in menu order. Plain strings so the
+ * page can render the menu without pulling the WOM client into the browser bundle. */
+/** The raid metrics "All raids" adds up: every raid and its hard-mode variant. */
+export const RAID_METRICS = [
+  'chambers_of_xeric',
+  'chambers_of_xeric_challenge_mode',
+  'theatre_of_blood',
+  'theatre_of_blood_hard_mode',
+  'tombs_of_amascut',
+  'tombs_of_amascut_expert',
+] as const;
+
+/** The virtual metric key that sums RAID_METRICS per member. */
+export const ALL_RAIDS_METRIC = 'raids';
+
+export const PVM_METRICS: { metric: string; label: string }[] = [
+  { metric: 'ehb', label: 'All PvM (EHB)' },
+  { metric: ALL_RAIDS_METRIC, label: 'All raids (KC)' },
+  { metric: 'chambers_of_xeric', label: 'Chambers of Xeric' },
+  { metric: 'chambers_of_xeric_challenge_mode', label: 'Chambers of Xeric CM' },
+  { metric: 'theatre_of_blood', label: 'Theatre of Blood' },
+  { metric: 'theatre_of_blood_hard_mode', label: 'Theatre of Blood HM' },
+  { metric: 'tombs_of_amascut', label: 'Tombs of Amascut' },
+  { metric: 'tombs_of_amascut_expert', label: 'Tombs of Amascut Expert' },
+  { metric: 'yama', label: 'Yama' },
+  { metric: 'the_royal_titans', label: 'Royal Titans' },
+  { metric: 'doom_of_mokhaiotl', label: 'Doom of Mokhaiotl' },
+  { metric: 'nex', label: 'Nex' },
+  { metric: 'nightmare', label: 'Nightmare' },
+];
+
+export const PVM_PERIOD_DAYS = [7, 30, 90] as const;
+
+export const DEFAULT_PVM_PERIOD_DAYS = 30;
+
+/** The page and its resource routes read ?days the same way: a listed period, else the default. */
+export const parsePvmPeriodDays = (value: string | null): number => {
+  const days = Number(value);
+  return (PVM_PERIOD_DAYS as readonly number[]).includes(days)
+    ? days
+    : DEFAULT_PVM_PERIOD_DAYS;
+};
+
+/**
+ * What a WOM-backed resource route answers with: the result, or a failure the page can show
+ * in place (a retry state) instead of throwing into the nearest error boundary.
+ */
+export type FetchOutcome<T> = ({ ok: true } & T) | { ok: false; error: string };
+
+// ---- Inactivity ----
+
+export interface IMemberActivityInput {
+  discordId: string;
+  joined: string;
+  /** Most recent clan-system event across the loaded history, or null when there is none. */
+  lastClanEventAt: string | null;
+  /** WOM lastChangedAt, latest across the member's accounts, or null when none is in the group. */
+  lastInGameChangeAt: string | null;
+  /** The account that change was on, when it was a registered alt rather than the main. */
+  activeAlt: string | null;
+  womRole: string | null;
+}
+
+export interface IInactiveMember extends IMemberActivityInput {
+  daysSinceClanEvent: number | null;
+  daysSinceInGameChange: number | null;
+}
+
+export interface IInactivitySummary {
+  /** In-game activity inside the window, but no clan-system event in it. The ones to pull in. */
+  playingNotParticipating: IInactiveMember[];
+  /** Neither a clan-system event nor an in-game change inside the window. */
+  goneQuiet: IInactiveMember[];
+  /** No clan-system event in the window and no account in the WOM group, so in-game is unknown. */
+  notOnWom: IInactiveMember[];
+}
+
+const daysBetween = (from: string | null, now: Date): number | null =>
+  from === null
+    ? null
+    : Math.max(
+        0,
+        Math.floor((now.getTime() - new Date(from).getTime()) / DAY_MS),
+      );
+
+/** The latest event timestamp per member. */
+export const lastEventAtByMember = (
+  events: IEngagementEvent[],
+): Map<string, string> =>
+  // Ascending by time, so the Map constructor's last-entry-wins keeps each member's latest.
+  new Map(
+    [...events]
+      .sort((a, b) => a.at.localeCompare(b.at))
+      .map(event => [event.discordId, event.at]),
+  );
+
+/**
+ * Splits the members with no clan-system event since `start` by what WOM says they did in-game
+ * over the same window. Members with an event in the window are left out entirely.
+ */
+export const summarizeInactivity = (
+  members: IMemberActivityInput[],
+  start: string,
+  now: Date,
+): IInactivitySummary => {
+  const idle = members
+    .filter(
+      member =>
+        member.lastClanEventAt === null || member.lastClanEventAt < start,
+    )
+    .map(member => ({
+      ...member,
+      daysSinceClanEvent: daysBetween(member.lastClanEventAt, now),
+      daysSinceInGameChange: daysBetween(member.lastInGameChangeAt, now),
+    }));
+  const byLongestIdle = (a: IInactiveMember, b: IInactiveMember) =>
+    (b.daysSinceClanEvent ?? Infinity) - (a.daysSinceClanEvent ?? Infinity) ||
+    a.joined.localeCompare(b.joined);
+  return {
+    playingNotParticipating: idle
+      .filter(
+        member =>
+          member.lastInGameChangeAt !== null &&
+          member.lastInGameChangeAt >= start,
+      )
+      .sort(
+        (a, b) =>
+          (a.daysSinceInGameChange ?? 0) - (b.daysSinceInGameChange ?? 0) ||
+          byLongestIdle(a, b),
+      ),
+    goneQuiet: idle
+      .filter(
+        member =>
+          member.lastInGameChangeAt !== null &&
+          member.lastInGameChangeAt < start,
+      )
+      .sort(
+        (a, b) =>
+          (b.daysSinceInGameChange ?? 0) - (a.daysSinceInGameChange ?? 0) ||
+          byLongestIdle(a, b),
+      ),
+    notOnWom: idle
+      .filter(member => member.lastInGameChangeAt === null)
+      .sort(byLongestIdle),
+  };
+};
+
+export interface IPlayerGainLike extends IMemberGainLike {
+  username: string;
+}
+
+/**
+ * Adds several metrics' gains together per player (by WOM username), for the "All raids" view.
+ * A player missing from one metric's list simply contributes nothing there.
+ */
+export const sumGainsByPlayer = <T extends IPlayerGainLike>(
+  lists: T[][],
+): IPlayerGainLike[] => {
+  const rows = lists.flat();
+  return distinct(rows.map(row => row.username)).map(username => {
+    const own = rows.filter(row => row.username === username);
+    return {
+      username,
+      displayName: own[0].displayName,
+      gained: own.reduce((sum, row) => sum + row.gained, 0),
+    };
+  });
+};
+
+// ---- Skilling only ----
+
+/**
+ * Below this many efficient hours bossed per day of the window, a member who was active
+ * in-game counts as not doing PvM. 0.05 a day is 1.5 EHB over 30 days: a couple of short trips.
+ */
+export const PVM_FLOOR_EHB_PER_DAY = 0.05;
+
+export const pvmFloorForDays = (days: number): number =>
+  Math.round(PVM_FLOOR_EHB_PER_DAY * days * 100) / 100;
+
+export interface ISkillingInput {
+  discordId: string;
+  womRole: string | null;
+  /** WOM lastChangedAt, latest across accounts, or null when none is in the group. */
+  lastInGameChangeAt: string | null;
+  /** The account that change was on, when it was a registered alt rather than the main. */
+  activeAlt: string | null;
+  /** Summed across the member's accounts over the window. */
+  ehbGained: number;
+  ehpGained: number;
+}
+
+export interface ISkillingMember extends ISkillingInput {
+  daysSinceInGameChange: number;
+}
+
+/**
+ * Members who were active in-game in the window but gained less than `floor` EHB in it,
+ * most skilling (EHP gained) first. Clan-system activity is ignored on purpose: posting
+ * skilling drops is still not PvM.
+ */
+export const summarizeSkillingOnly = (
+  members: ISkillingInput[],
+  start: string,
+  now: Date,
+  floor: number,
+): ISkillingMember[] =>
+  members
+    .filter(
+      (member): member is ISkillingInput & { lastInGameChangeAt: string } =>
+        member.lastInGameChangeAt !== null &&
+        member.lastInGameChangeAt >= start &&
+        member.ehbGained < floor,
+    )
+    .map(member => ({
+      ...member,
+      daysSinceInGameChange: daysBetween(member.lastInGameChangeAt, now) ?? 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.ehpGained - a.ehpGained ||
+        a.ehbGained - b.ehbGained ||
+        a.discordId.localeCompare(b.discordId),
+    );
+
+export interface IInGameSplit {
+  /** Gained at least the PvM floor in EHB. */
+  pvming: number;
+  /** Gained something, but under the PvM floor: skilling, or only a little PvM. */
+  skilling: number;
+  /** No EHB and no EHP gained at all. */
+  noGains: number;
+  /** No account in the WOM group, so nothing is known. Not drawn, but reported. */
+  unknown: number;
+}
+
+/** Where each roster member's time went this window, by what WOM saw them gain. */
+export const summarizeInGameSplit = (
+  members: ISkillingInput[],
+  floor: number,
+): IInGameSplit => ({
+  pvming: members.filter(
+    member => member.lastInGameChangeAt !== null && member.ehbGained >= floor,
+  ).length,
+  skilling: members.filter(
+    member =>
+      member.lastInGameChangeAt !== null &&
+      member.ehbGained < floor &&
+      member.ehbGained + member.ehpGained > 0,
+  ).length,
+  noGains: members.filter(
+    member =>
+      member.lastInGameChangeAt !== null &&
+      member.ehbGained === 0 &&
+      member.ehpGained === 0,
+  ).length,
+  unknown: members.filter(member => member.lastInGameChangeAt === null).length,
+});

@@ -20,3 +20,7 @@ export const getBountiesForDiscordId = (discordId: string) =>
     where: { claims: { some: { discordId } } },
     orderBy: { postedAt: 'desc' },
   });
+
+/** One bounty by id, or null. */
+export const getBountyById = (id: string) =>
+  prisma.bounties.findUnique({ where: { id } });

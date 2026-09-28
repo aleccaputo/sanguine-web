@@ -121,3 +121,18 @@ export const getPersonalBestsByCategoryKeys = async (
   // Same app-side effective-time sort as getAllPersonalBests.
   return rows.map(toPersonalBest).sort(comparePbTimes);
 };
+
+export interface IPersonalBestParticipation {
+  categoryKey: string;
+  participantDiscordIds: string[];
+  createdAt: string;
+}
+
+// Every PB submitted on or after `since` (ISO), participants only, for the engagement view.
+export const getPersonalBestsSince = async (
+  since: string,
+): Promise<IPersonalBestParticipation[]> =>
+  prisma.personalBests.findMany({
+    where: { createdAt: { gte: since } },
+    select: { categoryKey: true, participantDiscordIds: true, createdAt: true },
+  });

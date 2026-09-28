@@ -1,4 +1,5 @@
 import { Flex, Text } from '@radix-ui/themes';
+import { jumpToSection } from '~/utils/jump-to-section';
 import { useState } from 'react';
 import { proseLinkClass } from '~/utils/styles';
 
@@ -25,11 +26,6 @@ interface IContentsBoxProps {
  */
 export function ContentsBox({ sections }: IContentsBoxProps) {
   const [open, setOpen] = useState(true);
-
-  const jumpToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView();
-    window.history.replaceState(null, '', `#${id}`);
-  };
 
   return (
     <nav className="mt-6 inline-block border border-gray-800 bg-gray-900">

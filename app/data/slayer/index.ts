@@ -38,3 +38,20 @@ export const getSpinCountsByStatus = async (): Promise<
   });
   return Object.fromEntries(rows.map(row => [row.status, row._count._all]));
 };
+
+/**
+ * Every task handed out on or after `since` (ISO), with its completion time when it was done.
+ * Spins, rerolls, and completions are all a member choosing to use the feature, which is what
+ * engagement counting cares about.
+ */
+export const getSpinsSince = (since: string) =>
+  prisma.wheelSpins.findMany({
+    where: { spunAt: { gte: since } },
+    select: {
+      discordId: true,
+      spunAt: true,
+      status: true,
+      spinType: true,
+      completion: { select: { completedAt: true } },
+    },
+  });

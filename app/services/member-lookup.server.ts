@@ -1,4 +1,7 @@
-import { getUsersWithNicknames } from '~/services/sanguine-service.server';
+import {
+  getUsersWithNicknames,
+  ISanguineUserWithNickname,
+} from '~/services/sanguine-service.server';
 import { getAllUserAlts } from '~/data/user';
 import { getClanFromWom } from '~/services/wom-api-service.server';
 import { normalizeRsn } from '~/utils/collection-log';
@@ -8,6 +11,12 @@ export interface IRsnMemberBridge {
   discordIdByRsn: Map<string, string>;
   /** Normalized WOM display name to the account's clan role. */
   roleByRsn: Map<string, string>;
+  /**
+   * The current roster: Users docs that carry a nickname, the same definition the members
+   * page uses. Docs without one are stale (people who have left) and would otherwise inflate
+   * counts and read as "not on WOM".
+   */
+  roster: ISanguineUserWithNickname[];
 }
 
 /**
@@ -36,5 +45,9 @@ export const getRsnMemberBridge = async (): Promise<IRsnMemberBridge> => {
       member.role,
     ]),
   );
-  return { discordIdByRsn, roleByRsn };
+  return {
+    discordIdByRsn,
+    roleByRsn,
+    roster: users.filter(user => user.nickname),
+  };
 };

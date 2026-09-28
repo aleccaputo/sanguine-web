@@ -8,10 +8,14 @@ import { getAdminRace } from '~/services/events-admin-service.server';
 // Landing for /admin: one row per event surface with its live state. The race is
 // field-picked so team rosters (Discord ids) never reach the browser.
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireStaff(request);
+  const user = await requireStaff(request);
+  const isModerator = user.isModerator;
+  const denied = new URL(request.url).searchParams.get('denied');
   try {
     const race = await getAdminRace();
     return json({
+      isModerator,
+      denied,
       apiUp: true,
       race: race
         ? {
@@ -23,15 +27,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
         : null,
     });
   } catch {
-    return json({ apiUp: false, race: null });
+    return json({ isModerator, denied, apiUp: false, race: null });
   }
 }
 
 export default function AdminIndex() {
-  const { race, apiUp } = useLoaderData<typeof loader>();
+  const { race, apiUp, isModerator, denied } = useLoaderData<typeof loader>();
 
   return (
     <Box>
+      {denied === 'moderator' && (
+        <Text as="p" size="3" className="mb-4 text-gray-400">
+          Clan insights is for moderators and admins.
+        </Text>
+      )}
       <SectionHeading title="Events" />
       <div className="mt-2">
         <Link
@@ -71,6 +80,42 @@ export default function AdminIndex() {
             start the race, and fix moves when something goes sideways.
           </Text>
         </Link>
+        {isModerator ? (
+          <Link
+            to="/admin/insights"
+            className="group block border-b border-gray-800 py-3 hover:bg-sanguine-red/[0.04]"
+          >
+            <Flex align="baseline" justify="between" gap="3" wrap="wrap">
+              <Text
+                size="5"
+                className="text-sanguine-bright group-hover:text-white"
+              >
+                Clan insights
+              </Text>
+              <Text size="4" className="text-gray-400">
+                derived live, nothing stored
+              </Text>
+            </Flex>
+            <Text as="p" size="4" className="mt-1 text-gray-500">
+              Did each bounty get people killing the boss, who is engaging with
+              which clan systems, and who is doing PvM, per Wise Old Man.
+            </Text>
+          </Link>
+        ) : (
+          <div className="border-b border-gray-800 py-3">
+            <Flex align="baseline" justify="between" gap="3" wrap="wrap">
+              <Text size="5" className="text-gray-500">
+                Clan insights
+              </Text>
+              <Text size="4" className="text-gray-600">
+                moderators and admins only
+              </Text>
+            </Flex>
+            <Text as="p" size="4" className="mt-1 text-gray-600">
+              Engagement and inactivity by member. Ask a moderator.
+            </Text>
+          </div>
+        )}
         <div className="border-b border-gray-800 py-3">
           <Flex align="baseline" justify="between" gap="3" wrap="wrap">
             <Text size="5" className="text-gray-500">
