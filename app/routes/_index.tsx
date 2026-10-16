@@ -12,10 +12,11 @@ import { EmptyState } from '~/components/EmptyState';
 import { SectionHeading } from '~/components/SectionHeading';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import {
-  getCompetitionById,
+  getCompetitionByIdOrNull,
   getCompetitions,
 } from '~/services/wom-api-service.server';
 import { SPECIAL_COMPETITION_IDS } from '~/utils/events-config';
+import { withTimeout } from '~/utils/with-timeout';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
 import { getAllClanDrops, getClanDropsPaginated } from '~/data/points-audit';
 import { computeClanTotals } from '~/data/points-audit/stats';
@@ -47,15 +48,6 @@ export const meta: MetaFunction = () => {
     },
   ];
 };
-
-// Deferred sections must settle before entry.server's 10s stream abort, or the
-// client rejects them with "Server timeout" and the page falls to the root
-// error boundary. Race slow upstreams to a fallback comfortably under that.
-const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T) =>
-  Promise.race([
-    promise.catch(() => fallback),
-    new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms)),
-  ]);
 
 // Prose speaks like a player: "95.5b gp", not eleven digits. Tables keep
 // full numbers.
@@ -159,16 +151,17 @@ export async function loader() {
 
   // WOM can be slow on a cold cache — its section streams in on its own, and
   // times out to an empty list rather than outliving the stream abort.
-  // Special comps (bingos, inter-clan events) live outside the group list.
+  // Special comps (bingos, inter-clan events) live outside the group list. One
+  // of them failing to load drops that one entry, not the whole section.
   const competitionsPromise = withTimeout(
     Promise.all([
       getCompetitions(),
-      ...SPECIAL_COMPETITION_IDS.map(id => getCompetitionById(id)),
+      ...SPECIAL_COMPETITION_IDS.map(id => getCompetitionByIdOrNull(id)),
     ]).then(([womComps, ...specials]) => {
       const now = Date.now();
       const seen = new Set<number>();
       return [...specials, ...(womComps ?? [])]
-        .filter(comp => {
+        .filter((comp): comp is NonNullable<typeof comp> => {
           if (!comp || seen.has(comp.id)) return false;
           seen.add(comp.id);
           return (

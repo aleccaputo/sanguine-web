@@ -1,13 +1,14 @@
 import { Text, Container, Box, Flex } from '@radix-ui/themes';
 import { defer, MetaFunction } from '@remix-run/node';
 import {
-  getCompetitionById,
+  getCompetitionByIdOrNull,
   getCompetitions,
 } from '~/services/wom-api-service.server';
 import { Await, Outlet, useLoaderData, useNavigate } from '@remix-run/react';
 import { Suspense, useState } from 'react';
 import { getCompetitionImageUrl } from '~/utils/competition-images';
 import { SPECIAL_COMPETITION_IDS } from '~/utils/events-config';
+import { withTimeout } from '~/utils/with-timeout';
 import { PageHeader } from '~/components/PageHeader';
 import { Pagination } from '~/components/Pagination';
 import { EmptyState } from '~/components/EmptyState';
@@ -46,16 +47,21 @@ const SkeletonLoader = () => (
 );
 
 export async function loader() {
-  const womCompsPromise = getCompetitions();
-  const [lead, ...rest] = await Promise.all(
-    SPECIAL_COMPETITION_IDS.map(id => getCompetitionById(id)),
+  // Everything from WOM streams in behind the skeleton: a special competition
+  // WOM can't serve right now is left out of the list rather than failing the
+  // page, and a slow WOM degrades to an empty list before the stream aborts.
+  const competitionsPromise = withTimeout(
+    Promise.all([
+      getCompetitions(),
+      ...SPECIAL_COMPETITION_IDS.map(id => getCompetitionByIdOrNull(id)),
+    ]).then(([womComps, lead, ...rest]) =>
+      [lead, ...(womComps ?? []), ...rest].filter(
+        (comp): comp is NonNullable<typeof comp> => comp != null,
+      ),
+    ),
+    8_000,
+    [],
   );
-
-  const competitionsPromise = womCompsPromise.then(womComps => [
-    lead,
-    ...(womComps ?? []),
-    ...rest,
-  ]);
 
   return defer(
     {

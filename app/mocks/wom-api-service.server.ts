@@ -12,16 +12,19 @@ import type {
   MembershipWithPlayer,
 } from '~/services/wom-api-service.server';
 
-export const getCompetitions = async (
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  limit?: number,
-): Promise<CompetitionResponse[] | undefined> =>
-  MOCK_COMPETITIONS as unknown as CompetitionResponse[];
+export const getCompetitions = async (): Promise<
+  CompetitionResponse[] | undefined
+> => MOCK_COMPETITIONS as unknown as CompetitionResponse[];
 
 export const getCompetitionById = async (
   id: number,
 ): Promise<CompetitionDetailsResponse> =>
   buildCompetitionDetail(id) as unknown as CompetitionDetailsResponse;
+
+export const getCompetitionByIdOrNull = (
+  id: number,
+): Promise<CompetitionDetailsResponse | undefined> =>
+  getCompetitionById(id).catch(() => undefined);
 
 export const getClanFromWom = async (
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

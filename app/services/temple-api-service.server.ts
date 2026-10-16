@@ -1,4 +1,5 @@
 import * as process from 'process';
+import { createCachedFetcher } from '~/utils/cached-fetcher';
 import type {
   ITempleClogCategories,
   ITempleGroupClog,
@@ -50,48 +51,17 @@ const fetchTempleJson = async <T>(path: string): Promise<T> => {
   return body;
 };
 
-interface ICacheEntry<T> {
-  data: T;
-  timestamp: number;
-}
-
-/** Module-level cache with in-flight deduplication, keyed for per-player use. */
-const createCachedFetcher = <T>(
-  fetcher: (key: string) => Promise<T>,
-  durationMs: number,
-) => {
-  const cache = new Map<string, ICacheEntry<T>>();
-  const inflight = new Map<string, Promise<T>>();
-  return (key: string): Promise<T> => {
-    const cached = cache.get(key);
-    if (cached && Date.now() - cached.timestamp < durationMs) {
-      return Promise.resolve(cached.data);
-    }
-    const pending = inflight.get(key);
-    if (pending) return pending;
-    const request = fetcher(key)
-      .then(data => {
-        cache.set(key, { data, timestamp: Date.now() });
-        return data;
-      })
-      .finally(() => {
-        inflight.delete(key);
-      });
-    inflight.set(key, request);
-    return request;
-  };
-};
-
 const GROUP_CLOG_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes (~165KB payload)
 const RECENT_ITEMS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const STATIC_LIST_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 const groupClogFetcher = createCachedFetcher(
+  'templeGroupClog',
   () =>
     fetchTempleJson<{ data: ITempleGroupClog }>(
       `/collection-log/group_collection_log.php?group=${templeGroupId}&categories=all`,
     ).then(body => body.data),
-  GROUP_CLOG_CACHE_DURATION,
+  { ttlMs: GROUP_CLOG_CACHE_DURATION },
 );
 
 /** Every synced member's owned item ids plus per-member log totals. */
@@ -99,11 +69,12 @@ export const getGroupCollectionLog = (): Promise<ITempleGroupClog> =>
   groupClogFetcher('group');
 
 const groupRecentItemsFetcher = createCachedFetcher(
+  'templeGroupRecentItems',
   () =>
     fetchTempleJson<{ data: ITempleGroupRecentItem[] }>(
       `/collection-log/group_recent_items.php?group=${templeGroupId}&count=30&onlynotable=1`,
     ).then(body => body.data),
-  RECENT_ITEMS_CACHE_DURATION,
+  { ttlMs: RECENT_ITEMS_CACHE_DURATION },
 );
 
 /** The clan's most recent notable unlocks (pets, rare clue items, …). */
@@ -112,11 +83,12 @@ export const getGroupRecentNotableItems = (): Promise<
 > => groupRecentItemsFetcher('group');
 
 const playerRecentItemsFetcher = createCachedFetcher(
+  'templePlayerRecentItems',
   player =>
     fetchTempleJson<{ data: ITempleRecentItem[] }>(
       `/collection-log/player_recent_items.php?player=${encodeURIComponent(player)}&count=25`,
     ).then(body => body.data),
-  RECENT_ITEMS_CACHE_DURATION,
+  { ttlMs: RECENT_ITEMS_CACHE_DURATION },
 );
 
 /**
@@ -130,9 +102,10 @@ export const getPlayerRecentItems = (
   playerRecentItemsFetcher(player).catch(() => []);
 
 const clogCategoriesFetcher = createCachedFetcher(
+  'templeClogCategories',
   () =>
     fetchTempleJson<ITempleClogCategories>('/collection-log/categories.php'),
-  STATIC_LIST_CACHE_DURATION,
+  { ttlMs: STATIC_LIST_CACHE_DURATION },
 );
 
 /** All collection log categories and the item ids they contain. */
@@ -140,11 +113,12 @@ export const getClogCategories = (): Promise<ITempleClogCategories> =>
   clogCategoriesFetcher('categories');
 
 const clogItemNamesFetcher = createCachedFetcher(
+  'templeClogItemNames',
   () =>
     fetchTempleJson<{ items: Record<string, string> }>(
       '/collection-log/items.php',
     ).then(body => body.items),
-  STATIC_LIST_CACHE_DURATION,
+  { ttlMs: STATIC_LIST_CACHE_DURATION },
 );
 
 /** Item id to name for every tracked collection log item. */

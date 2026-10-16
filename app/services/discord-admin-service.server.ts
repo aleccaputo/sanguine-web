@@ -1,4 +1,5 @@
 import * as process from 'process';
+import { createCachedFetcher } from '~/utils/cached-fetcher';
 
 /**
  * Direct Discord REST calls made with the bot token (the same bot user as
@@ -7,6 +8,9 @@ import * as process from 'process';
  */
 const DISCORD_API_URL = 'https://discord.com/api/v10';
 const DISCORD_TIMEOUT_MS = 8_000;
+// Roles and channels change rarely, and the admin race page re-runs its loader after
+// every action; a short cache keeps those revalidations off Discord entirely.
+const GUILD_STRUCTURE_TTL_MS = 5 * 60 * 1000;
 
 const botToken = process.env.DISCORD_BOT_TOKEN ?? '';
 const guildId = process.env.DISCORD_SERVER_ID ?? '';
@@ -43,6 +47,7 @@ interface IRawGuildRole {
   name: string;
   position: number;
   managed: boolean;
+  permissions: string;
 }
 
 interface IPermissionOverwrite {
@@ -73,6 +78,17 @@ const discordFetchJson = async <T>(path: string, what: string): Promise<T> => {
   }
   return (await response.json()) as T;
 };
+
+// Both the role picker and the channel permission check read the guild's roles; one
+// cached read serves both so a cold admin page costs Discord one roles call, not two.
+const rawGuildRolesFetcher = createCachedFetcher(
+  'discordGuildRawRoles',
+  () => discordFetchJson<IRawGuildRole[]>(`/guilds/${guildId}/roles`, 'roles'),
+  { ttlMs: GUILD_STRUCTURE_TTL_MS },
+);
+
+const getRawGuildRoles = (): Promise<IRawGuildRole[]> =>
+  rawGuildRolesFetcher(guildId);
 
 /** The guild member for a Discord user id, or null when they're not in the server. */
 export const getGuildMember = async (
@@ -155,11 +171,8 @@ const botCanPostIn = (
  * first, matching Discord's sidebar). @everyone and managed roles (bot and
  * integration roles) are excluded — neither makes sense as a team tag.
  */
-export const getGuildRoles = async (): Promise<IGuildRole[]> => {
-  const roles = await discordFetchJson<IRawGuildRole[]>(
-    `/guilds/${guildId}/roles`,
-    'roles',
-  );
+const fetchGuildRoles = async (): Promise<IGuildRole[]> => {
+  const roles = await getRawGuildRoles();
   return roles
     .filter(role => role.id !== guildId && !role.managed)
     .sort((a, b) => b.position - a.position)
@@ -171,16 +184,13 @@ export const getGuildRoles = async (): Promise<IGuildRole[]> => {
  * Send Messages, Embed Links), in sidebar order — so the race create form
  * never offers a channel that would 500 at roll time.
  */
-export const getGuildTextChannels = async (): Promise<IGuildTextChannel[]> => {
+const fetchGuildTextChannels = async (): Promise<IGuildTextChannel[]> => {
   const [channels, roles, botUser] = await Promise.all([
     discordFetchJson<IRawGuildChannel[]>(
       `/guilds/${guildId}/channels`,
       'channels',
     ),
-    discordFetchJson<{ id: string; permissions: string }[]>(
-      `/guilds/${guildId}/roles`,
-      'roles',
-    ),
+    getRawGuildRoles(),
     discordFetchJson<{ id: string }>('/users/@me', 'bot user'),
   ]);
   const botMember = await discordFetchJson<{ roles: string[] }>(
@@ -206,3 +216,23 @@ export const getGuildTextChannels = async (): Promise<IGuildTextChannel[]> => {
     .sort((a, b) => a.position - b.position)
     .map(({ id, name }) => ({ id, name }));
 };
+
+const guildRolesFetcher = createCachedFetcher(
+  'discordGuildRoles',
+  fetchGuildRoles,
+  { ttlMs: GUILD_STRUCTURE_TTL_MS },
+);
+
+/** Cached for a few minutes; see `fetchGuildRoles`. */
+export const getGuildRoles = (): Promise<IGuildRole[]> =>
+  guildRolesFetcher(guildId);
+
+const guildTextChannelsFetcher = createCachedFetcher(
+  'discordGuildTextChannels',
+  fetchGuildTextChannels,
+  { ttlMs: GUILD_STRUCTURE_TTL_MS },
+);
+
+/** Cached for a few minutes; see `fetchGuildTextChannels`. */
+export const getGuildTextChannels = (): Promise<IGuildTextChannel[]> =>
+  guildTextChannelsFetcher(guildId);
