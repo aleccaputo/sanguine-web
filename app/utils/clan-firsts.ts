@@ -46,7 +46,8 @@ export const TFA_DROP_BOARDS: IClanFirstDropBoard[] = [
     displayName: 'The Obligator',
     itemNames: ['The Obligator'],
   },
-  // Pet name is unknown pre-release; fill itemNames once it is known.
+  // Deliberately unmatched, as in the bot: Dink pet drops all share the sheet's generic "pet" id,
+  // so an item-based match would count every pet from every boss.
   { key: 'pet', displayName: 'Pet', itemNames: [] },
 ];
 
@@ -87,7 +88,7 @@ export const firstUniquePlayers = (
 
 export interface IClearFirstRow {
   participantDiscordIds: string[];
-  createdAt: string;
+  approvedAt: string;
   proofMessageUrl?: string | null;
 }
 
@@ -101,14 +102,15 @@ export interface IClearFirstPlacement {
   proofMessageUrl: string | null;
 }
 
-// The first `slots` clears by submission time. A member is only ever credited once: a later
+// The first `slots` clears by approval time (when the bot announced and paid them; mods approve
+// in submission order). A member is only ever credited once: a later
 // team's spot goes to its net-new members, and a team with none takes no spot at all.
 export const rankClearsWithNetNew = (
   rows: IClearFirstRow[],
   slots = CLAN_FIRST_SLOTS,
 ): IClearFirstPlacement[] =>
   [...rows]
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .sort((a, b) => a.approvedAt.localeCompare(b.approvedAt))
     .reduce<IClearFirstPlacement[]>((placements, row) => {
       if (placements.length >= slots) return placements;
       const placed = new Set(placements.flatMap(p => p.creditedDiscordIds));
@@ -121,7 +123,7 @@ export const rankClearsWithNetNew = (
           placement: placements.length + 1,
           creditedDiscordIds,
           alreadyPlacedDiscordIds: team.filter(id => placed.has(id)),
-          achievedAt: row.createdAt,
+          achievedAt: row.approvedAt,
           proofMessageUrl: row.proofMessageUrl ?? null,
         },
       ];

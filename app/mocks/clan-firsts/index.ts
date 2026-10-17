@@ -35,7 +35,7 @@ export const getRaidCompletionsForMetric = async (
     participantDiscordIds: faker.helpers
       .arrayElements(pool, { min: 3, max: 6 })
       .map(user => user.discordId),
-    createdAt: new Date(
+    approvedAt: new Date(
       new Date(since).getTime() + (i + 1) * 9 * 60 * 60 * 1000,
     ).toISOString(),
     proofMessageUrl: 'https://discord.com/channels/1/2/3',

@@ -5,8 +5,8 @@ import {
   rankClearsWithNetNew,
 } from './clan-firsts';
 
-const clear = (createdAt: string, participantDiscordIds: string[]) => ({
-  createdAt,
+const clear = (approvedAt: string, participantDiscordIds: string[]) => ({
+  approvedAt,
   participantDiscordIds,
 });
 
@@ -35,7 +35,7 @@ describe('rankClearsWithNetNew', () => {
     ]);
   });
 
-  it('orders by submission time and caps at the slot count', () => {
+  it('orders by approval time and caps at the slot count', () => {
     const rows = Array.from({ length: 7 }, (_, i) =>
       clear(`2026-10-20T1${6 - i}:00:00.000Z`, [`a${i}`, `b${i}`]),
     );

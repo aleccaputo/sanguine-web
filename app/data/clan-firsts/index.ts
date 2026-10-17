@@ -23,17 +23,17 @@ export const getDropAuditsForItems = async (
   });
 };
 
-// Approved raid completions for one metric submitted on or after `since`, oldest first.
+// Approved raid completions for one metric approved on or after `since`, oldest first.
 export const getRaidCompletionsForMetric = async (
   raidMetric: string,
   since: string,
 ): Promise<IClearFirstRow[]> =>
   prisma.raidCompletions.findMany({
-    where: { raidMetric, createdAt: { gte: since } },
+    where: { raidMetric, approvedAt: { gte: since } },
     select: {
       participantDiscordIds: true,
-      createdAt: true,
+      approvedAt: true,
       proofMessageUrl: true,
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { approvedAt: 'asc' },
   });
