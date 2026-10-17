@@ -8,14 +8,54 @@ import { formatAccountWithMain } from '~/utils/account-matching';
 // Mirrors IMPRECISE_PB_PENALTY_SECONDS in the Discord bot (osrs-discord-clan-manager).
 export const IMPRECISE_PB_PENALTY_SECONDS = 0.4;
 
-// The fields ranking needs — kept narrow so tests and partial rows can use the comparator too.
-type PbTimeLike = Pick<IPersonalBest, 'isPreciseTime' | 'effectiveTimeSeconds'>;
+// Bosses whose PB is a depth rather than a time. Doom of Mokhaiotl runs are measured by the deepest
+// delve reached (higher is better), so these categories rank descending and never carry the
+// imprecise-timing penalty. The bot stores the level in the same timeDisplay/timeSeconds fields
+// ("Delve 12" / 12), so `isDelveBoss` is the switch everywhere the two metrics differ. Mirrors
+// DELVE_BOSSES in the Discord bot (osrs-discord-clan-manager).
+export const DELVE_BOSSES: readonly string[] = ['Doom of Mokhaiotl'];
 
-// Ranking order: effective (worst-case) time ascending; at an exact tie the precise time wins,
-// since the imprecise one is only *assumed* to be that fast.
+export const isDelveBoss = (bossName: string | undefined): boolean =>
+  bossName != null && DELVE_BOSSES.includes(bossName);
+
+const DELVE_DISPLAY_PATTERN = /^delve \d+$/i;
+
+// Doom was briefly tracked by kill time before the bot switched it to deepest delve. Those time
+// rows can't be compared against a delve level, so they're treated as defunct and never shown.
+export const isDefunctPersonalBest = (
+  pb: Pick<IPersonalBest, 'bossName' | 'timeDisplay'>,
+): boolean =>
+  isDelveBoss(pb.bossName) && !DELVE_DISPLAY_PATTERN.test(pb.timeDisplay);
+
+// Whether a record counts as precise. A delve level is exact by definition; a time is precise
+// only when it was submitted with a decimal. Shared with the data layer for legacy rows that
+// predate the stored flag.
+export const derivePbPrecision = (
+  pb: Pick<IPersonalBest, 'bossName' | 'timeDisplay'> & {
+    isPreciseTime?: boolean | null;
+  },
+): boolean =>
+  isDelveBoss(pb.bossName) ||
+  (pb.isPreciseTime ?? pb.timeDisplay.includes('.'));
+
+// What the result column is called for a boss: delve bosses log a depth, everything else a time.
+export const pbResultNoun = (bossName: string): 'delve' | 'time' =>
+  isDelveBoss(bossName) ? 'delve' : 'time';
+
+// The fields ranking needs — kept narrow so tests and partial rows can use the comparator too.
+type PbTimeLike = Pick<
+  IPersonalBest,
+  'bossName' | 'isPreciseTime' | 'effectiveTimeSeconds'
+>;
+
+// Ranking order within one category. Times: effective (worst-case) time ascending; at an exact
+// tie the precise time wins, since the imprecise one is only *assumed* to be that fast. Delves:
+// deepest first. Only meaningful between records of the same boss.
 export const comparePbTimes = (a: PbTimeLike, b: PbTimeLike): number =>
-  a.effectiveTimeSeconds - b.effectiveTimeSeconds ||
-  Number(b.isPreciseTime) - Number(a.isPreciseTime);
+  isDelveBoss(a.bossName)
+    ? b.effectiveTimeSeconds - a.effectiveTimeSeconds
+    : a.effectiveTimeSeconds - b.effectiveTimeSeconds ||
+      Number(b.isPreciseTime) - Number(a.isPreciseTime);
 
 export interface IResolvedParticipant {
   discordId: string;
@@ -117,10 +157,9 @@ const sortCategories = (a: ICategoryLeaderboard, b: ICategoryLeaderboard) =>
 const participantSetKey = (pb: IPersonalBest): string =>
   [...new Set(pb.participantDiscordIds)].sort().join(',');
 
-// Collapses a time-ascending list to each distinct team's fastest time. Input must be ascending
-// (the data layer sorts by effective time via comparePbTimes), so a team's first appearance is
-// already its best; order is
-// preserved, so the result stays fastest-first. A team that holds several fast times therefore
+// Collapses a best-first list to each distinct team's best result. Input must already be ranked
+// (the data layer sorts via comparePbTimes: times ascending, delves descending), so a team's first
+// appearance is its best; order is preserved, so the result stays best-first. A team that holds several fast times therefore
 // occupies a single slot, so more of the clan lands on the board rather than one team taking every
 // spot. This is the shared "one entry per unique team" rule behind both the leaderboard and a
 // member's clan-wide rank.
@@ -138,9 +177,9 @@ const fastestPerTeam = (
   }, []);
 };
 
-// Groups raw PBs into category leaderboards: each distinct team's fastest time, fastest first, up
-// to `limit` per category. Input is assumed effective-time-ascending (the data layer sorts with
-// comparePbTimes), so the first time seen per team is already their fastest. Records are grouped
+// Groups raw PBs into category leaderboards: each distinct team's best result, best first, up to
+// `limit` per category. Input is assumed ranked (the data layer sorts with comparePbTimes), so the
+// first result seen per team is already their best. Records are grouped
 // per category in full before trimming — capping during grouping would hide a team's
 // faster-but-later-grouped run.
 export const buildCategoryLeaderboards = (
@@ -228,8 +267,8 @@ export const buildUserCategoryBests = (
 ): IUserCategoryBest[] => {
   // Group every submission by category once, then collapse each group to one entry per unique team,
   // so rank/total are read from the relevant team field rather than re-scanning the whole set.
-  // Input is effective-time-ascending (the data layer sorts with comparePbTimes), so each category
-  // slice stays ascending and fastestPerTeam keeps each team's best.
+  // Input is ranked (the data layer sorts with comparePbTimes), so each category slice stays
+  // best-first and fastestPerTeam keeps each team's best.
   const submissionsByCategory = allInCategories.reduce((map, pb) => {
     const existing = map.get(pb.categoryKey);
     if (existing) {
@@ -249,7 +288,7 @@ export const buildUserCategoryBests = (
   const userBestByCategory = allInCategories
     .filter(pb => pb.participantDiscordIds.includes(discordId))
     .reduce((map, pb) => {
-      // Queries are time-ascending, so the first hit per category is already their fastest.
+      // Queries are ranked best-first, so the first hit per category is already their best.
       if (!map.has(pb.categoryKey)) {
         map.set(pb.categoryKey, pb);
       }
@@ -258,7 +297,7 @@ export const buildUserCategoryBests = (
 
   return [...userBestByCategory.values()]
     .map(best => {
-      // The member's best is itself their team's entry in this field, so counting strictly-faster
+      // The member's best is itself their team's entry in this field, so counting strictly-better
       // teams gives a rank that can never exceed the team total.
       const teamField = teamFieldByCategory.get(best.categoryKey) ?? [best];
       return {

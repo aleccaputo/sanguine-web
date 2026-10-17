@@ -1141,7 +1141,7 @@ export default function UserById() {
                         Boss / Raid
                       </Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell className="text-osrs-orange">
-                        Time
+                        Record
                       </Table.ColumnHeaderCell>
                       <Table.ColumnHeaderCell
                         className="text-osrs-orange"

@@ -4,6 +4,8 @@ import {
   buildCategoryLeaderboards,
   buildUserCategoryBests,
   comparePbTimes,
+  derivePbPrecision,
+  isDefunctPersonalBest,
 } from './personal-bests';
 
 // Minimal PB factory — only the fields the leaderboard logic reads. Times are passed already
@@ -25,8 +27,11 @@ const pb = (overrides: Partial<IPersonalBest>): IPersonalBest => {
     createdAt: '2026-01-01',
     ...overrides,
   };
-  const isPreciseTime =
-    overrides.isPreciseTime ?? merged.timeDisplay.includes('.');
+  const isPreciseTime = derivePbPrecision({
+    bossName: merged.bossName,
+    timeDisplay: merged.timeDisplay,
+    isPreciseTime: overrides.isPreciseTime,
+  });
   return {
     ...merged,
     isPreciseTime,
@@ -60,6 +65,76 @@ describe('comparePbTimes', () => {
     const imprecise = pb({ timeDisplay: '0:55', timeSeconds: 55 });
     expect(comparePbTimes(precise, imprecise)).toBeLessThan(0);
     expect(comparePbTimes(imprecise, precise)).toBeGreaterThan(0);
+  });
+
+  it('ranks a delve boss deepest first', () => {
+    const shallow = delve(8);
+    const deep = delve(14);
+    expect(comparePbTimes(deep, shallow)).toBeLessThan(0);
+    expect(comparePbTimes(shallow, deep)).toBeGreaterThan(0);
+  });
+});
+
+// A Doom of Mokhaiotl record: the bot stores the deepest delve as "Delve N" / N.
+const delve = (level: number, overrides: Partial<IPersonalBest> = {}) =>
+  pb({
+    bossName: 'Doom of Mokhaiotl',
+    categoryKey: 'doom of mokhaiotl|0|1',
+    timeDisplay: `Delve ${level}`,
+    timeSeconds: level,
+    ...overrides,
+  });
+
+describe('delve bosses', () => {
+  it('treats a delve level as precise, so it never shows the imprecise asterisk', () => {
+    expect(delve(12).isPreciseTime).toBe(true);
+    expect(delve(12).effectiveTimeSeconds).toBe(12);
+  });
+
+  it("marks Doom's legacy kill-time rows as defunct and leaves everything else alone", () => {
+    expect(
+      isDefunctPersonalBest({
+        bossName: 'Doom of Mokhaiotl',
+        timeDisplay: '7:08.40',
+      }),
+    ).toBe(true);
+    expect(isDefunctPersonalBest(delve(38))).toBe(false);
+    expect(
+      isDefunctPersonalBest({ bossName: 'Zulrah', timeDisplay: '0:55' }),
+    ).toBe(false);
+  });
+
+  it('builds a deepest-first leaderboard with one slot per delver', () => {
+    // Pre-ranked by the data layer: deepest first, with one delver holding two depths.
+    const records = [
+      delve(100, { participantDiscordIds: ['a'] }),
+      delve(57, { participantDiscordIds: ['b'] }),
+      delve(38, { participantDiscordIds: ['a'] }),
+      delve(12, { participantDiscordIds: ['c'] }),
+    ];
+
+    const [category] = buildCategoryLeaderboards(records, 5);
+
+    expect(category.entries.map(e => e.timeDisplay)).toEqual([
+      'Delve 100',
+      'Delve 57',
+      'Delve 12',
+    ]);
+  });
+
+  it('ranks a member by how many delvers went deeper', () => {
+    const field = [
+      delve(100, { participantDiscordIds: ['a'] }),
+      delve(57, { participantDiscordIds: ['me'] }),
+      delve(38, { participantDiscordIds: ['me'] }),
+      delve(12, { participantDiscordIds: ['c'] }),
+    ];
+
+    const [best] = buildUserCategoryBests('me', field);
+
+    expect(best.best.timeDisplay).toBe('Delve 57');
+    expect(best.rank).toBe(2);
+    expect(best.totalEntries).toBe(3);
   });
 });
 

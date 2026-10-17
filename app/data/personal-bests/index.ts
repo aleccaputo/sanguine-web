@@ -1,7 +1,9 @@
 import { prisma } from '~/utils/db.server';
 import {
   comparePbTimes,
+  derivePbPrecision,
   IMPRECISE_PB_PENALTY_SECONDS,
+  isDefunctPersonalBest,
 } from '~/utils/personal-bests';
 
 // Clean shape for personal bests across the web app. Mirrors the `PersonalBests` collection the
@@ -61,8 +63,9 @@ const PERSONAL_BEST_SELECT = {
 
 const toPersonalBest = (row: PersonalBestRow): IPersonalBest => {
   // Legacy rows predate the precision fields (until the bot's backfill migration runs) — re-derive
-  // them from the display string, which is the source of truth either way.
-  const isPreciseTime = row.isPreciseTime ?? row.timeDisplay.includes('.');
+  // them from the display string, which is the source of truth either way. Delve levels are
+  // always exact.
+  const isPreciseTime = derivePbPrecision(row);
   return {
     id: row.id,
     bossName: row.bossName,
@@ -86,25 +89,39 @@ const toPersonalBest = (row: PersonalBestRow): IPersonalBest => {
   };
 };
 
+// Maps rows to the clean shape, drops defunct records (pre-delve Doom times), and ranks them.
+// Sorted in app code (not the DB) so legacy rows missing effectiveTimeSeconds rank correctly —
+// downstream grouping relies on this best-first order (times ascending, delves descending).
+const rankPersonalBests = (rows: PersonalBestRow[]): IPersonalBest[] =>
+  rows
+    .map(toPersonalBest)
+    .filter(pb => !isDefunctPersonalBest(pb))
+    .sort(comparePbTimes);
+
 export const getAllPersonalBests = async (): Promise<IPersonalBest[]> => {
   const rows = await prisma.personalBests.findMany({
     select: PERSONAL_BEST_SELECT,
   });
-  // Sorted in app code (not the DB) so legacy rows missing effectiveTimeSeconds rank correctly —
-  // downstream grouping relies on this effective-time-ascending order.
-  return rows.map(toPersonalBest).sort(comparePbTimes);
+  return rankPersonalBests(rows);
 };
 
-// The distinct categories a member has a PB in. Only the categoryKey is read (not whole rows),
-// since the full leaderboard for those categories is fetched separately for ranking.
+// The distinct categories a member has a PB in. Only the fields needed to key and screen out
+// defunct records are read (not whole rows), since the full leaderboard for those categories is
+// fetched separately for ranking.
 export const getPersonalBestCategoryKeysForDiscordId = async (
   discordId: string,
 ): Promise<string[]> => {
   const rows = await prisma.personalBests.findMany({
     where: { participantDiscordIds: { has: discordId } },
-    select: { categoryKey: true },
+    select: { categoryKey: true, bossName: true, timeDisplay: true },
   });
-  return [...new Set(rows.map(row => row.categoryKey))];
+  return [
+    ...new Set(
+      rows
+        .filter(row => !isDefunctPersonalBest(row))
+        .map(row => row.categoryKey),
+    ),
+  ];
 };
 
 // All PBs in the given categories — used to rank a member's times against the rest of the clan.
@@ -118,8 +135,7 @@ export const getPersonalBestsByCategoryKeys = async (
     where: { categoryKey: { in: categoryKeys } },
     select: PERSONAL_BEST_SELECT,
   });
-  // Same app-side effective-time sort as getAllPersonalBests.
-  return rows.map(toPersonalBest).sort(comparePbTimes);
+  return rankPersonalBests(rows);
 };
 
 export interface IPersonalBestParticipation {

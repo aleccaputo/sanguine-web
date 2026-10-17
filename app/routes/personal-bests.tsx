@@ -10,6 +10,8 @@ import {
   collectParticipantDiscordIds,
   countEntriesByCategory,
   formatScaleLabel,
+  isDelveBoss,
+  pbResultNoun,
 } from '~/utils/personal-bests';
 import { buildBossImageMap } from '~/utils/pb-boss-image.server';
 import { PbTeam, PbTime, rankBadge } from '~/components/PbTeam';
@@ -25,7 +27,8 @@ export const meta: MetaFunction = () => [
   { title: 'Personal Bests | Sanguine' },
   {
     name: 'description',
-    content: "The clan's fastest boss and raid personal best times.",
+    content:
+      "The clan's boss and raid personal bests: fastest times and deepest delves.",
   },
 ];
 
@@ -77,7 +80,7 @@ export default function PersonalBests() {
           <span className="font-semibold text-white">
             {summary.totalPbs.toLocaleString()}
           </span>{' '}
-          record times held across{' '}
+          records held across{' '}
           <span className="font-semibold text-white">{summary.bossCount}</span>{' '}
           bosses and raids in{' '}
           <span className="font-semibold text-white">
@@ -125,7 +128,8 @@ export default function PersonalBests() {
                         className="whitespace-nowrap text-gray-500"
                       >
                         <span className="text-white">{boss.totalEntries}</span>{' '}
-                        {boss.totalEntries === 1 ? 'time' : 'times'}
+                        {pbResultNoun(boss.bossName)}
+                        {boss.totalEntries === 1 ? '' : 's'}
                       </Text>
                     }
                   />
@@ -154,7 +158,9 @@ export default function PersonalBests() {
                                   #
                                 </Table.ColumnHeaderCell>
                                 <Table.ColumnHeaderCell className="text-osrs-orange">
-                                  Time
+                                  {isDelveBoss(boss.bossName)
+                                    ? 'Delve'
+                                    : 'Time'}
                                 </Table.ColumnHeaderCell>
                                 <Table.ColumnHeaderCell className="text-osrs-orange">
                                   Team

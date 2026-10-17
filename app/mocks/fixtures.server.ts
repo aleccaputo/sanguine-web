@@ -834,4 +834,44 @@ const buildPersonalBests = (): MockPersonalBest[] =>
     };
   });
 
-export const MOCK_PERSONAL_BESTS: MockPersonalBest[] = buildPersonalBests();
+// Doom of Mokhaiotl is ranked by deepest delve, not time. The bot stores the level in the same
+// fields ("Delve 12" / 12). One legacy kill-time row rides along to prove the web app drops it.
+const DOOM_CATEGORY_KEY = 'doom of mokhaiotl|0|1';
+
+const buildDoomPersonalBests = (): MockPersonalBest[] => {
+  const delvers = faker.helpers.arrayElements(MOCK_USERS, 4);
+  const delveRows = [38, 100, 12, 57].map((level, index) => ({
+    id: objectId(),
+    bossName: 'Doom of Mokhaiotl',
+    scale: 1,
+    categoryKey: DOOM_CATEGORY_KEY,
+    timeDisplay: `Delve ${level}`,
+    timeSeconds: level,
+    isPreciseTime: true,
+    effectiveTimeSeconds: level,
+    participantDiscordIds: [delvers[index].discordId],
+    participantAltNames: [''],
+    createdAt: faker.date
+      .between({ from: '2026-06-01', to: '2026-09-20' })
+      .toISOString(),
+  }));
+  const legacyTimeRow: MockPersonalBest = {
+    id: objectId(),
+    bossName: 'Doom of Mokhaiotl',
+    scale: 1,
+    categoryKey: DOOM_CATEGORY_KEY,
+    timeDisplay: '7:08.40',
+    timeSeconds: 428.4,
+    isPreciseTime: true,
+    effectiveTimeSeconds: 428.4,
+    participantDiscordIds: [delvers[0].discordId],
+    participantAltNames: [''],
+    createdAt: '2026-05-01T00:00:00.000Z',
+  };
+  return [...delveRows, legacyTimeRow];
+};
+
+export const MOCK_PERSONAL_BESTS: MockPersonalBest[] = [
+  ...buildPersonalBests(),
+  ...buildDoomPersonalBests(),
+];

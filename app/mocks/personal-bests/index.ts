@@ -3,9 +3,11 @@ import type {
   IPersonalBest,
   IPersonalBestParticipation,
 } from '~/data/personal-bests';
-import { comparePbTimes } from '~/utils/personal-bests';
+import { comparePbTimes, isDefunctPersonalBest } from '~/utils/personal-bests';
 
-const ranked = (rows: IPersonalBest[]) => [...rows].sort(comparePbTimes);
+// Same screening and ranking as the real data layer.
+const ranked = (rows: IPersonalBest[]) =>
+  rows.filter(pb => !isDefunctPersonalBest(pb)).sort(comparePbTimes);
 
 export const getAllPersonalBests = async (): Promise<IPersonalBest[]> =>
   ranked(MOCK_PERSONAL_BESTS);
@@ -14,8 +16,10 @@ export const getPersonalBestCategoryKeysForDiscordId = async (
   discordId: string,
 ): Promise<string[]> => [
   ...new Set(
-    MOCK_PERSONAL_BESTS.filter(pb =>
-      pb.participantDiscordIds.includes(discordId),
+    MOCK_PERSONAL_BESTS.filter(
+      pb =>
+        pb.participantDiscordIds.includes(discordId) &&
+        !isDefunctPersonalBest(pb),
     ).map(pb => pb.categoryKey),
   ),
 ];
