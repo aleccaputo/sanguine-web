@@ -37,7 +37,6 @@ const mockAliases = mockMode
         './app/mocks/raid-completions/index.ts',
       ),
       mockAlias('~/data/personal-bests', './app/mocks/personal-bests/index.ts'),
-      mockAlias('~/data/clan-firsts', './app/mocks/clan-firsts/index.ts'),
       mockAlias(
         '~/data/monthly-winners',
         './app/mocks/monthly-winners/index.ts',

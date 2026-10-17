@@ -2,10 +2,8 @@ import { json, MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData } from '@remix-run/react';
 import dayjs from 'dayjs';
 import { Box, Container, Flex, Table, Text } from '@radix-ui/themes';
-import {
-  getDropAuditsForItems,
-  getRaidCompletionsForMetric,
-} from '~/data/clan-firsts';
+import { getDropAuditsForItems } from '~/data/points-audit';
+import { getRaidCompletionsForMetric } from '~/data/raid-completions';
 import { getNicknameMapByDiscordIds } from '~/services/sanguine-service.server';
 import {
   fetchOSRSItem,
