@@ -25,7 +25,6 @@ import {
 import { PbTeam, rankBadge } from '~/components/PbTeam';
 import { PageHeader } from '~/components/PageHeader';
 import { SectionHeading } from '~/components/SectionHeading';
-import { EmptyState } from '~/components/EmptyState';
 import { proseLinkClass, zebraRowClass } from '~/utils/styles';
 
 export const meta: MetaFunction = () => [
@@ -126,7 +125,7 @@ export default function ClanFirsts() {
             title="First clears"
             summary={
               <Text size="2" className="text-gray-500">
-                Each member can only hold one spot
+                One spot per member
               </Text>
             }
           />
@@ -194,9 +193,6 @@ export default function ClanFirsts() {
               ))}
             </Table.Body>
           </Table.Root>
-          {clearPlacements.length === 0 && (
-            <EmptyState>No one has cleared {TFA_DISPLAY_NAME} yet.</EmptyState>
-          )}
         </section>
 
         <section>

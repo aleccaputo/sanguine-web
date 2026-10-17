@@ -12,7 +12,7 @@ export const TFA_RELEASE_ISO = '2026-10-20T00:00:00.000Z';
 
 export const CLAN_FIRST_SLOTS = 5;
 
-export interface IClanFirstDropBoard {
+export type ClanFirstDropBoard = {
   key: string;
   displayName: string;
   // Item names (case-insensitive) resolved to ids through the wiki mapping and the local
@@ -20,10 +20,10 @@ export interface IClanFirstDropBoard {
   itemNames: string[];
   // Explicit ids for anything the name lookup can't resolve (e.g. a brand-new untradeable).
   itemIds?: number[];
-}
+};
 
 // Names from the pre-release wiki. Confirm against the in-game names on release day.
-export const TFA_DROP_BOARDS: IClanFirstDropBoard[] = [
+export const TFA_DROP_BOARDS: ClanFirstDropBoard[] = [
   {
     key: 'elemental_fragments',
     displayName: 'Elemental fragments',
@@ -51,25 +51,25 @@ export const TFA_DROP_BOARDS: IClanFirstDropBoard[] = [
   { key: 'pet', displayName: 'Pet', itemNames: [] },
 ];
 
-export interface IDropFirstRow {
+export type DropFirstRow = {
   destinationDiscordId: string;
   createdAt: string;
   osrsName?: string | null;
-}
+};
 
-export interface IDropFirstPlacement {
+export type DropFirstPlacement = {
   placement: number;
   discordId: string;
   osrsName: string | null;
   achievedAt: string;
-}
+};
 
 // The first `slots` distinct members to receive the item, oldest first; a member's later drops
 // never take a second spot. createdAt is ISO-8601 UTC, so string order is time order.
 export const firstUniquePlayers = (
-  rows: IDropFirstRow[],
+  rows: DropFirstRow[],
   slots = CLAN_FIRST_SLOTS,
-): IDropFirstPlacement[] =>
+): DropFirstPlacement[] =>
   [...rows]
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .filter(
@@ -86,13 +86,13 @@ export const firstUniquePlayers = (
       achievedAt: row.createdAt,
     }));
 
-export interface IClearFirstRow {
+export type ClearFirstRow = {
   participantDiscordIds: string[];
   approvedAt: string;
   proofMessageUrl?: string | null;
-}
+};
 
-export interface IClearFirstPlacement {
+export type ClearFirstPlacement = {
   placement: number;
   // Members who earned this spot: the team minus anyone already holding an earlier one.
   creditedDiscordIds: string[];
@@ -100,18 +100,18 @@ export interface IClearFirstPlacement {
   alreadyPlacedDiscordIds: string[];
   achievedAt: string;
   proofMessageUrl: string | null;
-}
+};
 
 // The first `slots` clears by approval time (when the bot announced and paid them; mods approve
 // in submission order). A member is only ever credited once: a later
 // team's spot goes to its net-new members, and a team with none takes no spot at all.
 export const rankClearsWithNetNew = (
-  rows: IClearFirstRow[],
+  rows: ClearFirstRow[],
   slots = CLAN_FIRST_SLOTS,
-): IClearFirstPlacement[] =>
+): ClearFirstPlacement[] =>
   [...rows]
     .sort((a, b) => a.approvedAt.localeCompare(b.approvedAt))
-    .reduce<IClearFirstPlacement[]>((placements, row) => {
+    .reduce<ClearFirstPlacement[]>((placements, row) => {
       if (placements.length >= slots) return placements;
       const placed = new Set(placements.flatMap(p => p.creditedDiscordIds));
       const team = [...new Set(row.participantDiscordIds)];
@@ -132,7 +132,7 @@ export const rankClearsWithNetNew = (
 // Every item id a board counts: names resolved through `idsByName` (lowercased keys) plus any
 // explicit ids.
 export const boardItemIds = (
-  board: IClanFirstDropBoard,
+  board: ClanFirstDropBoard,
   idsByName: Record<string, number[]>,
 ): number[] => [
   ...new Set([

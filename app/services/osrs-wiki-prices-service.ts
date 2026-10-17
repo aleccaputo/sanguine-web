@@ -201,7 +201,7 @@ export async function findItemIdsByNames(
 ): Promise<Record<string, number[]>> {
   const wanted = new Set(names.map(name => name.toLocaleLowerCase()));
   const mapping = await fetchAllMapping().catch(
-    () => ({}) as Record<number, MappingItem>,
+    (): Record<number, MappingItem> => ({}),
   );
   const candidates = [
     ...Object.values(mapping).map(item => ({ id: item.id, name: item.name })),

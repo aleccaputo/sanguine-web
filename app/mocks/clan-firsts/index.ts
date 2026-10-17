@@ -1,13 +1,13 @@
 import { faker } from '@faker-js/faker';
 import { MOCK_USERS } from '~/mocks/fixtures.server';
-import type { IClearFirstRow, IDropFirstRow } from '~/utils/clan-firsts';
+import type { ClearFirstRow, DropFirstRow } from '~/utils/clan-firsts';
 
 // Seeded per item id so each board renders the same between reloads: some full, some partial,
 // some empty, with repeat drops that must not take a second spot.
 export const getDropAuditsForItems = async (
   itemIds: number[],
   since: string,
-): Promise<Array<IDropFirstRow & { itemId: number | null }>> =>
+): Promise<Array<DropFirstRow & { itemId: number | null }>> =>
   itemIds.flatMap(itemId => {
     faker.seed(itemId);
     const count = faker.number.int({ min: 0, max: 8 });
@@ -28,7 +28,7 @@ export const getDropAuditsForItems = async (
 export const getRaidCompletionsForMetric = async (
   _raidMetric: string,
   since: string,
-): Promise<IClearFirstRow[]> => {
+): Promise<ClearFirstRow[]> => {
   faker.seed(4);
   const pool = MOCK_USERS.slice(0, 14);
   return Array.from({ length: 9 }, (_, i) => ({
