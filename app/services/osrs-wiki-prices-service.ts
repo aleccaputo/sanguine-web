@@ -192,6 +192,33 @@ export async function fetchOSRSItem(itemId: number): Promise<OSRSItem | null> {
 }
 
 /**
+ * Item ids for each name (lowercased keys), from the tradeable mapping plus the local
+ * untradeables table. Several ids can share a name (noted/variant items). A failed mapping
+ * fetch falls back to untradeables only.
+ */
+export async function findItemIdsByNames(
+  names: string[],
+): Promise<Record<string, number[]>> {
+  const wanted = new Set(names.map(name => name.toLocaleLowerCase()));
+  const mapping = await fetchAllMapping().catch(
+    (): Record<number, MappingItem> => ({}),
+  );
+  const candidates = [
+    ...Object.values(mapping).map(item => ({ id: item.id, name: item.name })),
+    ...Object.entries(untradeableItems).map(([id, name]) => ({
+      id: Number(id),
+      name,
+    })),
+  ];
+  return candidates
+    .filter(item => wanted.has(item.name.toLocaleLowerCase()))
+    .reduce<Record<string, number[]>>((acc, item) => {
+      const key = item.name.toLocaleLowerCase();
+      return { ...acc, [key]: [...(acc[key] ?? []), item.id] };
+    }, {});
+}
+
+/**
  * Searches item names (tradeable mapping + untradeables) for the admin image
  * picker. Every query token must appear in the name; prefix matches rank first.
  */

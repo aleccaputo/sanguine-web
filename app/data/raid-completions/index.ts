@@ -1,4 +1,5 @@
 import { prisma } from '~/utils/db.server';
+import type { ClearFirstRow } from '~/utils/clan-firsts';
 
 // Per-participant award breakdown as the Discord bot persists it on raid approval.
 export interface IRaidParticipantAward {
@@ -64,4 +65,19 @@ export const getRaidCompletionsSince = async (
       participantDiscordIds: true,
       approvedAt: true,
     },
+  });
+
+// Approved raid completions for one metric approved on or after `since`, oldest first.
+export const getRaidCompletionsForMetric = async (
+  raidMetric: string,
+  since: string,
+): Promise<ClearFirstRow[]> =>
+  prisma.raidCompletions.findMany({
+    where: { raidMetric, approvedAt: { gte: since } },
+    select: {
+      participantDiscordIds: true,
+      approvedAt: true,
+      proofMessageUrl: true,
+    },
+    orderBy: { approvedAt: 'asc' },
   });

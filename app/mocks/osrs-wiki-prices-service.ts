@@ -21,6 +21,14 @@ export const searchItems = async (
     .map(name => ({ name, icon: '/sanguine_icon.png' }));
 };
 
+// Deterministic ids (900000 + index) so mock audits can reference the names they ask for.
+export const findItemIdsByNames = async (
+  names: string[],
+): Promise<Record<string, number[]>> =>
+  Object.fromEntries(
+    names.map((name, index) => [name.toLocaleLowerCase(), [900000 + index]]),
+  );
+
 const itemCache = new Map<number, OSRSItem>();
 
 export const fetchOSRSItem = async (
