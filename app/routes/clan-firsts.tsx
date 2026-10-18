@@ -94,39 +94,13 @@ export default function ClanFirsts() {
   const { clearPlacements, dropBoards, nameByDiscordId } =
     useLoaderData<typeof loader>();
 
-  const claimedDrops = dropBoards.reduce(
-    (sum, board) => sum + board.placements.length,
-    0,
-  );
-
   return (
     <Container size="3" mt="3">
       <Flex direction="column" gap="6">
-        <PageHeader title="Clan firsts" iconSrc="/sanguine_icon_small.png">
-          {TFA_DISPLAY_NAME}: the first{' '}
-          <span className="font-semibold text-white">{CLAN_FIRST_SLOTS}</span>{' '}
-          teams to clear and the first{' '}
-          <span className="font-semibold text-white">{CLAN_FIRST_SLOTS}</span>{' '}
-          members to get each unique.{' '}
-          <span className="font-semibold text-sanguine-bright">
-            {clearPlacements.length}
-          </span>{' '}
-          of {CLAN_FIRST_SLOTS} clear spots and{' '}
-          <span className="font-semibold text-sanguine-bright">
-            {claimedDrops}
-          </span>{' '}
-          of {dropBoards.length * CLAN_FIRST_SLOTS} drop spots taken.
-        </PageHeader>
+        <PageHeader title="Clan firsts" iconSrc="/sanguine_icon_small.png" />
 
         <section>
-          <SectionHeading
-            title="First clears"
-            summary={
-              <Text size="2" className="text-gray-500">
-                One spot per member
-              </Text>
-            }
-          />
+          <SectionHeading title="First clears" />
           <Table.Root size="2" mt="2">
             <Table.Header>
               <Table.Row>
@@ -199,7 +173,7 @@ export default function ClanFirsts() {
             {dropBoards.map(board => (
               <Box
                 key={board.key}
-                className="rounded-md border border-gray-700 bg-gray-900/40 p-3"
+                className="rounded-sm border border-sanguine-red/[0.18] bg-sanguine-red/[0.05] p-3"
               >
                 <Flex align="center" gap="2" mb="2">
                   <Box className="flex h-8 w-8 shrink-0 items-center justify-center">
