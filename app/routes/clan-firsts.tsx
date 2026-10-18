@@ -26,7 +26,7 @@ import { SectionHeading } from '~/components/SectionHeading';
 import { proseLinkClass, zebraRowClass } from '~/utils/styles';
 
 export const meta: MetaFunction = () => [
-  { title: 'Clan Firsts | Sanguine' },
+  { title: `${TFA_DISPLAY_NAME} Clan Firsts | Sanguine` },
   {
     name: 'description',
     content: `The first Sanguine teams to clear ${TFA_DISPLAY_NAME}, and the first members to receive each of its uniques.`,
@@ -97,7 +97,10 @@ export default function ClanFirsts() {
   return (
     <Container size="3" mt="3">
       <Flex direction="column" gap="6">
-        <PageHeader title="Clan firsts" iconSrc="/sanguine_icon_small.png" />
+        <PageHeader
+          title={`${TFA_DISPLAY_NAME} clan firsts`}
+          iconSrc="/sanguine_icon_small.png"
+        />
 
         <section>
           <SectionHeading title="First clears" />

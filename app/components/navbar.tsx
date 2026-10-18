@@ -13,7 +13,7 @@ const eventsLinks: SubLink[] = [
   // rather than beside the always-on slayer grind.
   { to: '/bounties', label: 'Bounties' },
   { to: '/monthly-winners', label: 'Monthly Winners' },
-  { to: '/clan-firsts', label: 'Clan Firsts' },
+  { to: '/clan-firsts', label: 'The Fractured Archive Clan Firsts' },
 ];
 
 const dropsLinks: SubLink[] = [
