@@ -1,7 +1,7 @@
 import { json, MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData } from '@remix-run/react';
 import dayjs from 'dayjs';
-import { Box, Container, Flex, Table, Text } from '@radix-ui/themes';
+import { Box, Container, Flex, Heading, Table, Text } from '@radix-ui/themes';
 import { getDropAuditsForItems } from '~/data/points-audit';
 import { getRaidCompletionsForMetric } from '~/data/raid-completions';
 import { getNicknameMapByDiscordIds } from '~/services/sanguine-service.server';
@@ -21,7 +21,6 @@ import {
   TFA_RELEASE_ISO,
 } from '~/utils/clan-firsts';
 import { PbTeam, rankBadge } from '~/components/PbTeam';
-import { PageHeader } from '~/components/PageHeader';
 import { SectionHeading } from '~/components/SectionHeading';
 import { proseLinkClass, zebraRowClass } from '~/utils/styles';
 
@@ -97,10 +96,22 @@ export default function ClanFirsts() {
   return (
     <Container size="3" mt="3">
       <Flex direction="column" gap="6">
-        <PageHeader
-          title={`${TFA_DISPLAY_NAME} clan firsts`}
-          iconSrc="/sanguine_icon_small.png"
-        />
+        <Flex direction="column" align="center" gap="2">
+          <img
+            src="/tfa-logo.webp"
+            alt={TFA_DISPLAY_NAME}
+            width={640}
+            height={492}
+            className="h-auto w-full max-w-xs"
+          />
+          <Heading
+            as="h1"
+            size="8"
+            className="font-normal text-sanguine-bright"
+          >
+            Clan firsts
+          </Heading>
+        </Flex>
 
         <section>
           <SectionHeading title="First clears" />
