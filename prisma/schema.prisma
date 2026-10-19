@@ -17,6 +17,10 @@ model PointAudit {
   sourceDiscordId      String
   type                 String
   itemId               Int?
+  // AUTOMATED drops only — the dropped item's name, trimmed and lowercased, stamped by the bot.
+  // The day-one key for item boards (Clan Firsts): a new item's sheet row has no id until
+  // someone fills it in (the bot writes 0), the name is known from the first drop.
+  itemName             String?
   bossName             String?
   osrsName             String?
   // COMPETITION audits only — the WOM competition that paid out, stamped by the bot at award

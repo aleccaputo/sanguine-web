@@ -1,5 +1,5 @@
 import { prisma } from '~/utils/db.server';
-import type { DropFirstRow } from '~/utils/clan-firsts';
+import type { DropAuditRow } from '~/utils/clan-firsts';
 
 // Skip purchases subtract from the stored clanPoints balance. Sums the (negative) purchase
 // audits per member so displays can add the spend back — the roster and leaderboard show
@@ -111,23 +111,29 @@ export const getAuditEventsSince = (since: string) =>
     select: { type: true, destinationDiscordId: true, createdAt: true },
   });
 
-// Every AUTOMATED drop (Dink or /givedrop) of the given items on or after `since`, oldest first.
+// Every AUTOMATED drop (Dink or /givedrop) of the given items, oldest first. Matched by the
+// stamped item name (normalized, as the bot stores it) or, for rows that predate the name, by
+// item id.
 export const getDropAuditsForItems = async (
+  itemNames: string[],
   itemIds: number[],
-  since: string,
-): Promise<Array<DropFirstRow & { itemId: number | null }>> => {
-  if (itemIds.length === 0) return [];
+): Promise<DropAuditRow[]> => {
+  const matchers = [
+    ...(itemNames.length > 0 ? [{ itemName: { in: itemNames } }] : []),
+    ...(itemIds.length > 0 ? [{ itemId: { in: itemIds } }] : []),
+  ];
+  if (matchers.length === 0) return [];
   return prisma.pointAudit.findMany({
     where: {
       type: 'AUTOMATED',
-      itemId: { in: itemIds },
-      createdAt: { gte: since },
+      OR: matchers,
     },
     select: {
       destinationDiscordId: true,
       createdAt: true,
       osrsName: true,
       itemId: true,
+      itemName: true,
     },
     orderBy: { createdAt: 'asc' },
   });

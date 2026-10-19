@@ -1,6 +1,6 @@
 import { faker } from '@faker-js/faker';
 import { MOCK_DROPS, MOCK_USERS } from '~/mocks/fixtures.server';
-import type { DropFirstRow } from '~/utils/clan-firsts';
+import type { DropAuditRow } from '~/utils/clan-firsts';
 
 export const getSkipPurchaseSpendByDiscordId = async (): Promise<
   Record<string, number>
@@ -64,16 +64,18 @@ export const getAuditEventsSince = async (since: string) =>
 // Seeded per item id so each board renders the same between reloads: some full, some partial,
 // some empty, with repeat drops that must not take a second spot.
 export const getDropAuditsForItems = async (
+  _itemNames: string[],
   itemIds: number[],
-  since: string,
-): Promise<Array<DropFirstRow & { itemId: number | null }>> =>
+): Promise<DropAuditRow[]> =>
   itemIds.flatMap(itemId => {
+    const since = '2026-10-20T00:00:00.000Z';
     faker.seed(itemId);
     const count = faker.number.int({ min: 0, max: 8 });
     return Array.from({ length: count }, () => {
       const user = faker.helpers.arrayElement(MOCK_USERS.slice(0, 8));
       return {
         itemId,
+        itemName: null,
         destinationDiscordId: user.discordId,
         osrsName: user.nickname,
         createdAt: faker.date

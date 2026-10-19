@@ -11,14 +11,15 @@ import {
   wikiItemIconUrl,
 } from '~/services/osrs-wiki-prices-service';
 import {
+  auditCountsForBoard,
   boardItemIds,
   CLAN_FIRST_SLOTS,
   firstUniquePlayers,
+  normalizeItemName,
   rankClearsWithNetNew,
   TFA_DISPLAY_NAME,
   TFA_DROP_BOARDS,
   TFA_METRIC,
-  TFA_RELEASE_ISO,
 } from '~/utils/clan-firsts';
 import { PbTeam, rankBadge } from '~/components/PbTeam';
 import { SectionHeading } from '~/components/SectionHeading';
@@ -35,14 +36,20 @@ export const meta: MetaFunction = () => [
 export async function loader() {
   const [idsByName, clears] = await Promise.all([
     findItemIdsByNames(TFA_DROP_BOARDS.flatMap(board => board.itemNames)),
-    getRaidCompletionsForMetric(TFA_METRIC, TFA_RELEASE_ISO),
+    getRaidCompletionsForMetric(TFA_METRIC),
   ]);
   const idsByBoard = TFA_DROP_BOARDS.map(board =>
     boardItemIds(board, idsByName),
   );
   const audits = await getDropAuditsForItems(
+    [
+      ...new Set(
+        TFA_DROP_BOARDS.flatMap(board =>
+          board.itemNames.map(normalizeItemName),
+        ),
+      ),
+    ],
     [...new Set(idsByBoard.flat())],
-    TFA_RELEASE_ISO,
   );
 
   const dropBoards = await Promise.all(
@@ -59,9 +66,7 @@ export async function loader() {
         displayName: board.displayName,
         icon: firstItem?.icon ?? fallbackIcon,
         placements: firstUniquePlayers(
-          audits.filter(
-            audit => audit.itemId != null && itemIds.includes(audit.itemId),
-          ),
+          audits.filter(audit => auditCountsForBoard(audit, board, itemIds)),
         ),
       };
     }),

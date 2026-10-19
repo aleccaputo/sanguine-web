@@ -31,9 +31,10 @@ export const getRaidCompletionsSince = async (
 
 // Overlapping teams so the net-new rule (partial credit, skipped all-placed teams) shows.
 export const getRaidCompletionsForMetric = async (
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _raidMetric: string,
-  since: string,
 ): Promise<ClearFirstRow[]> => {
+  const since = '2026-10-20T00:00:00.000Z';
   faker.seed(4);
   const pool = MOCK_USERS.slice(0, 14);
   return Array.from({ length: 9 }, (_, i) => ({
