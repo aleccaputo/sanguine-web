@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  auditCountsForBoard,
   boardItemIds,
   firstUniquePlayers,
   rankClearsWithNetNew,
@@ -72,5 +73,39 @@ describe('boardItemIds', () => {
         { rondache: [1, 2] },
       ),
     ).toEqual([1, 2, 5]);
+  });
+
+  it('drops non-positive ids, which every id-less sheet row shares', () => {
+    expect(
+      boardItemIds(
+        { key: 'x', displayName: 'X', itemNames: ['Rondache'], itemIds: [0] },
+        { rondache: [0, 7] },
+      ),
+    ).toEqual([7]);
+  });
+});
+
+describe('auditCountsForBoard', () => {
+  const board = { itemNames: ["Zorya's Tome"] };
+
+  it('matches on the stamped name regardless of case, with no ids known', () => {
+    expect(
+      auditCountsForBoard({ itemId: 0, itemName: "zorya's tome" }, board, []),
+    ).toBe(true);
+  });
+
+  it('falls back to the id for rows without a name', () => {
+    expect(
+      auditCountsForBoard({ itemId: 42, itemName: null }, board, [42]),
+    ).toBe(true);
+    expect(
+      auditCountsForBoard({ itemId: 43, itemName: null }, board, [42]),
+    ).toBe(false);
+  });
+
+  it('never matches id 0, even when it is in the id list', () => {
+    expect(
+      auditCountsForBoard({ itemId: 0, itemName: 'pet' }, board, [0]),
+    ).toBe(false);
   });
 });

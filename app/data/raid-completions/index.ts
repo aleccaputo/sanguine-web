@@ -67,13 +67,12 @@ export const getRaidCompletionsSince = async (
     },
   });
 
-// Approved raid completions for one metric approved on or after `since`, oldest first.
+// Every approved raid completion for one metric, oldest first.
 export const getRaidCompletionsForMetric = async (
   raidMetric: string,
-  since: string,
 ): Promise<ClearFirstRow[]> =>
   prisma.raidCompletions.findMany({
-    where: { raidMetric, approvedAt: { gte: since } },
+    where: { raidMetric },
     select: {
       participantDiscordIds: true,
       approvedAt: true,
