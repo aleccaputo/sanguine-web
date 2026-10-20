@@ -27,29 +27,15 @@ export const normalizeItemName = (name: string): string =>
   name.trim().toLowerCase();
 
 // In-game item names (what Dink posts and what the bot's points sheet lists), verified against
-// the release-day cache. The weapons drop uncharged; Zeal is unlocked by the Horn of Bran. The
-// untradeables (fragments, Orion) resolve to ids through app/utils/untradable-items.ts.
+// the release-day cache. The weapons drop uncharged; Zeal is unlocked by the Horn of Bran. Dink
+// names the pet in its post and the bot's sheet has an Orion row, so the pet board matches by
+// name like the rest. The untradeables (fragments, Orion) resolve to ids through
+// app/utils/untradable-items.ts. Rendered in this order.
 export const TFA_DROP_BOARDS: ClanFirstDropBoard[] = [
   {
-    key: 'elemental_fragments',
-    displayName: 'Elemental fragment',
-    itemNames: [
-      'Fragment of burning fire',
-      'Fragment of deep water',
-      'Fragment of living earth',
-      'Fragment of whispering wind',
-    ],
-  },
-  { key: 'rondache', displayName: 'Rondache', itemNames: ['Rondache'] },
-  {
-    key: 'zoryas_tome',
-    displayName: "Zorya's tome",
-    itemNames: ["Zorya's tome (uncharged)"],
-  },
-  {
-    key: 'zeal',
-    displayName: 'Horn of Bran (Zeal)',
-    itemNames: ['Horn of Bran'],
+    key: 'obligator',
+    displayName: 'Obligator',
+    itemNames: ['Obligator (uncharged)'],
   },
   {
     key: 'ascension_crossbows',
@@ -57,13 +43,37 @@ export const TFA_DROP_BOARDS: ClanFirstDropBoard[] = [
     itemNames: ['Ascension crossbows'],
   },
   {
-    key: 'obligator',
-    displayName: 'Obligator',
-    itemNames: ['Obligator (uncharged)'],
+    key: 'zoryas_tome',
+    displayName: "Zorya's tome",
+    itemNames: ["Zorya's tome (uncharged)"],
   },
-  // Dink names the pet in its post and the bot's sheet has an Orion row, so the pet board
-  // matches by name like the rest; pets from other bosses resolve to their own rows.
-  { key: 'pet', displayName: 'Orion (pet)', itemNames: ['Orion'] },
+  { key: 'rondache', displayName: 'Rondache', itemNames: ['Rondache'] },
+  { key: 'orion', displayName: 'Orion', itemNames: ['Orion'] },
+  {
+    key: 'horn_of_bran',
+    displayName: 'Horn of Bran',
+    itemNames: ['Horn of Bran'],
+  },
+  {
+    key: 'fragment_of_burning_fire',
+    displayName: 'Fragment of burning fire',
+    itemNames: ['Fragment of burning fire'],
+  },
+  {
+    key: 'fragment_of_deep_water',
+    displayName: 'Fragment of deep water',
+    itemNames: ['Fragment of deep water'],
+  },
+  {
+    key: 'fragment_of_living_earth',
+    displayName: 'Fragment of living earth',
+    itemNames: ['Fragment of living earth'],
+  },
+  {
+    key: 'fragment_of_whispering_wind',
+    displayName: 'Fragment of whispering wind',
+    itemNames: ['Fragment of whispering wind'],
+  },
 ];
 
 export type DropFirstRow = {
