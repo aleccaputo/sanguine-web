@@ -26,33 +26,44 @@ export type ClanFirstDropBoard = {
 export const normalizeItemName = (name: string): string =>
   name.trim().toLowerCase();
 
-// Names from the pre-release wiki. Confirm against the in-game names on release day.
+// In-game item names (what Dink posts and what the bot's points sheet lists), verified against
+// the release-day cache. The weapons drop uncharged; Zeal is unlocked by the Horn of Bran. The
+// untradeables (fragments, Orion) resolve to ids through app/utils/untradable-items.ts.
 export const TFA_DROP_BOARDS: ClanFirstDropBoard[] = [
   {
     key: 'elemental_fragments',
-    displayName: 'Elemental fragments',
-    itemNames: ['Elemental fragments'],
+    displayName: 'Elemental fragment',
+    itemNames: [
+      'Fragment of burning fire',
+      'Fragment of deep water',
+      'Fragment of living earth',
+      'Fragment of whispering wind',
+    ],
   },
   { key: 'rondache', displayName: 'Rondache', itemNames: ['Rondache'] },
   {
     key: 'zoryas_tome',
-    displayName: "Zorya's Tome",
-    itemNames: ["Zorya's Tome"],
+    displayName: "Zorya's tome",
+    itemNames: ["Zorya's tome (uncharged)"],
   },
-  { key: 'zeal', displayName: 'Zeal', itemNames: ['Zeal'] },
+  {
+    key: 'zeal',
+    displayName: 'Horn of Bran (Zeal)',
+    itemNames: ['Horn of Bran'],
+  },
   {
     key: 'ascension_crossbows',
     displayName: 'Ascension crossbows',
     itemNames: ['Ascension crossbows'],
   },
   {
-    key: 'the_obligator',
-    displayName: 'The Obligator',
-    itemNames: ['The Obligator'],
+    key: 'obligator',
+    displayName: 'Obligator',
+    itemNames: ['Obligator (uncharged)'],
   },
-  // Deliberately unmatched, as in the bot: Dink pet drops all share the sheet's generic "pet" id,
-  // so an item-based match would count every pet from every boss.
-  { key: 'pet', displayName: 'Pet', itemNames: [] },
+  // Dink names the pet in its post and the bot's sheet has an Orion row, so the pet board
+  // matches by name like the rest; pets from other bosses resolve to their own rows.
+  { key: 'pet', displayName: 'Orion (pet)', itemNames: ['Orion'] },
 ];
 
 export type DropFirstRow = {
@@ -68,9 +79,8 @@ export type DropAuditRow = DropFirstRow & {
 
 // Whether a drop audit counts for a board: by the stamped item name first, by id for rows
 // that predate the name. Never by id 0, which every id-less sheet row shares.
-// The name match is a release-window shim (TFA items had no ids at launch); itemId is the item
-// key everywhere else. Once the boards are full and the bot's backfillDropItemIds has run, drop
-// the name branch so this is id-only too.
+// itemId is the item key everywhere else; the name branch is a safety net for a sheet row
+// whose id cell is blank or wrong.
 export const auditCountsForBoard = (
   audit: Pick<DropAuditRow, 'itemId' | 'itemName'>,
   board: Pick<ClanFirstDropBoard, 'itemNames'>,

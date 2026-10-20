@@ -156,4 +156,11 @@ export const untradeableItems: Record<number, string> = {
 
   // Inferno reward (untradeable)
   21295: 'infernal cape',
+
+  // The Fractured Archive (untradeable rewards; the weapons drop as tradeable uncharged items)
+  34646: 'orion',
+  34671: 'fragment of living earth',
+  34673: 'fragment of deep water',
+  34675: 'fragment of whispering wind',
+  34677: 'fragment of burning fire',
 };
