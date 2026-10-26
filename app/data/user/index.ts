@@ -8,19 +8,23 @@ export interface ISanguineUser {
   clanPoints: number;
   joined: string;
 }
-export const getUserById = async (id: string): Promise<ISanguineUser> => {
+// Null when no member has this discordId (stale or hand-typed profile links). A member with
+// 0 drop points is still a member, so points are not part of the existence check.
+export const getUserById = async (
+  id: string,
+): Promise<ISanguineUser | null> => {
   const fullUser = await prisma.users.findUnique({
     where: {
       discordId: id,
     },
   });
-  if (!fullUser?.discordId || !fullUser?.joined || !fullUser?.points) {
-    throw new Error(`Unable to map user with ID ${id}, missing a property`);
+  if (!fullUser) {
+    return null;
   }
   return {
-    discordId: fullUser?.discordId,
-    joined: fullUser?.joined,
-    points: fullUser?.points,
+    discordId: fullUser.discordId,
+    joined: fullUser.joined,
+    points: fullUser.points ?? 0,
     clanPoints: fullUser.clanPoints ?? 0,
   };
 };

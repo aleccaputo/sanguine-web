@@ -7,10 +7,12 @@ export interface ISanguineUser {
   joined: string;
 }
 
-export const getUserById = async (id: string): Promise<ISanguineUser> => {
+export const getUserById = async (
+  id: string,
+): Promise<ISanguineUser | null> => {
   const user = findMockUser(id);
   if (!user) {
-    throw new Error(`Unable to map user with ID ${id}, missing a property`);
+    return null;
   }
   return {
     discordId: user.discordId,
