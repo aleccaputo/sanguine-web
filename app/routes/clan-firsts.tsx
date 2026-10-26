@@ -8,8 +8,8 @@ import { getNicknameMapByDiscordIds } from '~/services/sanguine-service.server';
 import {
   fetchOSRSItem,
   findItemIdsByNames,
-  wikiItemIconUrl,
-} from '~/services/osrs-wiki-prices-service';
+} from '~/services/osrs-wiki-prices-service.server';
+import { wikiItemIconUrl } from '~/utils/osrs-item';
 import {
   auditCountsForBoard,
   boardItemIds,

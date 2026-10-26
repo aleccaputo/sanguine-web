@@ -4,7 +4,7 @@ import { Await, Link, useLoaderData } from '@remix-run/react';
 import { Suspense, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import dayjs from 'dayjs';
-import type { OSRSItem } from '~/services/osrs-wiki-prices-service';
+import type { OSRSItem } from '~/utils/osrs-item';
 import { CoinsIcon } from '~/components/CoinsIcon';
 import { DiscordWidget } from '~/components/DiscordWidget';
 import { DropItem } from '~/components/DropItem';
@@ -17,7 +17,7 @@ import {
 } from '~/services/wom-api-service.server';
 import { SPECIAL_COMPETITION_IDS } from '~/utils/events-config';
 import { withTimeout } from '~/utils/with-timeout';
-import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
+import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service.server';
 import { getAllClanDrops, getClanDropsPaginated } from '~/data/points-audit';
 import { computeClanTotals } from '~/data/points-audit/stats';
 import { getAllUserAlts } from '~/data/user';

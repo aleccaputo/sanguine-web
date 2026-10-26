@@ -1,5 +1,6 @@
 import { remember } from '@epic-web/remember';
 import { Metric } from '@wise-old-man/utils';
+import { createLogger } from '~/utils/logger.server';
 import { getBounties, getBountyById } from '~/data/bounties';
 import { getPersonalBestsSince } from '~/data/personal-bests';
 import { getAuditEventsSince } from '~/data/points-audit';
@@ -583,13 +584,15 @@ export const getInGameMonths = async (
  * render as a retry state. Wise Old Man is a volunteer service; a 429 or a timeout must not
  * unmount the whole insights page through the root error boundary.
  */
+const log = createLogger('engagement');
+
 export const womOutcome = async <T extends object>(
   read: () => Promise<T>,
 ): Promise<FetchOutcome<T>> => {
   try {
     return { ok: true, ...(await read()) };
   } catch (error) {
-    console.error('insights: Wise Old Man read failed', error);
+    log.error({ err: error }, 'insights: Wise Old Man read failed');
     return { ok: false, error: 'Wise Old Man did not answer.' };
   }
 };

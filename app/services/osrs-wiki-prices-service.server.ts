@@ -1,12 +1,14 @@
 import { untradeableItems } from '~/utils/untradable-items';
 import { toTitleCase } from '~/utils/string-helpers';
+import { createLogger } from '~/utils/logger.server';
+import { httpError, trackOutbound } from '~/utils/outbound.server';
 
-export interface OSRSItem {
-  id: number;
-  name: string;
-  icon: string;
-  price?: number; // GE price for tradeable items
-}
+import { wikiItemIconUrl, type OSRSItem } from '~/utils/osrs-item';
+
+// Re-exported so server-side importers can keep a single import; client code
+// must import these from `~/utils/osrs-item` directly.
+export { wikiItemIconUrl };
+export type { OSRSItem };
 
 interface PricesResponseData {
   data: {
@@ -41,6 +43,8 @@ const WIKI_HEADERS = {
   'User-Agent': 'sanguine-osrs.com - Clan Website (sanguine.pvm@gmail.com)',
 };
 
+const log = createLogger('osrs-wiki');
+
 // Cache durations
 const LONG_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours (items + mapping)
 const PRICE_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
@@ -68,24 +72,6 @@ let mappingCache: {
 let mappingFetchPromise: Promise<Record<number, MappingItem>> | null = null;
 
 /**
- * Formats an item name for use in a Wiki image URL
- * Example: "staff of the dead" -> "Staff_of_the_dead"
- */
-function formatItemNameForWiki(name: string): string {
-  return name
-    .split(' ')
-    .map((word, index) =>
-      index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word,
-    )
-    .join('_');
-}
-
-/** Detail-image URL on the OSRS Wiki for an item name. */
-export function wikiItemIconUrl(name: string): string {
-  return `https://oldschool.runescape.wiki/images/${formatItemNameForWiki(name)}_detail.png`;
-}
-
-/**
  * Fetches the full item mapping from the OSRS Wiki (id → name)
  */
 async function fetchAllMapping(): Promise<Record<number, MappingItem>> {
@@ -97,18 +83,24 @@ async function fetchAllMapping(): Promise<Record<number, MappingItem>> {
 
   if (mappingFetchPromise) return mappingFetchPromise;
 
-  mappingFetchPromise = fetch(
-    'https://prices.runescape.wiki/api/v1/osrs/mapping',
-    {
+  log.info(
+    { kind: 'cache', name: 'osrs-wiki-mapping', result: 'miss' },
+    'cache miss (refetching mapping)',
+  );
+  mappingFetchPromise = trackOutbound('osrs-wiki', 'mapping', () =>
+    fetch('https://prices.runescape.wiki/api/v1/osrs/mapping', {
       headers: WIKI_HEADERS,
-    },
-  )
-    .then(async response => {
+    }).then(response => {
       if (!response.ok) {
-        throw new Error(
+        throw httpError(
           `Failed to fetch mapping: ${response.status} ${response.statusText}`,
+          response.status,
         );
       }
+      return response;
+    }),
+  )
+    .then(async response => {
       const items: MappingItem[] = await response.json();
       const data = Object.fromEntries(
         items.map(item => [item.id, item]),
@@ -180,7 +172,7 @@ export async function fetchOSRSItem(itemId: number): Promise<OSRSItem | null> {
       itemCache[itemId] = { data: itemData, timestamp: Date.now() };
       return itemData;
     } catch (error) {
-      console.error('Error fetching item:', error);
+      log.error({ err: error, itemId }, 'Error fetching item');
       return null;
     } finally {
       itemFetchPromises.delete(itemId);
@@ -269,19 +261,24 @@ async function fetchAllPrices(): Promise<PricesResponseData> {
 
   if (priceFetchPromise) return priceFetchPromise;
 
-  console.log('Fetching fresh price data from API');
-  priceFetchPromise = fetch(
-    'https://prices.runescape.wiki/api/v1/osrs/latest',
-    {
+  log.info(
+    { kind: 'cache', name: 'osrs-wiki-prices', result: 'miss' },
+    'cache miss (refetching prices)',
+  );
+  priceFetchPromise = trackOutbound('osrs-wiki', 'latest', () =>
+    fetch('https://prices.runescape.wiki/api/v1/osrs/latest', {
       headers: WIKI_HEADERS,
-    },
-  )
-    .then(async response => {
+    }).then(response => {
       if (!response.ok) {
-        throw new Error(
+        throw httpError(
           `Failed to fetch prices: ${response.status} ${response.statusText}`,
+          response.status,
         );
       }
+      return response;
+    }),
+  )
+    .then(async response => {
       const data = await response.json();
       priceCache = { data, timestamp: Date.now() };
       return data;

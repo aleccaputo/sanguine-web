@@ -8,6 +8,10 @@ import {
 import { remember } from '@epic-web/remember';
 import * as process from 'process';
 import { createCachedFetcher } from '~/utils/cached-fetcher';
+import { createLogger } from '~/utils/logger.server';
+import { trackOutbound } from '~/utils/outbound.server';
+
+const log = createLogger('wom');
 
 // v4 of @wise-old-man/utils no longer exports a `MembershipWithPlayer` type, so we derive the
 // membership-with-player shape from the group details response the client returns.
@@ -41,7 +45,10 @@ const GROUP_DETAILS_TTL_MS = 10 * 60 * 1000;
 const competitionListFetcher = createCachedFetcher(
   'womCompetitions',
   // `limit` doesn't affect this endpoint (apparently by design), so one entry serves everyone.
-  () => client.groups.getGroupCompetitions(groupId),
+  () =>
+    trackOutbound('wom', 'getGroupCompetitions', () =>
+      client.groups.getGroupCompetitions(groupId),
+    ),
   { ttlMs: COMPETITION_LIST_TTL_MS },
 );
 
@@ -56,14 +63,20 @@ export const getCompetitions = async () => {
     );
     return competitions;
   } catch (error) {
-    console.error('WOM group competitions request failed', error);
+    log.error({ err: error }, 'WOM group competitions request failed');
     return undefined;
   }
 };
 
 const competitionDetailsFetcher = createCachedFetcher(
   'womCompetitionDetails',
-  (id: string) => client.competitions.getCompetitionDetails(Number(id)),
+  (id: string) =>
+    trackOutbound(
+      'wom',
+      'getCompetitionDetails',
+      () => client.competitions.getCompetitionDetails(Number(id)),
+      { competitionId: id },
+    ),
   {
     ttlMs: (competition: CompetitionDetailsResponse) =>
       new Date(competition.endsAt).getTime() <=
@@ -87,14 +100,19 @@ export const getCompetitionByIdOrNull = (
   id: number,
 ): Promise<CompetitionDetailsResponse | undefined> =>
   getCompetitionById(id).catch((error: unknown) => {
-    console.error(`WOM competition ${id} request failed`, error);
+    log.error(
+      { err: error, competitionId: id },
+      'WOM competition request failed',
+    );
     return undefined;
   });
 
 const groupMembershipsFetcher = createCachedFetcher(
   'womGroupMemberships',
   (id: string) =>
-    client.groups.getGroupDetails(Number(id)).then(group => group.memberships),
+    trackOutbound('wom', 'getGroupDetails', () =>
+      client.groups.getGroupDetails(Number(id)),
+    ).then(group => group.memberships),
   { ttlMs: GROUP_DETAILS_TTL_MS },
 );
 

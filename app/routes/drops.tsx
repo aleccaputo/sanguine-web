@@ -3,7 +3,7 @@ import { useLoaderData, useSearchParams } from '@remix-run/react';
 import { Box, Container, Flex } from '@radix-ui/themes';
 import { getClanDropsPaginated } from '~/data/points-audit';
 import { getAllUserAlts } from '~/data/user';
-import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
+import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service.server';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import { DropItem } from '~/components/DropItem';
 import { PageHeader } from '~/components/PageHeader';

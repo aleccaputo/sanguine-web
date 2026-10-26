@@ -1,9 +1,3 @@
-import {
-  fetchOSRSItem,
-  wikiItemIconUrl,
-} from '~/services/osrs-wiki-prices-service';
-import { toTitleCase } from '~/utils/string-helpers';
-
 /**
  * Shared TempleOSRS collection log shapes and pure helpers. The I/O lives in
  * temple-api-service.server.ts (mocked under MOCK_MODE); everything here is
@@ -104,22 +98,3 @@ export interface IClogItemData {
   icon: string;
   price?: number;
 }
-
-/**
- * Item display data for a Temple clog item: the wiki mapping supplies the
- * name, icon, and GE price for anything it knows; untracked untradeables fall
- * back to a wiki icon URL built from Temple's own item name.
- */
-export const resolveClogItemData = async (item: {
-  id: number;
-  name: string;
-}): Promise<IClogItemData> => {
-  const osrsData = await fetchOSRSItem(item.id);
-  return (
-    osrsData ?? {
-      id: item.id,
-      name: toTitleCase(item.name),
-      icon: wikiItemIconUrl(item.name),
-    }
-  );
-};

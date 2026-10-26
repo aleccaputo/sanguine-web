@@ -33,7 +33,7 @@ import {
 } from 'recharts';
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
-import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
+import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service.server';
 import { DropItem } from '~/components/DropItem';
 import { Pagination } from '~/components/Pagination';
 import { ArticleTitle } from '~/components/ArticleTitle';
@@ -58,10 +58,8 @@ import {
   getGroupCollectionLog,
   getPlayerRecentItems,
 } from '~/services/temple-api-service.server';
-import {
-  findClogMemberByName,
-  resolveClogItemData,
-} from '~/utils/collection-log';
+import { findClogMemberByName } from '~/utils/collection-log';
+import { resolveClogItemData } from '~/utils/collection-log.server';
 import { ClogUnlockRow } from '~/components/ClogUnlockRow';
 import {
   getCompetitionImageUrl,

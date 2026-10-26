@@ -1,5 +1,6 @@
 import * as process from 'process';
 import { createCachedFetcher } from '~/utils/cached-fetcher';
+import { trackOutbound } from '~/utils/outbound.server';
 
 /**
  * Direct Discord REST calls made with the bot token (the same bot user as
@@ -65,11 +66,17 @@ interface IRawGuildChannel {
   permission_overwrites?: IPermissionOverwrite[];
 }
 
+/** `/guilds/123/roles` → `GET /guilds/:id/roles` for the outbound metric label. */
+const discordOp = (path: string): string =>
+  `GET ${(path.split('?')[0] ?? path).replace(/\/\d{15,}/g, '/:id')}`;
+
 const discordFetch = async (path: string): Promise<Response> =>
-  fetch(`${DISCORD_API_URL}${path}`, {
-    headers: { Authorization: `Bot ${botToken}` },
-    signal: AbortSignal.timeout(DISCORD_TIMEOUT_MS),
-  });
+  trackOutbound('discord', discordOp(path), () =>
+    fetch(`${DISCORD_API_URL}${path}`, {
+      headers: { Authorization: `Bot ${botToken}` },
+      signal: AbortSignal.timeout(DISCORD_TIMEOUT_MS),
+    }),
+  );
 
 const discordFetchJson = async <T>(path: string, what: string): Promise<T> => {
   const response = await discordFetch(path);

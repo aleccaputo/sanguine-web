@@ -1,5 +1,5 @@
 import { getBounties, getBountiesForDiscordId } from '~/data/bounties';
-import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
+import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service.server';
 import { getSlayerBossImageUrl } from '~/utils/slayer';
 
 // Clan bounties: the Slayer Master puts a boss up, and the first N members to get a point-worthy
