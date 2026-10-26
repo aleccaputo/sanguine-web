@@ -13,6 +13,7 @@ import { PageHeader } from '~/components/PageHeader';
 import { Pagination } from '~/components/Pagination';
 import { EmptyState } from '~/components/EmptyState';
 import { zebraRowClass } from '~/utils/styles';
+import { LocalDate } from '~/components/LocalDate';
 
 export const meta: MetaFunction = () => {
   return [
@@ -75,12 +76,9 @@ export async function loader() {
   );
 }
 
-const formatDate = (dateString: string) =>
-  new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+const formatDate = (dateString: string) => (
+  <LocalDate date={dateString} format="MMM D, YYYY" />
+);
 
 // Status stays inside the palette: active reads friends-list green, upcoming
 // plain white, completed muted.

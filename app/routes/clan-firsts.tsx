@@ -1,6 +1,5 @@
 import { json, MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData } from '@remix-run/react';
-import dayjs from 'dayjs';
 import { Box, Container, Flex, Heading, Table, Text } from '@radix-ui/themes';
 import { getDropAuditsForItems } from '~/data/points-audit';
 import { getRaidCompletionsForMetric } from '~/data/raid-completions';
@@ -24,6 +23,7 @@ import {
 import { PbTeam, rankBadge } from '~/components/PbTeam';
 import { SectionHeading } from '~/components/SectionHeading';
 import { proseLinkClass, zebraRowClass } from '~/utils/styles';
+import { LocalDate } from '~/components/LocalDate';
 
 export const meta: MetaFunction = () => [
   { title: `${TFA_DISPLAY_NAME} Clan Firsts | Sanguine` },
@@ -89,7 +89,9 @@ export async function loader() {
   );
 }
 
-const formatDate = (iso: string) => dayjs(iso).format('MMM D, YYYY');
+const formatDate = (iso: string) => (
+  <LocalDate date={iso} format="MMM D, YYYY" />
+);
 
 const slotRows = <T,>(placements: T[]) =>
   Array.from({ length: CLAN_FIRST_SLOTS }, (_, index) => placements[index]);

@@ -78,7 +78,7 @@ export default function PersonalBests() {
       <Flex direction="column">
         <PageHeader title="Personal bests" iconSrc="/sanguine_icon_small.png">
           <span className="font-semibold text-white">
-            {summary.totalPbs.toLocaleString()}
+            {summary.totalPbs.toLocaleString('en-US')}
           </span>{' '}
           records held across{' '}
           <span className="font-semibold text-white">{summary.bossCount}</span>{' '}

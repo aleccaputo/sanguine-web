@@ -1,7 +1,6 @@
 import { json, MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData } from '@remix-run/react';
 import { Box, Container, Flex, Text } from '@radix-ui/themes';
-import dayjs from 'dayjs';
 import {
   getMonthlyWinners,
   getUpcomingEventEndDates,
@@ -27,6 +26,7 @@ import { PageHeader } from '~/components/PageHeader';
 import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
 import { proseLinkClass, zebraRowClass } from '~/utils/styles';
+import { LocalDate } from '~/components/LocalDate';
 
 type WinnerWithName = MonthlyWinner & {
   displayName: string;
@@ -86,7 +86,7 @@ const ReigningChampion = ({
         </Text>
         {nextEventEndIso && (
           <Text as="p" size="2" className="mt-1 text-gray-500">
-            First winner {dayjs(nextEventEndIso).format('MMM D')}
+            First winner <LocalDate date={nextEventEndIso} format="MMM D" />
           </Text>
         )}
       </Box>
@@ -130,9 +130,12 @@ const ReigningChampion = ({
         </Text>
       </Flex>
       <Text as="p" size="2" className="mt-1 pl-9 text-gray-500">
-        Won {dayjs(winner.endDate).format('MMM D, YYYY')}
+        Won <LocalDate date={winner.endDate} format="MMM D, YYYY" />
         {nextEventEndIso && (
-          <> · next winner {dayjs(nextEventEndIso).format('MMM D')}</>
+          <>
+            {' '}
+            · next winner <LocalDate date={nextEventEndIso} format="MMM D" />
+          </>
         )}
       </Text>
     </Box>
@@ -168,7 +171,7 @@ const PastWinnerRow = ({ winner }: IPastWinnerRowProps) => (
       </Link>
     </Box>
     <Text size="2" className="whitespace-nowrap text-gray-400">
-      {dayjs(winner.startDate).format('MMM YYYY')}
+      <LocalDate date={winner.startDate} format="MMM YYYY" />
     </Text>
   </Flex>
 );
@@ -207,10 +210,15 @@ export default function MonthlyWinners() {
               champions crowned across the weekly Boss, Raid, and Skill
               rotations
               {earliestStart && (
-                <> since {dayjs(earliestStart).format('MMMM YYYY')}</>
+                <>
+                  {' '}
+                  since <LocalDate date={earliestStart} format="MMMM YYYY" />
+                </>
               )}
               {nextCrowning && (
-                <>, the next on {dayjs(nextCrowning).format('MMM D')}</>
+                <>
+                  , the next on <LocalDate date={nextCrowning} format="MMM D" />
+                </>
               )}
             </>
           ) : (

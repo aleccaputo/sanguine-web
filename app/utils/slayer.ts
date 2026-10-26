@@ -40,7 +40,7 @@ export const formatGp = (gp: number): string => {
   if (gp >= 1_000_000_000) return `${(gp / 1_000_000_000).toFixed(1)}b`;
   if (gp >= 1_000_000) return `${(gp / 1_000_000).toFixed(1)}m`;
   if (gp >= 10_000) return `${Math.round(gp / 1_000)}k`;
-  return gp.toLocaleString();
+  return gp.toLocaleString('en-US');
 };
 
 /**

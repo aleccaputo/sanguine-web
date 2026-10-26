@@ -97,14 +97,14 @@ export default function Drops() {
           iconSrc="https://oldschool.runescape.wiki/images/Coins_detail.png"
         >
           <span className="font-semibold text-white">
-            {totalCount.toLocaleString()}
+            {totalCount.toLocaleString('en-US')}
           </span>{' '}
           drops on the record
           {pageGP > 0 && (
             <>
               , the {recentDrops.length} shown worth <CoinsIcon />{' '}
               <span className="font-semibold text-osrs-gold">
-                {pageGP.toLocaleString()}
+                {pageGP.toLocaleString('en-US')}
               </span>{' '}
               gp
             </>

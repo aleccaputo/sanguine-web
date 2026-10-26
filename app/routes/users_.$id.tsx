@@ -31,7 +31,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import dayjs from 'dayjs';
+import { useLocalDayjs } from '~/utils/dayjs';
 import { useMemo, useState } from 'react';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service.server';
 import { DropItem } from '~/components/DropItem';
@@ -72,6 +72,7 @@ import { isClanPointAudit } from '~/utils/point-types';
 import { getSlayerRecordForDiscordId } from '~/services/slayer-service.server';
 import { getBountyRecordForDiscordId } from '~/services/bounty-service.server';
 import { ordinal } from '~/utils/bounty';
+import { LocalDate } from '~/components/LocalDate';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const title = data?.user?.nickname
@@ -413,11 +414,12 @@ export default function UserById() {
     [allItemsLogged, userAlts, mainName],
   );
 
+  const day = useLocalDayjs();
   const summedPointsByYearMonth: { date: string; points: number }[] =
     Object.entries(
       filteredAuditData.reduce(
         (acc: { [yearMonth: string]: number }, message) => {
-          const ym = dayjs(message.createdAt).format('YYYY-MMM');
+          const ym = day(message.createdAt).format('YYYY-MMM');
           acc[ym] = (acc[ym] || 0) + message.pointsGiven;
           return acc;
         },
@@ -484,8 +486,8 @@ export default function UserById() {
   const hasCompetitionHistory =
     competitionAwards.length > 0 || historicalCompetitions !== null;
   const historicalRange = historicalCompetitions && {
-    from: dayjs(historicalCompetitions.from).format('MMM YYYY'),
-    to: dayjs(historicalCompetitions.to).format('MMM YYYY'),
+    from: day(historicalCompetitions.from).format('MMM YYYY'),
+    to: day(historicalCompetitions.to).format('MMM YYYY'),
   };
   const competitionsPointsTotal =
     competitionAwards.reduce((sum, a) => sum + a.pointsGiven, 0) +
@@ -708,7 +710,7 @@ export default function UserById() {
           </Flex>
           <dl>
             <InfoboxRow label="Joined">
-              {dayjs(user.joined).format('MMMM YYYY')}
+              <LocalDate date={user.joined} format="MMMM YYYY" />
             </InfoboxRow>
             {hasAlts && (
               <InfoboxRow label="Accounts">
@@ -739,13 +741,13 @@ export default function UserById() {
           <InfoboxBand>Clan record</InfoboxBand>
           <dl>
             <InfoboxRow label="Drop points" valueClassName="text-white">
-              {user.points.toLocaleString()}
+              {user.points.toLocaleString('en-US')}
             </InfoboxRow>
             <InfoboxRow label="Clan points" valueClassName="text-osrs-gold">
-              {user.clanPoints.toLocaleString()}
+              {user.clanPoints.toLocaleString('en-US')}
               {skipPointsSpent > 0 && (
                 <span className="block text-sm text-gray-500">
-                  {spendableClanPoints.toLocaleString()} spendable
+                  {spendableClanPoints.toLocaleString('en-US')} spendable
                 </span>
               )}
             </InfoboxRow>
@@ -756,9 +758,9 @@ export default function UserById() {
             )}
             {primaryClog && (
               <InfoboxRow label="Log slots" valueClassName="text-white">
-                {primaryClog.slots.toLocaleString()}{' '}
+                {primaryClog.slots.toLocaleString('en-US')}{' '}
                 <span className="text-gray-500">
-                  of {primaryClog.totalSlots.toLocaleString()}
+                  of {primaryClog.totalSlots.toLocaleString('en-US')}
                 </span>
                 {!mainClog && (
                   <span className="block text-sm text-gray-500">
@@ -770,14 +772,15 @@ export default function UserById() {
                     key={summary.accountName}
                     className="block text-sm text-gray-500"
                   >
-                    on {summary.accountName}: {summary.slots.toLocaleString()}
+                    on {summary.accountName}:{' '}
+                    {summary.slots.toLocaleString('en-US')}
                   </span>
                 ))}
               </InfoboxRow>
             )}
             {allDropsGP > 0 && (
               <InfoboxRow label="Loot value" valueClassName="text-osrs-gold">
-                <CoinsIcon /> {allDropsGP.toLocaleString()} gp
+                <CoinsIcon /> {allDropsGP.toLocaleString('en-US')} gp
               </InfoboxRow>
             )}
             {topBoss && (
@@ -789,7 +792,7 @@ export default function UserById() {
                     <>
                       {' · '}
                       <span className="text-osrs-gold">
-                        {topBoss.gp.toLocaleString()} gp
+                        {topBoss.gp.toLocaleString('en-US')} gp
                       </span>
                     </>
                   )}
@@ -852,7 +855,7 @@ export default function UserById() {
               Sanguine
             </Link>
             , {isGuest ? 'on the record' : 'a member'} since{' '}
-            {dayjs(user.joined).format('MMMM YYYY')}
+            <LocalDate date={user.joined} format="MMMM YYYY" />
             {hasAlts && <>, playing across {1 + userAlts.length} accounts</>}.
             {(user.points > 0 || user.clanPoints > 0) && (
               <>
@@ -862,7 +865,7 @@ export default function UserById() {
                   <>
                     {' '}
                     <span className="text-white">
-                      {user.points.toLocaleString()} drop points
+                      {user.points.toLocaleString('en-US')} drop points
                     </span>
                   </>
                 )}
@@ -871,7 +874,7 @@ export default function UserById() {
                   <>
                     {' '}
                     <span className="text-osrs-gold">
-                      {user.clanPoints.toLocaleString()} clan points
+                      {user.clanPoints.toLocaleString('en-US')} clan points
                     </span>
                   </>
                 )}
@@ -889,7 +892,7 @@ export default function UserById() {
                 <span className="text-white">{allItemsLogged.length}</span> of
                 their finds, together worth{' '}
                 <span className="text-osrs-gold">
-                  {allDropsGP.toLocaleString()} gp
+                  {allDropsGP.toLocaleString('en-US')} gp
                 </span>
                 .
               </>
@@ -911,7 +914,7 @@ export default function UserById() {
                 <span className="text-white">{topBoss.count}</span>{' '}
                 {topBoss.count === 1 ? 'drop' : 'drops'} worth{' '}
                 <span className="text-osrs-gold">
-                  {topBoss.gp.toLocaleString()} gp
+                  {topBoss.gp.toLocaleString('en-US')} gp
                 </span>
                 {topBoss.points > 0 && (
                   <>
@@ -934,9 +937,9 @@ export default function UserById() {
                 </Link>{' '}
                 fills{' '}
                 <span className="text-white">
-                  {primaryClog.slots.toLocaleString()}
+                  {primaryClog.slots.toLocaleString('en-US')}
                 </span>{' '}
-                of its {primaryClog.totalSlots.toLocaleString()} slots
+                of its {primaryClog.totalSlots.toLocaleString('en-US')} slots
                 {!mainClog && <> on {primaryClog.accountName}</>}.
               </>
             )}
@@ -975,7 +978,7 @@ export default function UserById() {
                   <>
                     , worth{' '}
                     <span className="text-osrs-gold">
-                      {slayerPointsTotal.toLocaleString()} clan points
+                      {slayerPointsTotal.toLocaleString('en-US')} clan points
                     </span>
                   </>
                 )}
@@ -994,7 +997,7 @@ export default function UserById() {
                   <>
                     {' for '}
                     <span className="text-osrs-gold">
-                      {bounties.clanPoints.toLocaleString()} clan points
+                      {bounties.clanPoints.toLocaleString('en-US')} clan points
                     </span>
                   </>
                 )}
@@ -1021,7 +1024,7 @@ export default function UserById() {
                         {' worth '}
                         <CoinsIcon />{' '}
                         <span className="text-osrs-gold">
-                          {totalGP.toLocaleString()}
+                          {totalGP.toLocaleString('en-US')}
                         </span>{' '}
                         gp
                       </>
@@ -1066,9 +1069,10 @@ export default function UserById() {
                   selectedClog && (
                     <Text size="2" className="text-gray-500">
                       <span className="text-white">
-                        {selectedClog.slots.toLocaleString()}
+                        {selectedClog.slots.toLocaleString('en-US')}
                       </span>{' '}
-                      of {selectedClog.totalSlots.toLocaleString()} slots filled
+                      of {selectedClog.totalSlots.toLocaleString('en-US')} slots
+                      filled
                     </Text>
                   )
                 }
@@ -1257,7 +1261,7 @@ export default function UserById() {
                 summary={
                   <Text size="2" className="whitespace-nowrap text-gray-500">
                     <span className="text-osrs-gold">
-                      {user.clanPoints.toLocaleString()}
+                      {user.clanPoints.toLocaleString('en-US')}
                     </span>{' '}
                     clan points
                     {skipPointsSpent > 0 && (
@@ -1265,7 +1269,7 @@ export default function UserById() {
                         {' '}
                         ·{' '}
                         <span className="text-gray-400">
-                          {skipPointsSpent.toLocaleString()}
+                          {skipPointsSpent.toLocaleString('en-US')}
                         </span>{' '}
                         spent on skips
                       </>
@@ -1348,7 +1352,10 @@ export default function UserById() {
                                 />
                               </Table.Cell>
                               <Table.Cell className="whitespace-nowrap text-gray-400">
-                                {dayjs(raid.approvedAt).format('MMM D, YYYY')}
+                                <LocalDate
+                                  date={raid.approvedAt}
+                                  format="MMM D, YYYY"
+                                />
                               </Table.Cell>
                               <Table.Cell
                                 align="right"
@@ -1463,10 +1470,16 @@ export default function UserById() {
                                 {/* Breakable only at the comma, so narrow screens get
                                     "Jun 25," / "2026" instead of a word-per-line date. */}
                                 <span className="whitespace-nowrap">
-                                  {dayjs(award.createdAt).format('MMM D,')}
+                                  <LocalDate
+                                    date={award.createdAt}
+                                    format="MMM D,"
+                                  />
                                 </span>{' '}
                                 <span className="whitespace-nowrap">
-                                  {dayjs(award.createdAt).format('YYYY')}
+                                  <LocalDate
+                                    date={award.createdAt}
+                                    format="YYYY"
+                                  />
                                 </span>
                               </Table.Cell>
                               <Table.Cell
@@ -1561,7 +1574,10 @@ export default function UserById() {
                           {slayer.activeTask.bossDisplayName}
                         </span>
                         , assigned{' '}
-                        {dayjs(slayer.activeTask.spunAt).format('MMM D')}
+                        <LocalDate
+                          date={slayer.activeTask.spunAt}
+                          format="MMM D"
+                        />
                       </Text>
                     )}
                     <div className="overflow-x-auto">
@@ -1641,12 +1657,16 @@ export default function UserById() {
                               </Table.Cell>
                               <Table.Cell className="hidden text-gray-400 sm:table-cell">
                                 <span className="whitespace-nowrap">
-                                  {dayjs(completion.completedAt).format(
-                                    'MMM D,',
-                                  )}
+                                  <LocalDate
+                                    date={completion.completedAt}
+                                    format="MMM D,"
+                                  />
                                 </span>{' '}
                                 <span className="whitespace-nowrap">
-                                  {dayjs(completion.completedAt).format('YYYY')}
+                                  <LocalDate
+                                    date={completion.completedAt}
+                                    format="YYYY"
+                                  />
                                 </span>
                               </Table.Cell>
                               <Table.Cell align="right">
@@ -1809,10 +1829,16 @@ export default function UserById() {
                               </Table.Cell>
                               <Table.Cell className="hidden text-gray-400 sm:table-cell">
                                 <span className="whitespace-nowrap">
-                                  {dayjs(win.claimedAt).format('MMM D,')}
+                                  <LocalDate
+                                    date={win.claimedAt}
+                                    format="MMM D,"
+                                  />
                                 </span>{' '}
                                 <span className="whitespace-nowrap">
-                                  {dayjs(win.claimedAt).format('YYYY')}
+                                  <LocalDate
+                                    date={win.claimedAt}
+                                    format="YYYY"
+                                  />
                                 </span>
                               </Table.Cell>
                               <Table.Cell
@@ -1851,7 +1877,7 @@ export default function UserById() {
                             className="whitespace-nowrap text-gray-500"
                           >
                             <span className="font-medium text-red-400">
-                              -{skipPointsSpent.toLocaleString()}
+                              -{skipPointsSpent.toLocaleString('en-US')}
                             </span>{' '}
                             clan points
                           </Text>
@@ -1889,10 +1915,16 @@ export default function UserById() {
                               </Table.Cell>
                               <Table.Cell className="text-gray-400">
                                 <span className="whitespace-nowrap">
-                                  {dayjs(purchase.createdAt).format('MMM D,')}
+                                  <LocalDate
+                                    date={purchase.createdAt}
+                                    format="MMM D,"
+                                  />
                                 </span>{' '}
                                 <span className="whitespace-nowrap">
-                                  {dayjs(purchase.createdAt).format('YYYY')}
+                                  <LocalDate
+                                    date={purchase.createdAt}
+                                    format="YYYY"
+                                  />
                                 </span>
                               </Table.Cell>
                               <Table.Cell

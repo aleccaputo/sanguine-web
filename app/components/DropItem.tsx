@@ -1,7 +1,7 @@
 import { Link } from '@remix-run/react';
 import { Box, Flex, Text } from '@radix-ui/themes';
-import dayjs from 'dayjs';
 import type { OSRSItem } from '~/utils/osrs-item';
+import { LocalDate } from '~/components/LocalDate';
 
 interface DropItemProps {
   item: {
@@ -78,7 +78,7 @@ export function DropItem({
                 size={isLarge ? { initial: '1', md: '2' } : '2'}
                 className="whitespace-nowrap text-gray-400"
               >
-                {dayjs(item.createdAt).format('MMM D, YYYY')}
+                <LocalDate date={item.createdAt} format="MMM D, YYYY" />
               </Text>
               {item.osrsData?.price && (
                 <Flex align="center" gap="1">
@@ -91,7 +91,7 @@ export function DropItem({
                     size={isLarge ? { initial: '1', md: '2' } : '2'}
                     className="text-osrs-gold"
                   >
-                    {item.osrsData.price.toLocaleString()}
+                    {item.osrsData.price.toLocaleString('en-US')}
                   </Text>
                 </Flex>
               )}
