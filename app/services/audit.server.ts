@@ -1,8 +1,12 @@
+import { createLogger } from '~/utils/logger.server';
+
+const log = createLogger('audit');
+
 /**
  * Structured audit trail for the admin portal: who signed in, who was denied,
  * and which admin actions were attempted. One JSON line per event to stdout —
- * morgan's request lines carry no user identity, and Fly captures stdout, so
- * this is greppable in `fly logs` without any extra infrastructure.
+ * request logs carry no user identity, and Fly captures stdout, so this is
+ * greppable in `fly logs` (and the ops dashboard) without extra infrastructure.
  */
 export const audit = (
   event:
@@ -14,7 +18,5 @@ export const audit = (
     | 'admin.action',
   details: Record<string, unknown>,
 ): void => {
-  console.log(
-    JSON.stringify({ audit: event, ts: new Date().toISOString(), ...details }),
-  );
+  log.info({ kind: 'audit', audit: event, ...details }, event);
 };

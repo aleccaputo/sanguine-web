@@ -1,11 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCachedFetcher } from './cached-fetcher';
 
+const { logWarn } = vi.hoisted(() => ({ logWarn: vi.fn() }));
+vi.mock('./logger.server', () => ({
+  createLogger: () => ({
+    info: vi.fn(),
+    warn: logWarn,
+    debug: vi.fn(),
+    error: vi.fn(),
+  }),
+  logger: { info: vi.fn(), warn: logWarn, debug: vi.fn(), error: vi.fn() },
+}));
+
 describe('createCachedFetcher', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-15T12:00:00Z'));
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    logWarn.mockClear();
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -69,7 +80,7 @@ describe('createCachedFetcher', () => {
     expect(await read('a')).toBe('fresh');
     vi.advanceTimersByTime(1001);
     expect(await read('a')).toBe('fresh');
-    expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(logWarn).toHaveBeenCalledTimes(1);
     // Until the retry interval passes, the stale value is served without another upstream call.
     expect(await read('a')).toBe('fresh');
     expect(fetcher).toHaveBeenCalledTimes(2);

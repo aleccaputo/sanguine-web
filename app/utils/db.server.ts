@@ -1,12 +1,15 @@
 import { remember } from '@epic-web/remember';
 import { PrismaClient } from '@prisma/client';
-import chalk from 'chalk';
+import { createLogger } from './logger.server';
+
+const log = createLogger('prisma');
 
 export const prisma = remember('prisma', () => {
   // NOTE: if you change anything in this function you'll need to restart
   // the dev server to see your changes.
 
-  // Feel free to change this log threshold to something that makes sense for you
+  // Queries slower than this are logged as `{ kind: 'db', durationMs, query }`
+  // so the ops dashboard can rank them.
   const logThreshold = 150;
 
   const client = new PrismaClient({
@@ -18,18 +21,10 @@ export const prisma = remember('prisma', () => {
   });
   client.$on('query', async e => {
     if (e.duration < logThreshold) return;
-    const color =
-      e.duration < logThreshold * 1.1
-        ? 'green'
-        : e.duration < logThreshold * 1.2
-          ? 'blue'
-          : e.duration < logThreshold * 1.3
-            ? 'yellow'
-            : e.duration < logThreshold * 1.4
-              ? 'redBright'
-              : 'red';
-    const dur = chalk[color](`${e.duration}ms`);
-    console.info(`prisma:query - ${dur} - ${e.query}`);
+    log.warn(
+      { kind: 'db', durationMs: e.duration, query: e.query },
+      'slow query',
+    );
   });
   client.$connect();
   return client;

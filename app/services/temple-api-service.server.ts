@@ -1,5 +1,6 @@
 import * as process from 'process';
 import { createCachedFetcher } from '~/utils/cached-fetcher';
+import { httpError, trackOutbound } from '~/utils/outbound.server';
 import type {
   ITempleClogCategories,
   ITempleGroupClog,
@@ -34,22 +35,34 @@ interface ITempleErrorEnvelope {
 // hung connection must abort rather than hold every awaiting loader open.
 const TEMPLE_TIMEOUT_MS = 8_000;
 
-const fetchTempleJson = async <T>(path: string): Promise<T> => {
-  const response = await fetch(`${TEMPLE_BASE_URL}${path}`, {
-    headers: TEMPLE_HEADERS,
-    signal: AbortSignal.timeout(TEMPLE_TIMEOUT_MS),
+/** `/collection-log/player_recent_items.php?player=x` → `player_recent_items` */
+const templeOp = (path: string): string =>
+  (path.split('?')[0] ?? path)
+    .split('/')
+    .pop()
+    ?.replace(/\.php$/, '') ?? path;
+
+const fetchTempleJson = <T>(path: string): Promise<T> =>
+  trackOutbound('temple', templeOp(path), async () => {
+    const response = await fetch(`${TEMPLE_BASE_URL}${path}`, {
+      headers: TEMPLE_HEADERS,
+      signal: AbortSignal.timeout(TEMPLE_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      throw httpError(
+        `TempleOSRS request failed (${response.status}): ${path}`,
+        response.status,
+      );
+    }
+    const body: T & ITempleErrorEnvelope = await response.json();
+    if (body.error) {
+      throw httpError(
+        `TempleOSRS error ${body.error.Code}: ${body.error.Message}`,
+        body.error.Code,
+      );
+    }
+    return body;
   });
-  if (!response.ok) {
-    throw new Error(`TempleOSRS request failed (${response.status}): ${path}`);
-  }
-  const body: T & ITempleErrorEnvelope = await response.json();
-  if (body.error) {
-    throw new Error(
-      `TempleOSRS error ${body.error.Code}: ${body.error.Message}`,
-    );
-  }
-  return body;
-};
 
 const GROUP_CLOG_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes (~165KB payload)
 const RECENT_ITEMS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes

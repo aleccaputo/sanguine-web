@@ -1,4 +1,5 @@
 import * as process from 'process';
+import { trackOutbound } from '~/utils/outbound.server';
 import type {
   ITileRace,
   ITileRaceStanding,
@@ -77,18 +78,24 @@ const adminRequest = async <T>(
   path: string,
   init?: { method?: string; body?: unknown; actingUserId?: string },
 ): Promise<T> => {
-  const response = await fetch(`${EVENTS_API_URL}/admin${path}`, {
-    method: init?.method ?? 'POST',
-    headers: {
-      Authorization: `Bearer ${EVENTS_API_TOKEN}`,
-      ...(init?.actingUserId ? { 'x-acting-user': init.actingUserId } : {}),
-      ...(init?.body !== undefined
-        ? { 'Content-Type': 'application/json' }
-        : {}),
-    },
-    body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-    signal: AbortSignal.timeout(EVENTS_API_TIMEOUT_MS),
-  });
+  const method = init?.method ?? 'POST';
+  const response = await trackOutbound(
+    'events-api',
+    `${method} /admin${path.replace(/\/[^/]*\d[^/]*/g, '/:id')}`,
+    () =>
+      fetch(`${EVENTS_API_URL}/admin${path}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${EVENTS_API_TOKEN}`,
+          ...(init?.actingUserId ? { 'x-acting-user': init.actingUserId } : {}),
+          ...(init?.body !== undefined
+            ? { 'Content-Type': 'application/json' }
+            : {}),
+        },
+        body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+        signal: AbortSignal.timeout(EVENTS_API_TIMEOUT_MS),
+      }),
+  );
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as {
       error?: string;

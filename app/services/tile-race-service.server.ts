@@ -1,4 +1,5 @@
 import * as process from 'process';
+import { trackOutbound } from '~/utils/outbound.server';
 
 /**
  * Client for the sanguine-events HTTP API (the events bot's sibling deployable).
@@ -101,9 +102,11 @@ export interface ITileRace {
 
 /** The open (draft or running) tile race, or null when there isn't one. */
 export const getCurrentTileRace = async (): Promise<ITileRace | null> => {
-  const response = await fetch(`${EVENTS_API_URL}/races/current`, {
-    signal: AbortSignal.timeout(EVENTS_API_TIMEOUT_MS),
-  });
+  const response = await trackOutbound('events-api', 'GET /races/current', () =>
+    fetch(`${EVENTS_API_URL}/races/current`, {
+      signal: AbortSignal.timeout(EVENTS_API_TIMEOUT_MS),
+    }),
+  );
   if (response.status === 404) {
     return null;
   }

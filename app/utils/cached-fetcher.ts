@@ -1,4 +1,7 @@
 import { remember } from '@epic-web/remember';
+import { createLogger } from './logger.server';
+
+const log = createLogger('cache');
 
 interface ICacheEntry<T> {
   data: T;
@@ -94,6 +97,8 @@ export const createCachedFetcher = <T>(
     const now = Date.now();
     const cached = store.entries.get(key);
     if (cached && (now < cached.expiresAt || now < cached.retryAt)) {
+      // Hits are logged so the dashboard can compute a hit rate per cache.
+      log.info({ kind: 'cache', name, key, result: 'hit' }, 'cache hit');
       return Promise.resolve(cached.data);
     }
     const pending = store.inflight.get(key);
@@ -111,15 +116,26 @@ export const createCachedFetcher = <T>(
           staleUntil: expiresAt + staleOnErrorMs,
           retryAt: 0,
         });
+        log.info(
+          {
+            kind: 'cache',
+            name,
+            key,
+            result: 'miss',
+            durationMs: fetchedAt - now,
+            ttlMs: expiresAt - fetchedAt,
+          },
+          'cache miss (refetched)',
+        );
         return data;
       })
       .catch((error: unknown) => {
         const stale = store.entries.get(key);
         const failedAt = Date.now();
         if (stale && failedAt < stale.staleUntil) {
-          console.warn(
-            `[${name}] refetch failed for "${key}"; serving stale value`,
-            error,
+          log.warn(
+            { kind: 'cache', name, key, result: 'stale', err: error },
+            'refetch failed; serving stale value',
           );
           store.entries.set(key, {
             ...stale,
