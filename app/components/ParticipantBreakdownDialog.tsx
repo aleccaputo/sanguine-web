@@ -116,7 +116,7 @@ export function ParticipantBreakdownDialog({
               <>
                 earned{' '}
                 <span className="text-white">
-                  {totalPoints.toLocaleString()} drop points
+                  {totalPoints.toLocaleString('en-US')} drop points
                 </span>{' '}
                 from <span className="text-white">{drops.length}</span>{' '}
                 {drops.length === 1 ? 'drop' : 'drops'}
@@ -125,7 +125,7 @@ export function ParticipantBreakdownDialog({
                     {' '}
                     while gaining{' '}
                     <span className="text-white">
-                      {gained.toLocaleString()} {metric}
+                      {gained.toLocaleString('en-US')} {metric}
                     </span>
                   </>
                 )}
@@ -133,7 +133,7 @@ export function ParticipantBreakdownDialog({
                   <>
                     , with loot worth{' '}
                     <span className="text-osrs-gold">
-                      {totalGpGained.toLocaleString()} gp
+                      {totalGpGained.toLocaleString('en-US')} gp
                     </span>
                   </>
                 )}
@@ -143,7 +143,7 @@ export function ParticipantBreakdownDialog({
               <>
                 gained{' '}
                 <span className="text-white">
-                  {gained.toLocaleString()} {metric}
+                  {gained.toLocaleString('en-US')} {metric}
                 </span>{' '}
                 so far, with no drops logged yet.
               </>

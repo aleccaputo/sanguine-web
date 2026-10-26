@@ -1,5 +1,5 @@
 import { Box, Flex, Text } from '@radix-ui/themes';
-import dayjs from 'dayjs';
+import { LocalDate } from '~/components/LocalDate';
 
 export interface IClogUnlock {
   name: string;
@@ -39,7 +39,7 @@ export function ClogUnlockRow({ unlock }: IClogUnlockRowProps) {
             size="2"
             className="flex-shrink-0 whitespace-nowrap text-gray-400"
           >
-            {dayjs(unlock.date).format('MMM D, YYYY')}
+            <LocalDate date={unlock.date} format="MMM D, YYYY" />
           </Text>
         </Flex>
       </Flex>

@@ -3,7 +3,6 @@ import { Container, Heading, Text, Box, Flex } from '@radix-ui/themes';
 import { Await, Link, useLoaderData } from '@remix-run/react';
 import { Suspense, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import dayjs from 'dayjs';
 import type { OSRSItem } from '~/utils/osrs-item';
 import { CoinsIcon } from '~/components/CoinsIcon';
 import { DiscordWidget } from '~/components/DiscordWidget';
@@ -37,6 +36,7 @@ import {
   RANK_ICON,
 } from '~/utils/monthly-winners-display';
 import { proseLinkClass, zebraRowClass } from '~/utils/styles';
+import { LocalDate } from '~/components/LocalDate';
 
 export const meta: MetaFunction = () => {
   return [
@@ -55,7 +55,7 @@ const formatGp = (gp: number) => {
   if (gp >= 1_000_000_000) return `${(gp / 1_000_000_000).toFixed(1)}b`;
   if (gp >= 1_000_000) return `${(gp / 1_000_000).toFixed(1)}m`;
   if (gp >= 1_000) return `${(gp / 1_000).toFixed(0)}k`;
-  return gp.toLocaleString();
+  return gp.toLocaleString('en-US');
 };
 
 export async function loader() {
@@ -356,7 +356,7 @@ export default function Index() {
                   strong. Any given night it&apos;s CoX, ToB, ToA, or whatever
                   everyone&apos;s grinding that week. So far that&apos;s{' '}
                   <span className="font-semibold text-white">
-                    {totalDrops.toLocaleString()}
+                    {totalDrops.toLocaleString('en-US')}
                   </span>{' '}
                   <Link to="/drops" className={proseLinkClass}>
                     drops
@@ -453,7 +453,8 @@ export default function Index() {
                               {comp.title}
                             </Text>
                             <Text as="div" size="1" className="text-gray-500">
-                              ends {dayjs(comp.endsAt).format('MMM D')}
+                              ends{' '}
+                              <LocalDate date={comp.endsAt} format="MMM D" />
                             </Text>
                           </Box>
                           {comp.participantCount > 0 && (

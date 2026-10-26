@@ -16,7 +16,6 @@ import {
   Tabs,
   Text,
 } from '@radix-ui/themes';
-import dayjs from 'dayjs';
 import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { Button } from '~/components/button';
 import {
@@ -79,6 +78,7 @@ import type { loader as bountyScorecardLoader } from './admin.insights_.bounty.$
 import type { loader as pvmActivityLoader } from './admin.insights_.pvm';
 import type { loader as skillingLoader } from './admin.insights_.skilling';
 import type { loader as monthsLoader } from './admin.insights_.months';
+import { LocalDate } from '~/components/LocalDate';
 
 export const meta: MetaFunction = () => [{ title: 'Clan insights' }];
 
@@ -286,7 +286,7 @@ interface ICountProps {
 
 const Count = ({ value }: ICountProps) => (
   <span className={value === 0 ? 'text-gray-600' : 'text-gray-100'}>
-    {value.toLocaleString()}
+    {value.toLocaleString('en-US')}
   </span>
 );
 
@@ -327,7 +327,7 @@ const Glossary = ({ rosterSize, days }: IGlossaryProps) => {
   const terms: { term: string; definition: string }[] = [
     {
       term: 'Roster',
-      definition: `Everyone the bot currently tracks as a clan member: the same ${rosterSize.toLocaleString()} people the members page lists. Leavers and Discord guests are not counted. Every percentage is a share of the roster unless it says otherwise.`,
+      definition: `Everyone the bot currently tracks as a clan member: the same ${rosterSize.toLocaleString('en-US')} people the members page lists. Leavers and Discord guests are not counted. Every percentage is a share of the roster unless it says otherwise.`,
     },
     {
       term: 'Period',
@@ -435,13 +435,15 @@ const Retry = ({ message, onRetry, loading }: IRetryProps) => (
 
 const formatGain = (metric: string, value: number) =>
   metric === 'ehb'
-    ? value.toLocaleString(undefined, {
+    ? value.toLocaleString('en-US', {
         minimumFractionDigits: 1,
         maximumFractionDigits: 1,
       })
-    : Math.round(value).toLocaleString();
+    : Math.round(value).toLocaleString('en-US');
 
-const formatDate = (iso: string) => dayjs(iso).format('MMM D, YYYY');
+const formatDate = (iso: string) => (
+  <LocalDate date={iso} format="MMM D, YYYY" />
+);
 
 interface IAltNoteProps {
   alt: string | null;
@@ -527,7 +529,7 @@ function BountyRow({ bounty, autoLoad, onMeasured }: IBountyRowProps) {
           }
         >
           {result.scorecard.lift > 0 ? '+' : ''}
-          {result.scorecard.lift.toLocaleString()}
+          {result.scorecard.lift.toLocaleString('en-US')}
         </span>
         {result.scorecard.liftPercent !== null && (
           <Text size="1" className="ml-1 hidden text-gray-500 sm:inline">
@@ -669,7 +671,7 @@ function PvmActivitySection({ days }: IPvmActivitySectionProps) {
           <Flex gap="4" wrap="wrap" mb="2">
             <Figure
               label="Active"
-              value={result.activity.activeMembers.toLocaleString()}
+              value={result.activity.activeMembers.toLocaleString('en-US')}
             />
             <Figure
               label="Median per active member"
@@ -858,7 +860,9 @@ function InGameSplitBar({
             targetId: SECTION_IDS.notParticipating,
           },
         ]}
-        formatValue={value => `${value.toLocaleString()} (${percent(value)})`}
+        formatValue={value =>
+          `${value.toLocaleString('en-US')} (${percent(value)})`
+        }
         onSelect={onSelect}
       />
       <Reading>
@@ -879,7 +883,7 @@ interface ISkillingOnlySectionProps {
 function SkillingOnlySection({ skilling }: ISkillingOnlySectionProps) {
   const { result, failure, loading, retry } = skilling;
   const hours = (value: number) =>
-    value.toLocaleString(undefined, {
+    value.toLocaleString('en-US', {
       minimumFractionDigits: 1,
       maximumFractionDigits: 1,
     });
@@ -1286,14 +1290,14 @@ export default function AdminInsights() {
       </Flex>
       <Glossary rosterSize={rosterSize} days={days} />
       <Flex gap="4" wrap="wrap" mt="3" mb="3">
-        <Figure label="Roster" value={rosterSize.toLocaleString()} />
+        <Figure label="Roster" value={rosterSize.toLocaleString('en-US')} />
         <Figure
           label="Active in clan systems"
-          value={`${activeMembers.toLocaleString()} (${percent(activeMembers)})`}
+          value={`${activeMembers.toLocaleString('en-US')} (${percent(activeMembers)})`}
         />
         <Figure
           label="Idle"
-          value={`${idleCount.toLocaleString()} (${percent(idleCount)})`}
+          value={`${idleCount.toLocaleString('en-US')} (${percent(idleCount)})`}
         />
       </Flex>
       <Reading>
@@ -1323,7 +1327,9 @@ export default function AdminInsights() {
               targetId: SECTION_IDS.quiet,
             },
           ]}
-          formatValue={value => `${value.toLocaleString()} (${percent(value)})`}
+          formatValue={value =>
+            `${value.toLocaleString('en-US')} (${percent(value)})`
+          }
           onSelect={goTo}
         />
         <Reading>
@@ -1403,7 +1409,9 @@ export default function AdminInsights() {
                   rows={measuredBounties.map(({ bounty, result }) => ({
                     key: bounty.id,
                     label: bounty.bossDisplayName,
-                    sublabel: dayjs(bounty.postedAt).format('MMM D'),
+                    sublabel: (
+                      <LocalDate date={bounty.postedAt} format="MMM D" />
+                    ),
                     before: result.scorecard.baselineParticipants,
                     after: result.scorecard.participants,
                   }))}
@@ -1617,7 +1625,7 @@ export default function AdminInsights() {
                                   size="2"
                                   className="tabular-nums text-gray-100"
                                 >
-                                  {leader.events.toLocaleString()}
+                                  {leader.events.toLocaleString('en-US')}
                                 </Text>
                               </li>
                             ))}
@@ -1782,11 +1790,13 @@ export default function AdminInsights() {
               />
               <Figure
                 label="Spins per completed task"
-                value={slayer.spinsPerCompletion?.toLocaleString() ?? '–'}
+                value={
+                  slayer.spinsPerCompletion?.toLocaleString('en-US') ?? '–'
+                }
               />
               <Figure
                 label="First tasks"
-                value={slayer.initialSpins.toLocaleString()}
+                value={slayer.initialSpins.toLocaleString('en-US')}
               />
             </Flex>
             <HorizontalBars
@@ -1834,7 +1844,7 @@ export default function AdminInsights() {
             <Flex gap="4" wrap="wrap" mb="2">
               <Figure
                 label="Median EHB"
-                value={pvmExperience.median.toLocaleString()}
+                value={pvmExperience.median.toLocaleString('en-US')}
               />
               <Figure
                 label="Under 100 EHB"
@@ -2072,7 +2082,9 @@ export default function AdminInsights() {
                       }))}
                       max={metric.percent ? 100 : undefined}
                       formatValue={value =>
-                        metric.percent ? `${value}%` : value.toLocaleString()
+                        metric.percent
+                          ? `${value}%`
+                          : value.toLocaleString('en-US')
                       }
                       labelWidth={150}
                     />

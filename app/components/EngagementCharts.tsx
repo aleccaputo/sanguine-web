@@ -103,7 +103,7 @@ interface IHorizontalBarsProps {
 export function HorizontalBars({
   rows,
   max,
-  formatValue = value => value.toLocaleString(),
+  formatValue = value => value.toLocaleString('en-US'),
   labelWidth = 120,
 }: IHorizontalBarsProps) {
   const height = rows.length * (BAR_SIZE + 14) + 8;
@@ -183,7 +183,7 @@ interface ISmallMultiplesProps {
 export function SmallMultiples({
   series,
   max,
-  formatValue = value => value.toLocaleString(),
+  formatValue = value => value.toLocaleString('en-US'),
 }: ISmallMultiplesProps) {
   return (
     <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -282,7 +282,7 @@ interface ICompositionBarProps {
 export function CompositionBar({
   title,
   segments,
-  formatValue = value => value.toLocaleString(),
+  formatValue = value => value.toLocaleString('en-US'),
   onSelect,
 }: ICompositionBarProps) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
@@ -305,7 +305,7 @@ export function CompositionBar({
             backgroundColor:
               COMPOSITION_HUES[segments.indexOf(segment)] ?? '#6B7280',
           };
-          const title = `${segment.label}: ${segment.value.toLocaleString()}`;
+          const title = `${segment.label}: ${segment.value.toLocaleString('en-US')}`;
           return segment.targetId ? (
             <a
               key={segment.key}
@@ -360,7 +360,7 @@ export interface IDumbbellRow {
   before: number;
   after: number;
   /** Small gray text after the label, e.g. a date. */
-  sublabel?: string;
+  sublabel?: ReactNode;
 }
 
 interface IDumbbellChartProps {
@@ -416,7 +416,7 @@ export function DumbbellChart({
               </Text>
               <div
                 className="relative h-5"
-                title={`${beforeLabel} ${row.before.toLocaleString()}, ${afterLabel} ${row.after.toLocaleString()}`}
+                title={`${beforeLabel} ${row.before.toLocaleString('en-US')}, ${afterLabel} ${row.after.toLocaleString('en-US')}`}
               >
                 <div className="absolute inset-y-0 left-0 right-16 border-b border-gray-800" />
                 <div
@@ -633,7 +633,7 @@ export function Histogram({ buckets, unit }: IHistogramProps) {
                 rows={[
                   {
                     label: `${unit}, ${String(label)}`,
-                    value: Number(payload[0].value).toLocaleString(),
+                    value: Number(payload[0].value).toLocaleString('en-US'),
                   },
                 ]}
               />

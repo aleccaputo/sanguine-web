@@ -1,6 +1,7 @@
 import { Link } from '@remix-run/react';
 import { Box, Text } from '@radix-ui/themes';
-import dayjs from 'dayjs';
+import { useLocalDayjs } from '~/utils/dayjs';
+import { LocalDate } from '~/components/LocalDate';
 
 export interface IClogUnlockTile {
   key: string;
@@ -22,6 +23,7 @@ interface IClogUnlockStripProps {
  * their own container so the page never scrolls sideways.
  */
 export function ClogUnlockStrip({ title, unlocks }: IClogUnlockStripProps) {
+  const day = useLocalDayjs();
   return (
     <Box mb="6">
       <Text as="p" size="2" className="text-gray-500">
@@ -57,15 +59,13 @@ export function ClogUnlockStrip({ title, unlocks }: IClogUnlockStripProps) {
                 {unlock.player.name}
               </Text>
               <Text as="div" size="1" className="text-gray-600">
-                {dayjs(unlock.date).format('MMM D')}
+                <LocalDate date={unlock.date} format="MMM D" />
               </Text>
             </>
           );
           const tileClass =
             'group w-28 shrink-0 snap-start rounded-sm px-2 py-2 text-center';
-          const tileTitle = `${unlock.name} · ${unlock.player.name} · ${dayjs(
-            unlock.date,
-          ).format('MMM D, YYYY')}`;
+          const tileTitle = `${unlock.name} · ${unlock.player.name} · ${day(unlock.date).format('MMM D, YYYY')}`;
           return unlock.player.discordId ? (
             <Link
               key={unlock.key}

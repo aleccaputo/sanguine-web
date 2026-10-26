@@ -1,6 +1,6 @@
+import type { ReactNode } from 'react';
 import { json, MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData, useNavigate } from '@remix-run/react';
-import dayjs from 'dayjs';
 import { Box, Container, Flex, Table, Text } from '@radix-ui/themes';
 import { getBountyBoard, IBounty } from '~/services/bounty-service.server';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
@@ -25,6 +25,7 @@ import {
   slotsRemaining,
 } from '~/utils/bounty';
 import { usePagination } from '~/utils/use-pagination';
+import { LocalDate } from '~/components/LocalDate';
 
 export const meta: MetaFunction = () => {
   return [
@@ -84,7 +85,7 @@ interface IHunterRow {
 }
 
 /** The card's state line, with the date it refers to formatted for the page. */
-const stateLine = (bounty: IBounty): string => {
+const stateLine = (bounty: IBounty): ReactNode => {
   const { label, dateKey } = describeBountyState({
     status: bounty.status,
     maxWinners: bounty.maxWinners,
@@ -93,7 +94,13 @@ const stateLine = (bounty: IBounty): string => {
     closedAt: bounty.closedAt,
   });
   const date = dateKey ? bounty[dateKey] : null;
-  return date ? `${label} ${dayjs(date).format('MMM D, YYYY')}` : label;
+  return date ? (
+    <>
+      {label} <LocalDate date={date} format="MMM D, YYYY" />
+    </>
+  ) : (
+    label
+  );
 };
 
 export default function Bounties() {
@@ -165,7 +172,7 @@ export default function Bounties() {
           iconSrc: fetchRankImage(row.role),
           iconAlt: rankLabel(row.role),
           label: row.name,
-          value: row.wins.toLocaleString(),
+          value: row.wins.toLocaleString('en-US'),
           onClick: row.isMember
             ? () => navigateToUser(row.discordId, row.isMember)
             : undefined,
@@ -183,7 +190,7 @@ export default function Bounties() {
           iconSrc: fetchRankImage(row.role),
           iconAlt: rankLabel(row.role),
           label: row.name,
-          value: row.clanPoints.toLocaleString(),
+          value: row.clanPoints.toLocaleString('en-US'),
           onClick: row.isMember
             ? () => navigateToUser(row.discordId, row.isMember)
             : undefined,
@@ -225,7 +232,7 @@ export default function Bounties() {
                   </span>{' '}
                   {hunters.length === 1 ? 'member' : 'members'} worth{' '}
                   <span className="font-semibold text-osrs-gold">
-                    {totalClanPoints.toLocaleString()}
+                    {totalClanPoints.toLocaleString('en-US')}
                   </span>{' '}
                   clan points
                 </>
@@ -335,7 +342,8 @@ export default function Bounties() {
                           size="2"
                           className="shrink-0 whitespace-nowrap text-gray-400"
                         >
-                          posted {dayjs(bounty.postedAt).format('MMM D')}
+                          posted{' '}
+                          <LocalDate date={bounty.postedAt} format="MMM D" />
                         </Text>
                       </Flex>
                     );
@@ -403,9 +411,10 @@ export default function Bounties() {
                                     {bounty.bossDisplayName}
                                   </Text>
                                   <Text size="2" className="text-gray-500">
-                                    {dayjs(bounty.postedAt).format(
-                                      'MMM D, YYYY',
-                                    )}
+                                    <LocalDate
+                                      date={bounty.postedAt}
+                                      format="MMM D, YYYY"
+                                    />
                                     {bounty.maxWinners > 1 &&
                                       ` · first ${bounty.maxWinners}`}
                                   </Text>
@@ -444,7 +453,9 @@ export default function Bounties() {
                                         {claim.itemValue > 0 && (
                                           <span className="ml-1 whitespace-nowrap text-osrs-gold">
                                             <CoinsIcon />{' '}
-                                            {claim.itemValue.toLocaleString()}
+                                            {claim.itemValue.toLocaleString(
+                                              'en-US',
+                                            )}
                                           </span>
                                         )}
                                       </Text>

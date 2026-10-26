@@ -1,11 +1,12 @@
 import { defer, MetaFunction, SerializeFrom } from '@remix-run/node';
 import { useLoaderData, useNavigate } from '@remix-run/react';
 import { useState } from 'react';
-import dayjs from 'dayjs';
+import dayjs from '~/utils/dayjs';
 import {
   getUsersWithNicknames,
   ISanguineUserWithNickname,
 } from '~/services/sanguine-service.server';
+import { LocalDate } from '~/components/LocalDate';
 
 import { Box, Flex, Text, Container, Select } from '@radix-ui/themes';
 
@@ -120,7 +121,7 @@ export default function Index() {
           iconSrc: fetchRankImage(rank),
           iconAlt: rankLabel(rank),
           label: user.nickname ?? '',
-          value: user.clanPoints.toLocaleString(),
+          value: user.clanPoints.toLocaleString('en-US'),
           onClick: () => navigateToUser(user.discordId),
         })),
     },
@@ -136,7 +137,7 @@ export default function Index() {
           iconSrc: fetchRankImage(rank),
           iconAlt: rankLabel(rank),
           label: user.nickname ?? '',
-          value: user.points.toLocaleString(),
+          value: user.points.toLocaleString('en-US'),
           onClick: () => navigateToUser(user.discordId),
         })),
     },
@@ -230,8 +231,11 @@ export default function Index() {
   };
 
   const formatJoined = (joined: string) => {
-    const date = dayjs(joined);
-    return date.isValid() ? date.format('MMM YYYY') : '—';
+    return dayjs(joined).isValid() ? (
+      <LocalDate date={joined} format="MMM YYYY" />
+    ) : (
+      '—'
+    );
   };
 
   // Right-aligned columns put the sort arrow before the label so the label's right
@@ -276,11 +280,11 @@ export default function Index() {
           </span>{' '}
           members holding{' '}
           <span className="font-semibold text-white">
-            {totalDropPoints.toLocaleString()}
+            {totalDropPoints.toLocaleString('en-US')}
           </span>{' '}
           drop points and{' '}
           <span className="font-semibold text-osrs-gold">
-            {totalClanPoints.toLocaleString()}
+            {totalClanPoints.toLocaleString('en-US')}
           </span>{' '}
           clan points
         </PageHeader>
@@ -381,7 +385,7 @@ export default function Index() {
                     user.points === 0 ? 'text-gray-600' : 'text-white'
                   }`}
                 >
-                  {user.points.toLocaleString()}
+                  {user.points.toLocaleString('en-US')}
                 </Text>
                 <Text
                   as="div"
@@ -389,7 +393,7 @@ export default function Index() {
                     user.clanPoints === 0 ? 'text-gray-600' : 'text-osrs-gold'
                   }`}
                 >
-                  {user.clanPoints.toLocaleString()}
+                  {user.clanPoints.toLocaleString('en-US')}
                 </Text>
               </div>
             ))

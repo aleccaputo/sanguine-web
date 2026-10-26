@@ -11,7 +11,7 @@ import { getAuditDataForDateRange } from '~/data/points-audit';
 import { getAllUserAlts } from '~/data/user';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service.server';
 import type { OSRSItem } from '~/utils/osrs-item';
-import dayjs from 'dayjs';
+import { useLocalDayjs } from '~/utils/dayjs';
 import { useState, useMemo } from 'react';
 import {
   CartesianGrid,
@@ -42,6 +42,7 @@ import { rankBadge } from '~/components/PbTeam';
 import { buildAltsByDiscordId } from '~/utils/account-matching';
 import { EVENTS_EXCLUDED_DISCORD_IDS } from '~/utils/events-config';
 import { proseLinkClass, zebraRowClass } from '~/utils/styles';
+import { LocalDate } from '~/components/LocalDate';
 
 interface ParticipantInfo {
   participantKey: string;
@@ -172,13 +173,9 @@ const CHART_COLORS = [
   '#B86858', // salmon
 ];
 
-const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
+const formatDate = (dateString: string) => (
+  <LocalDate date={dateString} format="MMM D, YYYY" />
+);
 
 /**
  * Given an audit record's discordId and osrsName, find which participant entry it belongs to.
@@ -331,10 +328,11 @@ const EventById = () => {
 
   // Build cumulative chart data: pre-group audit by (discordId, unit) in O(A),
   // then accumulate running totals in O(P×U) instead of O(P×U²)
+  const day = useLocalDayjs();
   const { cumulativeData, useHourly } = useMemo(() => {
-    const startDate = dayjs(data.compDetails.startsAt);
-    const endDate = dayjs(data.compDetails.endsAt);
-    const chartEndDate = endDate.isBefore(dayjs()) ? endDate : dayjs();
+    const startDate = day(data.compDetails.startsAt);
+    const endDate = day(data.compDetails.endsAt);
+    const chartEndDate = endDate.isBefore(day()) ? endDate : day();
     const days = Math.max(0, chartEndDate.diff(startDate, 'days') + 1);
     const hourly = days <= 2;
     const chartUnits = hourly
@@ -358,8 +356,8 @@ const EventById = () => {
         if (!pKey) return map;
 
         const unitKey = hourly
-          ? dayjs(audit.createdAt).format('DD/MM/YYYY HH')
-          : dayjs(audit.createdAt).format('DD/MM/YYYY');
+          ? day(audit.createdAt).format('DD/MM/YYYY HH')
+          : day(audit.createdAt).format('DD/MM/YYYY');
         const compositeKey = `${pKey}:${unitKey}`;
         return map.set(
           compositeKey,
@@ -396,7 +394,7 @@ const EventById = () => {
     });
 
     return { cumulativeData: cumulativeDataArr, useHourly: hourly };
-  }, [data, participantMap, altKeyLookup, metric, compMetric]);
+  }, [data, participantMap, altKeyLookup, metric, compMetric, day]);
 
   // Pre-compute per-participant event points once for spoon stats and leaderboard
   const participantPoints = useMemo(() => {
@@ -610,7 +608,7 @@ const EventById = () => {
             )}
             {totalEventPoints > 0 && (
               <InfoboxRow label="Drop points" valueClassName="text-white">
-                {totalEventPoints.toLocaleString()}
+                {totalEventPoints.toLocaleString('en-US')}
               </InfoboxRow>
             )}
             <InfoboxRow label="Tracked on">
@@ -652,7 +650,7 @@ const EventById = () => {
                   <>
                     , producing{' '}
                     <span className="text-white">
-                      {totalEventPoints.toLocaleString()} drop points
+                      {totalEventPoints.toLocaleString('en-US')} drop points
                     </span>{' '}
                     so far
                   </>
@@ -673,7 +671,7 @@ const EventById = () => {
                   />{' '}
                   leads the board with{' '}
                   <span className="text-white">
-                    {pointsLeader.totalPoints.toLocaleString()} points
+                    {pointsLeader.totalPoints.toLocaleString('en-US')} points
                   </span>
                   .
                 </>
@@ -1008,7 +1006,7 @@ const EventById = () => {
                       size="2"
                       className="text-right tabular-nums text-gray-200"
                     >
-                      {participant.gained.toLocaleString()}
+                      {participant.gained.toLocaleString('en-US')}
                     </Text>
                     <Text
                       as="div"
@@ -1018,7 +1016,7 @@ const EventById = () => {
                           : 'text-white'
                       }`}
                     >
-                      {participant.totalPoints.toLocaleString()}
+                      {participant.totalPoints.toLocaleString('en-US')}
                     </Text>
                   </div>
                 ))}

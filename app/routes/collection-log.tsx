@@ -1,7 +1,6 @@
 import { json, MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData, useNavigate } from '@remix-run/react';
 import { useState } from 'react';
-import dayjs from 'dayjs';
 import { Box, Container, Flex, Select, Text } from '@radix-ui/themes';
 import { getRsnMemberBridge } from '~/services/member-lookup.server';
 import {
@@ -36,6 +35,7 @@ import {
 } from '~/utils/collection-log';
 import { resolveClogItemData } from '~/utils/collection-log.server';
 import { useSelectGhostClickGuard } from '~/utils/use-select-ghost-click';
+import { LocalDate } from '~/components/LocalDate';
 
 type SortField = 'slots' | 'categories' | 'name' | 'lastSynced';
 type SortDirection = 'asc' | 'desc';
@@ -262,7 +262,7 @@ export default function CollectionLog() {
         iconSrc: fetchRankImage(member.role ?? 'Guest'),
         iconAlt: rankLabel(member.role ?? 'Guest'),
         label: member.name,
-        value: value(member).toLocaleString(),
+        value: value(member).toLocaleString('en-US'),
         onClick: member.discordId
           ? () => navigateToUser(member.discordId)
           : undefined,
@@ -348,11 +348,11 @@ export default function CollectionLog() {
           </a>
           . Between them the clan has filled{' '}
           <span className="font-semibold text-white">
-            {slotsOwned.toLocaleString()}
+            {slotsOwned.toLocaleString('en-US')}
           </span>{' '}
           of the log&apos;s{' '}
           <span className="font-semibold text-white">
-            {slotsTotal.toLocaleString()}
+            {slotsTotal.toLocaleString('en-US')}
           </span>{' '}
           slots
           {coverageGroups.length > 0 && (
@@ -464,7 +464,7 @@ export default function CollectionLog() {
                     </Box>
                   </Flex>
                   <Text as="div" className="text-right text-white">
-                    {member.slots.toLocaleString()}
+                    {member.slots.toLocaleString('en-US')}
                   </Text>
                   <Text
                     as="div"
@@ -479,7 +479,7 @@ export default function CollectionLog() {
                     size="2"
                     className="hidden text-right tabular-nums text-gray-400 md:block"
                   >
-                    {dayjs(member.lastSynced).format('MMM D, YYYY')}
+                    <LocalDate date={member.lastSynced} format="MMM D, YYYY" />
                   </Text>
                 </div>
               ))}

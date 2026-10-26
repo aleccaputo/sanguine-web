@@ -1,7 +1,6 @@
 import { json, MetaFunction } from '@remix-run/node';
 import { Link, useLoaderData, useNavigate } from '@remix-run/react';
 import { useState } from 'react';
-import dayjs from 'dayjs';
 import { Box, Container, Flex, Text } from '@radix-ui/themes';
 import { getSlayerLog } from '~/services/slayer-service.server';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
@@ -21,6 +20,7 @@ import {
 } from '~/utils/styles';
 import { formatGp, SLAYER_ICON, WHEEL_MODE } from '~/utils/slayer';
 import { usePagination } from '~/utils/use-pagination';
+import { LocalDate } from '~/components/LocalDate';
 
 type SortField = 'tasks' | 'name' | 'clanPoints' | 'bonusPoints' | 'loot';
 type SortDirection = 'asc' | 'desc';
@@ -190,7 +190,7 @@ export default function Slayer() {
           iconSrc: fetchRankImage(row.role),
           iconAlt: rankLabel(row.role),
           label: row.name,
-          value: row.tasks.toLocaleString(),
+          value: row.tasks.toLocaleString('en-US'),
           onClick: row.isMember
             ? () => navigateToUser(row.discordId, row.isMember)
             : undefined,
@@ -275,14 +275,14 @@ export default function Slayer() {
               </span>{' '}
               members have finished{' '}
               <span className="font-semibold text-white">
-                {totalTasks.toLocaleString()}
+                {totalTasks.toLocaleString('en-US')}
               </span>{' '}
               {totalTasks === 1 ? 'task' : 'tasks'} between them
               {totalClanPoints > 0 && (
                 <>
                   {', worth '}
                   <span className="font-semibold text-osrs-gold">
-                    {totalClanPoints.toLocaleString()}
+                    {totalClanPoints.toLocaleString('en-US')}
                   </span>{' '}
                   clan points
                 </>
@@ -291,7 +291,7 @@ export default function Slayer() {
                 <>
                   {' and '}
                   <span className="font-semibold text-osrs-gold">
-                    {totalLoot.toLocaleString()} gp
+                    {totalLoot.toLocaleString('en-US')} gp
                   </span>{' '}
                   of loot
                 </>
@@ -317,8 +317,8 @@ export default function Slayer() {
               The <span className="text-sanguine-bright">
                 {liveWheel.name}
               </span>{' '}
-              competition runs until {dayjs(liveWheel.endDate).format('MMMM D')}
-              , paying{' '}
+              competition runs until{' '}
+              <LocalDate date={liveWheel.endDate} format="MMMM D" />, paying{' '}
               <span className="text-white">{liveWheel.multiplier}x</span> drop
               points on task drops.
             </>
@@ -439,7 +439,7 @@ export default function Slayer() {
                               : 'text-white'
                           }`}
                         >
-                          {row.bonusPoints.toLocaleString()}
+                          {row.bonusPoints.toLocaleString('en-US')}
                         </Text>
                       )}
                       <Text
@@ -450,7 +450,7 @@ export default function Slayer() {
                             : 'text-osrs-gold'
                         }`}
                       >
-                        {row.clanPoints.toLocaleString()}
+                        {row.clanPoints.toLocaleString('en-US')}
                       </Text>
                       <Text
                         as="div"
@@ -537,9 +537,10 @@ export default function Slayer() {
                               size="2"
                               className="whitespace-nowrap text-gray-400"
                             >
-                              {dayjs(completion.completedAt).format(
-                                'MMM D, YYYY',
-                              )}
+                              <LocalDate
+                                date={completion.completedAt}
+                                format="MMM D, YYYY"
+                              />
                             </Text>
                             {completion.itemValue > 0 && (
                               <Text
@@ -548,7 +549,7 @@ export default function Slayer() {
                                 className="whitespace-nowrap text-osrs-gold"
                               >
                                 <CoinsIcon />{' '}
-                                {completion.itemValue.toLocaleString()}
+                                {completion.itemValue.toLocaleString('en-US')}
                               </Text>
                             )}
                             {completion.clanPoints > 0 && (
@@ -657,11 +658,11 @@ export default function Slayer() {
                   {' '}
                   So far the Slayer Master has handed out{' '}
                   <span className="text-white">
-                    {tasksAssigned.toLocaleString()}
+                    {tasksAssigned.toLocaleString('en-US')}
                   </span>{' '}
                   tasks, of which{' '}
                   <span className="text-white">
-                    {tasksAbandoned.toLocaleString()}
+                    {tasksAbandoned.toLocaleString('en-US')}
                   </span>{' '}
                   were skipped or respun.
                 </>

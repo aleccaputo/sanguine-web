@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import dayjs from 'dayjs';
+import dayjs from '~/utils/dayjs';
 import { useMemo, useState } from 'react';
 import { getAllClanDrops } from '~/data/points-audit';
 import {
@@ -320,15 +320,15 @@ export default function DropStats() {
           iconSrc="https://oldschool.runescape.wiki/images/Coins_detail.png"
         >
           <span className="font-semibold text-white">
-            {totals.totalDrops.toLocaleString()}
+            {totals.totalDrops.toLocaleString('en-US')}
           </span>{' '}
           drops over {periodPhrase}, worth <CoinsIcon />{' '}
           <span className="font-semibold text-osrs-gold">
-            {totals.totalGP.toLocaleString()}
+            {totals.totalGP.toLocaleString('en-US')}
           </span>{' '}
           gp for{' '}
           <span className="font-semibold text-white">
-            {totals.totalPoints.toLocaleString()}
+            {totals.totalPoints.toLocaleString('en-US')}
           </span>{' '}
           drop points
         </PageHeader>
@@ -469,13 +469,13 @@ export default function DropStats() {
                             align="right"
                             className="hidden tabular-nums text-gray-200 sm:table-cell"
                           >
-                            {boss.dropCount.toLocaleString()}
+                            {boss.dropCount.toLocaleString('en-US')}
                           </Table.Cell>
                           <Table.Cell
                             align="right"
                             className="tabular-nums text-osrs-gold"
                           >
-                            {boss.totalGP.toLocaleString()}
+                            {boss.totalGP.toLocaleString('en-US')}
                           </Table.Cell>
                         </Table.Row>
                       ))}
@@ -545,7 +545,7 @@ export default function DropStats() {
                             align="right"
                             className="tabular-nums text-gray-200"
                           >
-                            {item.count.toLocaleString()}
+                            {item.count.toLocaleString('en-US')}
                           </Table.Cell>
                         </Table.Row>
                       ))}
@@ -635,13 +635,13 @@ export default function DropStats() {
                             align="right"
                             className="hidden tabular-nums text-osrs-gold sm:table-cell"
                           >
-                            {(item.osrsData.price ?? 0).toLocaleString()}
+                            {(item.osrsData.price ?? 0).toLocaleString('en-US')}
                           </Table.Cell>
                           <Table.Cell
                             align="right"
                             className="tabular-nums text-osrs-gold"
                           >
-                            {item.totalGP.toLocaleString()}
+                            {item.totalGP.toLocaleString('en-US')}
                           </Table.Cell>
                           <Table.Cell className="hidden md:table-cell">
                             <Flex direction="column" gap="1">
@@ -787,19 +787,19 @@ export default function DropStats() {
                             align="right"
                             className="hidden tabular-nums text-gray-200 sm:table-cell"
                           >
-                            {member.dropCount.toLocaleString()}
+                            {member.dropCount.toLocaleString('en-US')}
                           </Table.Cell>
                           <Table.Cell
                             align="right"
                             className="tabular-nums text-osrs-gold"
                           >
-                            {member.totalGP.toLocaleString()}
+                            {member.totalGP.toLocaleString('en-US')}
                           </Table.Cell>
                           <Table.Cell
                             align="right"
                             className="hidden tabular-nums text-white sm:table-cell"
                           >
-                            {member.totalPoints.toLocaleString()}
+                            {member.totalPoints.toLocaleString('en-US')}
                           </Table.Cell>
                         </Table.Row>
                       ))}

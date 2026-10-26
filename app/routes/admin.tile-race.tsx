@@ -13,7 +13,7 @@ import {
   useNavigation,
 } from '@remix-run/react';
 import { useEffect, useMemo, useState } from 'react';
-import dayjs from 'dayjs';
+import dayjs from '~/utils/dayjs';
 import { Box, Flex, Select, Table, Text } from '@radix-ui/themes';
 import { Button } from '~/components/button';
 import { requireStaff } from '~/services/auth.server';
@@ -62,6 +62,7 @@ import {
 import { SectionHeading } from '~/components/SectionHeading';
 import { EmptyState } from '~/components/EmptyState';
 import { zebraStripeClass } from '~/utils/styles';
+import { LocalDate } from '~/components/LocalDate';
 
 export const meta: MetaFunction = () => [{ title: 'Tile Race | Events Admin' }];
 
@@ -684,7 +685,7 @@ function RaceDashboard({
             <>
               Runs through{' '}
               <span className="text-gray-100">
-                {dayjs(event.endDate).format('MMM D, YYYY')}
+                <LocalDate date={event.endDate} format="MMM D, YYYY" />
               </span>
               .
             </>
