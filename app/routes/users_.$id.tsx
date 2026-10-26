@@ -1,8 +1,10 @@
 import { json, LoaderFunctionArgs, MetaFunction } from '@remix-run/node';
 import {
+  isRouteErrorResponse,
   Link,
   ShouldRevalidateFunction,
   useLoaderData,
+  useRouteError,
 } from '@remix-run/react';
 import { Box, Container, Flex, Table, Text } from '@radix-ui/themes';
 import {
@@ -113,6 +115,10 @@ export async function loader({ params }: LoaderFunctionArgs) {
     getBountyRecordForDiscordId(discordId),
     getGroupCollectionLog().catch(() => null),
   ]);
+  // Unknown ids (stale links, placeholder URLs like /users/YOUR_ID) are a 404, not a crash.
+  if (!user) {
+    throw new Response(`No member with id "${discordId}"`, { status: 404 });
+  }
 
   // Clan-bucket audit rows (raid payouts, manual clan adjustments, post-cutover competition
   // rewards) belong to the clan-points total shown in the header, not the drop-point history
@@ -2030,6 +2036,27 @@ export default function UserById() {
         primaryLabel={isGuest ? 'Sanguine guests' : 'Sanguine members'}
         categories={categories}
       />
+    </Container>
+  );
+}
+
+/** A missing member reads as a missing wiki article; anything else bubbles to the root boundary. */
+export function ErrorBoundary() {
+  const error = useRouteError();
+  if (!isRouteErrorResponse(error) || error.status !== 404) {
+    throw error;
+  }
+  return (
+    <Container size="4" mt="3" pb="6">
+      <ArticleTitle title="No such member" />
+      <Text as="p" size="3" className="mt-4 text-gray-400">
+        The records of Sanguine hold no member by that id. Nothing interesting
+        happens. Try the{' '}
+        <Link to="/users" className={proseLinkClass}>
+          member hiscores
+        </Link>{' '}
+        instead.
+      </Text>
     </Container>
   );
 }

@@ -39,8 +39,11 @@ export const getUsersWithNicknames = async (): Promise<
 
 export const getUserWithNickname = async (
   id: string,
-): Promise<ISanguineUserWithNickname> => {
+): Promise<ISanguineUserWithNickname | null> => {
   const user = await getUserById(id);
+  if (!user) {
+    return null;
+  }
   const nicknameData = await getNicknameById(id);
   if (!nicknameData?.nickname) {
     return { ...user };
