@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { OSRSItem } from '~/services/osrs-wiki-prices-service';
+import type { OSRSItem } from '~/utils/osrs-item';
 import { EVENTS_EXCLUDED_DISCORD_IDS } from '~/utils/events-config';
 
 type DropRecord = {

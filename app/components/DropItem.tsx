@@ -1,7 +1,7 @@
 import { Link } from '@remix-run/react';
 import { Box, Flex, Text } from '@radix-ui/themes';
 import dayjs from 'dayjs';
-import { OSRSItem } from '~/services/osrs-wiki-prices-service';
+import type { OSRSItem } from '~/utils/osrs-item';
 
 interface DropItemProps {
   item: {

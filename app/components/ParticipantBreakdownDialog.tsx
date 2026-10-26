@@ -14,7 +14,7 @@ import {
 import { DropItem } from './DropItem';
 import { EmptyState } from './EmptyState';
 import { SectionHeading } from './SectionHeading';
-import type { OSRSItem } from '~/services/osrs-wiki-prices-service';
+import type { OSRSItem } from '~/utils/osrs-item';
 
 type BreakdownDrop = {
   id: string;

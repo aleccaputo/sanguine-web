@@ -1,6 +1,6 @@
 import { json, LoaderFunctionArgs } from '@remix-run/node';
 import { requireStaff } from '~/services/auth.server';
-import { searchItems } from '~/services/osrs-wiki-prices-service';
+import { searchItems } from '~/services/osrs-wiki-prices-service.server';
 import {
   ITileImageOption,
   searchBossImages,

@@ -18,10 +18,10 @@ import {
   COLLECTION_LOG_ICON,
   formatCategoryName,
   normalizeRsn,
-  resolveClogItemData,
   type ITempleClogCategories,
   type TempleClogCategoryGroup,
 } from '~/utils/collection-log';
+import { resolveClogItemData } from '~/utils/collection-log.server';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   const name = data?.categoryName ?? 'Category';

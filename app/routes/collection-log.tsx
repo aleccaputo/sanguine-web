@@ -32,9 +32,9 @@ import {
   COLLECTION_LOG_ICON,
   formatCategoryName,
   normalizeRsn,
-  resolveClogItemData,
   type ITempleClogCategories,
 } from '~/utils/collection-log';
+import { resolveClogItemData } from '~/utils/collection-log.server';
 import { useSelectGhostClickGuard } from '~/utils/use-select-ghost-click';
 
 type SortField = 'slots' | 'categories' | 'name' | 'lastSynced';

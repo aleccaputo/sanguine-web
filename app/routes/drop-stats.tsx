@@ -22,7 +22,8 @@ import {
   getMostValuableItems,
 } from '~/data/points-audit/stats';
 import { getAllUserAlts } from '~/data/user';
-import { fetchOSRSItem, OSRSItem } from '~/services/osrs-wiki-prices-service';
+import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service.server';
+import type { OSRSItem } from '~/utils/osrs-item';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import {
   buildAltsByDiscordId,

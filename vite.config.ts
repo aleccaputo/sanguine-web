@@ -20,8 +20,8 @@ const mockAliases = mockMode
         './app/mocks/wom-api-service.server.ts',
       ),
       mockAlias(
-        '~/services/osrs-wiki-prices-service',
-        './app/mocks/osrs-wiki-prices-service.ts',
+        '~/services/osrs-wiki-prices-service.server',
+        './app/mocks/osrs-wiki-prices-service.server.ts',
       ),
       mockAlias(
         '~/services/temple-api-service.server',

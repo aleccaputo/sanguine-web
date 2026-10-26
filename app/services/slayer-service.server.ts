@@ -7,7 +7,7 @@ import {
   getWheelConfigs,
   SPIN_STATUS,
 } from '~/data/slayer';
-import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service';
+import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service.server';
 import { getSlayerBossImageUrl, WHEEL_MODE } from '~/utils/slayer';
 
 // Sanguine Slayer: the Slayer Master assigns a random boss task, and a point-worthy drop from

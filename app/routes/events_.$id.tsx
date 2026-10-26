@@ -9,10 +9,8 @@ import { Response } from '@remix-run/web-fetch';
 import { getUsersWithNicknames } from '~/services/sanguine-service.server';
 import { getAuditDataForDateRange } from '~/data/points-audit';
 import { getAllUserAlts } from '~/data/user';
-import {
-  fetchOSRSItem,
-  type OSRSItem,
-} from '~/services/osrs-wiki-prices-service';
+import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service.server';
+import type { OSRSItem } from '~/utils/osrs-item';
 import dayjs from 'dayjs';
 import { useState, useMemo } from 'react';
 import {

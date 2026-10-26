@@ -3,12 +3,12 @@ import { toTitleCase } from '~/utils/string-helpers';
 import { createLogger } from '~/utils/logger.server';
 import { httpError, trackOutbound } from '~/utils/outbound.server';
 
-export interface OSRSItem {
-  id: number;
-  name: string;
-  icon: string;
-  price?: number; // GE price for tradeable items
-}
+import { wikiItemIconUrl, type OSRSItem } from '~/utils/osrs-item';
+
+// Re-exported so server-side importers can keep a single import; client code
+// must import these from `~/utils/osrs-item` directly.
+export { wikiItemIconUrl };
+export type { OSRSItem };
 
 interface PricesResponseData {
   data: {
@@ -70,24 +70,6 @@ let mappingCache: {
   timestamp: number;
 } = { data: null, timestamp: 0 };
 let mappingFetchPromise: Promise<Record<number, MappingItem>> | null = null;
-
-/**
- * Formats an item name for use in a Wiki image URL
- * Example: "staff of the dead" -> "Staff_of_the_dead"
- */
-function formatItemNameForWiki(name: string): string {
-  return name
-    .split(' ')
-    .map((word, index) =>
-      index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word,
-    )
-    .join('_');
-}
-
-/** Detail-image URL on the OSRS Wiki for an item name. */
-export function wikiItemIconUrl(name: string): string {
-  return `https://oldschool.runescape.wiki/images/${formatItemNameForWiki(name)}_detail.png`;
-}
 
 /**
  * Fetches the full item mapping from the OSRS Wiki (id → name)
