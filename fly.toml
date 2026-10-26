@@ -11,7 +11,10 @@ primary_region = 'dfw'
 [http_service]
   internal_port = 3000
   force_https = true
-  auto_stop_machines = true
+  # Suspend (not stop) when idle: the memory snapshot keeps the in-process
+  # upstream caches (WOM, Temple, wiki) alive, so a wake-up serves them while
+  # refreshing in the background instead of refetching everything cold.
+  auto_stop_machines = "suspend"
   auto_start_machines = true
   min_machines_running = 0
   [http_service.concurrency]

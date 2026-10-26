@@ -67,6 +67,9 @@ const fetchTempleJson = <T>(path: string): Promise<T> =>
 const GROUP_CLOG_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes (~165KB payload)
 const RECENT_ITEMS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const STATIC_LIST_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+// How long an expired clog read is still served instantly while a background refetch runs.
+// Profiles see a few views an hour at most, so without it nearly every view waits on Temple.
+const REVALIDATE_IN_BACKGROUND_MS = 24 * 60 * 60 * 1000;
 
 const groupClogFetcher = createCachedFetcher(
   'templeGroupClog',
@@ -74,7 +77,10 @@ const groupClogFetcher = createCachedFetcher(
     fetchTempleJson<{ data: ITempleGroupClog }>(
       `/collection-log/group_collection_log.php?group=${templeGroupId}&categories=all`,
     ).then(body => body.data),
-  { ttlMs: GROUP_CLOG_CACHE_DURATION },
+  {
+    ttlMs: GROUP_CLOG_CACHE_DURATION,
+    revalidateInBackgroundMs: REVALIDATE_IN_BACKGROUND_MS,
+  },
 );
 
 /** Every synced member's owned item ids plus per-member log totals. */
@@ -87,7 +93,10 @@ const groupRecentItemsFetcher = createCachedFetcher(
     fetchTempleJson<{ data: ITempleGroupRecentItem[] }>(
       `/collection-log/group_recent_items.php?group=${templeGroupId}&count=30&onlynotable=1`,
     ).then(body => body.data),
-  { ttlMs: RECENT_ITEMS_CACHE_DURATION },
+  {
+    ttlMs: RECENT_ITEMS_CACHE_DURATION,
+    revalidateInBackgroundMs: REVALIDATE_IN_BACKGROUND_MS,
+  },
 );
 
 /** The clan's most recent notable unlocks (pets, rare clue items, …). */
@@ -101,7 +110,10 @@ const playerRecentItemsFetcher = createCachedFetcher(
     fetchTempleJson<{ data: ITempleRecentItem[] }>(
       `/collection-log/player_recent_items.php?player=${encodeURIComponent(player)}&count=25`,
     ).then(body => body.data),
-  { ttlMs: RECENT_ITEMS_CACHE_DURATION },
+  {
+    ttlMs: RECENT_ITEMS_CACHE_DURATION,
+    revalidateInBackgroundMs: REVALIDATE_IN_BACKGROUND_MS,
+  },
 );
 
 /**

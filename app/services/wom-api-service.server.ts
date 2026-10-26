@@ -41,6 +41,10 @@ const COMPETITION_SETTLED_TTL_MS = 24 * 60 * 60 * 1000;
 // landed); only title/metric edits would show, and a day's lag on those is fine.
 const COMPETITION_SETTLE_MS = 24 * 60 * 60 * 1000;
 const GROUP_DETAILS_TTL_MS = 10 * 60 * 1000;
+// Group-level reads sit on page-view paths (profiles, listings) that see a few views an hour:
+// past its TTL a value is still served instantly for this long while a background refetch
+// runs, so the TTL bounds WOM call volume without every view paying for the round trip.
+const REVALIDATE_IN_BACKGROUND_MS = 24 * 60 * 60 * 1000;
 
 const competitionListFetcher = createCachedFetcher(
   'womCompetitions',
@@ -49,7 +53,10 @@ const competitionListFetcher = createCachedFetcher(
     trackOutbound('wom', 'getGroupCompetitions', () =>
       client.groups.getGroupCompetitions(groupId),
     ),
-  { ttlMs: COMPETITION_LIST_TTL_MS },
+  {
+    ttlMs: COMPETITION_LIST_TTL_MS,
+    revalidateInBackgroundMs: REVALIDATE_IN_BACKGROUND_MS,
+  },
 );
 
 /**
@@ -113,7 +120,10 @@ const groupMembershipsFetcher = createCachedFetcher(
     trackOutbound('wom', 'getGroupDetails', () =>
       client.groups.getGroupDetails(Number(id)),
     ).then(group => group.memberships),
-  { ttlMs: GROUP_DETAILS_TTL_MS },
+  {
+    ttlMs: GROUP_DETAILS_TTL_MS,
+    revalidateInBackgroundMs: REVALIDATE_IN_BACKGROUND_MS,
+  },
 );
 
 /** Every membership (with player) in the clan's WOM group. */

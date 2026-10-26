@@ -8,7 +8,7 @@ interface ICacheEntry<T> {
   fetchedAt: number;
   /** Fresh until here; after it the next read refetches. */
   expiresAt: number;
-  /** Servable as a fallback until here when a refetch fails. */
+  /** Servable as a fallback (or while revalidating) until here. */
   staleUntil: number;
   /**
    * Set when a refetch failed: the stale value is served without touching the
@@ -21,6 +21,12 @@ interface ICacheEntry<T> {
 interface ICacheStore<T> {
   entries: Map<string, ICacheEntry<T>>;
   inflight: Map<string, Promise<T>>;
+}
+
+/** A failed read with nothing stale to fall back on, replayed until `retryAt`. */
+interface ICachedFailure {
+  error: unknown;
+  retryAt: number;
 }
 
 export interface ICachedFetcherOptions<T> {
@@ -36,7 +42,17 @@ export interface ICachedFetcherOptions<T> {
    * error is finally surfaced. Defaults to one hour.
    */
   staleOnErrorMs?: number;
-  /** How long to wait before retrying the upstream after a failed refetch. Default 30s. */
+  /**
+   * Serve an expired value immediately for this long past its expiry and refetch it in the
+   * background, so a page view never waits on the upstream once the key has been read before.
+   * At low traffic nearly every read lands after the TTL, so without this the TTL only bounds
+   * call volume, not latency. Defaults to 0 (an expired read waits for the refetch).
+   */
+  revalidateInBackgroundMs?: number;
+  /**
+   * How long to wait before retrying the upstream after a failed read: the stale value is
+   * served, or with none the same error is rethrown, without another call. Default 30s.
+   */
   retryAfterMs?: number;
   /** Upper bound on cached keys; the oldest are dropped first. Default 256. */
   maxEntries?: number;
@@ -88,32 +104,33 @@ export const createCachedFetcher = <T>(
   const staleOnErrorMs = options.staleOnErrorMs ?? DEFAULT_STALE_ON_ERROR_MS;
   const retryAfterMs = options.retryAfterMs ?? DEFAULT_RETRY_AFTER_MS;
   const maxEntries = options.maxEntries ?? DEFAULT_MAX_ENTRIES;
+  const revalidateInBackgroundMs = options.revalidateInBackgroundMs ?? 0;
   const store = remember(
     `cachedFetcher:${name}`,
     (): ICacheStore<T> => ({ entries: new Map(), inflight: new Map() }),
   );
+  const failures = remember(
+    `cachedFetcher:${name}:failures`,
+    () => new Map<string, ICachedFailure>(),
+  );
 
-  const read = (key: string): Promise<T> => {
-    const now = Date.now();
-    const cached = store.entries.get(key);
-    if (cached && (now < cached.expiresAt || now < cached.retryAt)) {
-      // Hits are logged so the dashboard can compute a hit rate per cache.
-      log.info({ kind: 'cache', name, key, result: 'hit' }, 'cache hit');
-      return Promise.resolve(cached.data);
-    }
+  const refetch = (key: string): Promise<T> => {
     const pending = store.inflight.get(key);
     if (pending) return pending;
 
+    const now = Date.now();
     const request = fetcher(key)
       .then(data => {
         const fetchedAt = Date.now();
         const expiresAt = fetchedAt + resolveTtl(options.ttlMs, data);
         prune(store.entries, key, fetchedAt, maxEntries);
+        failures.delete(key);
         store.entries.set(key, {
           data,
           fetchedAt,
           expiresAt,
-          staleUntil: expiresAt + staleOnErrorMs,
+          staleUntil:
+            expiresAt + Math.max(staleOnErrorMs, revalidateInBackgroundMs),
           retryAt: 0,
         });
         log.info(
@@ -143,6 +160,9 @@ export const createCachedFetcher = <T>(
           });
           return stale.data;
         }
+        // Nothing to fall back on: remember the failure so an unreachable upstream (a hung
+        // connection waiting out its timeout) costs one page view per interval, not every one.
+        failures.set(key, { error, retryAt: failedAt + retryAfterMs });
         throw error;
       })
       .finally(() => {
@@ -152,11 +172,40 @@ export const createCachedFetcher = <T>(
     return request;
   };
 
+  const read = (key: string): Promise<T> => {
+    const now = Date.now();
+    const cached = store.entries.get(key);
+    if (cached && (now < cached.expiresAt || now < cached.retryAt)) {
+      // Hits are logged so the dashboard can compute a hit rate per cache.
+      log.info({ kind: 'cache', name, key, result: 'hit' }, 'cache hit');
+      return Promise.resolve(cached.data);
+    }
+    if (cached && now < cached.expiresAt + revalidateInBackgroundMs) {
+      log.info(
+        { kind: 'cache', name, key, result: 'revalidate' },
+        'cache expired; serving stale value while refetching',
+      );
+      // A failed background refetch is already logged and recorded by refetch.
+      refetch(key).catch(() => undefined);
+      return Promise.resolve(cached.data);
+    }
+    const failure = failures.get(key);
+    if (failure && now < failure.retryAt) {
+      log.info(
+        { kind: 'cache', name, key, result: 'failed' },
+        'recent read failed; not retrying yet',
+      );
+      return Promise.reject(failure.error);
+    }
+    return refetch(key);
+  };
+
   return Object.assign(read, {
     /** Drop every cached value and in-flight request (tests). */
     clear: () => {
       store.entries.clear();
       store.inflight.clear();
+      failures.clear();
     },
   });
 };

@@ -105,18 +105,68 @@ describe('createCachedFetcher', () => {
     await expect(read('a')).rejects.toThrow('upstream down');
   });
 
-  it('does not cache a failed first read', async () => {
+  it('replays a failed first read until the retry interval passes', async () => {
     const fetcher = vi
       .fn<(key: string) => Promise<string>>()
       .mockRejectedValueOnce(new Error('upstream down'))
       .mockResolvedValueOnce('fresh');
     const read = createCachedFetcher('test-first-error', fetcher, {
       ttlMs: 1000,
+      retryAfterMs: 500,
     });
     read.clear();
 
     await expect(read('a')).rejects.toThrow('upstream down');
+    await expect(read('a')).rejects.toThrow('upstream down');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(501);
     expect(await read('a')).toBe('fresh');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('serves an expired value at once and refetches it in the background', async () => {
+    const pending: { resolve?: (value: string) => void } = {};
+    const fetcher = vi
+      .fn<(key: string) => Promise<string>>()
+      .mockResolvedValueOnce('first')
+      .mockImplementationOnce(
+        () =>
+          new Promise<string>(resolve => {
+            pending.resolve = resolve;
+          }),
+      );
+    const read = createCachedFetcher('test-revalidate', fetcher, {
+      ttlMs: 1000,
+      revalidateInBackgroundMs: 10_000,
+    });
+    read.clear();
+
+    await read('a');
+    vi.advanceTimersByTime(1001);
+    // The refetch hangs, yet the read resolves with the expired value.
+    expect(await read('a')).toBe('first');
+    expect(await read('a')).toBe('first');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    pending.resolve?.('second');
+    await vi.waitFor(async () => expect(await read('a')).toBe('second'));
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for the refetch once past the background revalidation window', async () => {
+    const fetcher = vi
+      .fn<(key: string) => Promise<string>>()
+      .mockResolvedValueOnce('first')
+      .mockResolvedValueOnce('second');
+    const read = createCachedFetcher('test-revalidate-window', fetcher, {
+      ttlMs: 1000,
+      revalidateInBackgroundMs: 2000,
+    });
+    read.clear();
+
+    await read('a');
+    vi.advanceTimersByTime(3001);
+    expect(await read('a')).toBe('second');
   });
 
   it('drops the oldest keys beyond the cap', async () => {
