@@ -38,6 +38,17 @@ export const getAllClanDrops = async () =>
     osrsName: d.osrsName,
   }));
 
+export const getClanDropCountsByItem = async () => {
+  const byItem = new Map<number | null, { count: number; points: number }>();
+  for (const d of MOCK_DROPS) {
+    const entry = byItem.get(d.itemId) ?? { count: 0, points: 0 };
+    entry.count += 1;
+    entry.points += d.pointsGiven;
+    byItem.set(d.itemId, entry);
+  }
+  return [...byItem.entries()].map(([itemId, v]) => ({ itemId, ...v }));
+};
+
 export const getClanDropsPaginated = async (
   page: number = 1,
   pageSize: number = 10,
