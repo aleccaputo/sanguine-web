@@ -17,8 +17,8 @@ import {
 import { SPECIAL_COMPETITION_IDS } from '~/utils/events-config';
 import { withTimeout } from '~/utils/with-timeout';
 import { fetchOSRSItem } from '~/services/osrs-wiki-prices-service.server';
-import { getAllClanDrops, getClanDropsPaginated } from '~/data/points-audit';
-import { computeClanTotals } from '~/data/points-audit/stats';
+import { getClanDropsPaginated } from '~/data/points-audit';
+import { getClanTotals } from '~/services/clan-totals.server';
 import { getAllUserAlts } from '~/data/user';
 import { getMonthlyWinners } from '~/data/monthly-winners';
 import {
@@ -68,29 +68,14 @@ export async function loader() {
   const statsPromise = Promise.all([
     usersPromise,
     altsPromise,
-    getAllClanDrops(),
-  ]).then(async ([users, allAlts, allDrops]) => {
+    getClanTotals(),
+  ]).then(([users, allAlts, totals]) => {
     const members = users.filter(user => user.nickname);
     // Members play across multiple accounts — the clan counts alts too
     const memberDiscordIds = new Set(members.map(user => user.discordId));
     const altCount = allAlts.filter(alt =>
       memberDiscordIds.has(alt.discordId),
     ).length;
-
-    const uniqueItemIds = [
-      ...new Set(
-        allDrops.map(d => d.itemId).filter((id): id is number => id != null),
-      ),
-    ];
-    const items = await Promise.all(uniqueItemIds.map(id => fetchOSRSItem(id)));
-    const itemMap = new Map<number, OSRSItem>(
-      uniqueItemIds
-        .map((id, i) => [id, items[i]] as const)
-        .filter(
-          (entry): entry is readonly [number, OSRSItem] => entry[1] != null,
-        ),
-    );
-    const totals = computeClanTotals(allDrops, itemMap);
 
     return {
       memberCount: members.length + altCount,

@@ -72,6 +72,32 @@ export const getAllClanDrops = () => {
   });
 };
 
+/** Per-item drop counts for automated drops, grouped in the database. */
+export type ClanDropItemCount = {
+  itemId: number | null;
+  count: number;
+  points: number;
+};
+
+/**
+ * Counts and points per item for every AUTOMATED drop. The home page only needs
+ * totals, and pulling every drop row (~9k docs, a few MB) through Prisma took
+ * ~17s per request; one groupBy returns a few hundred rows instead.
+ */
+export const getClanDropCountsByItem = async (): Promise<ClanDropItemCount[]> => {
+  const groups = await prisma.pointAudit.groupBy({
+    by: ['itemId'],
+    where: { type: 'AUTOMATED' },
+    _count: { _all: true },
+    _sum: { pointsGiven: true },
+  });
+  return groups.map(g => ({
+    itemId: g.itemId,
+    count: g._count._all,
+    points: g._sum.pointsGiven ?? 0,
+  }));
+};
+
 export const getClanDropsPaginated = async (
   page: number = 1,
   pageSize: number = 10,

@@ -60,6 +60,31 @@ export const computeClanTotals = (
     { totalDrops: 0, totalGP: 0, totalPoints: 0 },
   );
 
+export type DropItemCount = {
+  itemId: number | null;
+  count: number;
+  points: number;
+};
+
+/**
+ * The same totals as computeClanTotals, from per-item counts aggregated in the
+ * database instead of one row per drop.
+ */
+export const computeClanTotalsFromCounts = (
+  counts: DropItemCount[],
+  itemMap: ItemMap,
+): ClanTotals =>
+  counts.reduce(
+    (acc, { itemId, count, points }) => ({
+      totalDrops: acc.totalDrops + count,
+      totalGP:
+        acc.totalGP +
+        (itemId != null ? (itemMap.get(itemId)?.price ?? 0) * count : 0),
+      totalPoints: acc.totalPoints + points,
+    }),
+    { totalDrops: 0, totalGP: 0, totalPoints: 0 },
+  );
+
 export type ValuableItem = {
   itemId: number;
   osrsData: OSRSItem;
