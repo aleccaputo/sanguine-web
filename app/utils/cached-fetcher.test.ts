@@ -124,6 +124,30 @@ describe('createCachedFetcher', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  it('fails a hung read so it stops blocking every caller', async () => {
+    const fetcher = vi
+      .fn<(key: string) => Promise<string>>()
+      .mockReturnValueOnce(new Promise<string>(() => undefined))
+      .mockResolvedValueOnce('fresh');
+    const read = createCachedFetcher('test-timeout', fetcher, {
+      ttlMs: 1000,
+      retryAfterMs: 500,
+      timeoutMs: 2000,
+    });
+    read.clear();
+
+    const first = read('a');
+    const joined = read('a');
+    vi.advanceTimersByTime(2001);
+    await expect(first).rejects.toThrow('test-timeout read timed out');
+    await expect(joined).rejects.toThrow('test-timeout read timed out');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(501);
+    expect(await read('a')).toBe('fresh');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it('serves an expired value at once and refetches it in the background', async () => {
     const pending: { resolve?: (value: string) => void } = {};
     const fetcher = vi
