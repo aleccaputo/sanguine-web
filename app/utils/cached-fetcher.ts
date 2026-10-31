@@ -56,11 +56,31 @@ export interface ICachedFetcherOptions<T> {
   retryAfterMs?: number;
   /** Upper bound on cached keys; the oldest are dropped first. Default 256. */
   maxEntries?: number;
+  /**
+   * Fail a read the upstream hasn't answered in this long. Concurrent callers share one
+   * in-flight request, so without a bound a single hung connection (a socket a Fly suspend
+   * left dead) stalls every page that needs the key until TCP gives up, minutes later.
+   * A timeout is handled like any other failure: stale value served, retry backed off.
+   * Default 20s.
+   */
+  timeoutMs?: number;
 }
 
 const DEFAULT_STALE_ON_ERROR_MS = 60 * 60 * 1000;
 const DEFAULT_RETRY_AFTER_MS = 30 * 1000;
 const DEFAULT_MAX_ENTRIES = 256;
+const DEFAULT_TIMEOUT_MS = 20 * 1000;
+
+/** Rejects if `promise` hasn't settled within `ms`; the timer never holds the process open. */
+const rejectAfter = <T>(promise: Promise<T>, ms: number, name: string) =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${name} read timed out after ${ms}ms`)),
+      ms,
+    );
+    timer.unref?.();
+    promise.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
 
 const resolveTtl = <T>(
   ttlMs: ICachedFetcherOptions<T>['ttlMs'],
@@ -104,6 +124,7 @@ export const createCachedFetcher = <T>(
   const staleOnErrorMs = options.staleOnErrorMs ?? DEFAULT_STALE_ON_ERROR_MS;
   const retryAfterMs = options.retryAfterMs ?? DEFAULT_RETRY_AFTER_MS;
   const maxEntries = options.maxEntries ?? DEFAULT_MAX_ENTRIES;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const revalidateInBackgroundMs = options.revalidateInBackgroundMs ?? 0;
   const store = remember(
     `cachedFetcher:${name}`,
@@ -119,7 +140,7 @@ export const createCachedFetcher = <T>(
     if (pending) return pending;
 
     const now = Date.now();
-    const request = fetcher(key)
+    const request = rejectAfter(fetcher(key), timeoutMs, name)
       .then(data => {
         const fetchedAt = Date.now();
         const expiresAt = fetchedAt + resolveTtl(options.ttlMs, data);
