@@ -19,8 +19,14 @@ primary_region = 'dfw'
   min_machines_running = 0
   [http_service.concurrency]
     type = "requests"
-    soft_limit = 200
-    hard_limit = 250
+    # One shared CPU. At 250 a crawler fanning out over every /users/:id at once
+    # (~200 profile loaders, ~10 queries + a Temple call each) all ran together,
+    # pushing every query to 5-10s and tripping Temple's 429s. Past the hard
+    # limit Fly's proxy queues requests instead, so they drain at a pace the
+    # machine and upstreams can take. Static assets are fast, so a normal page
+    # load never gets near it.
+    soft_limit = 25
+    hard_limit = 50
 
 [[vm]]
   memory = '1gb'

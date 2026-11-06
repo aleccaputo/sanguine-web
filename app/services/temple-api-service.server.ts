@@ -42,7 +42,16 @@ const templeOp = (path: string): string =>
     .pop()
     ?.replace(/\.php$/, '') ?? path;
 
-const fetchTempleJson = <T>(path: string): Promise<T> =>
+/**
+ * `emptyResult` maps error-envelope codes that are really answers ("nothing to
+ * report") to the value they stand for, so they're cached and tracked as
+ * successful calls instead of being refetched on every view and counted as
+ * upstream failures.
+ */
+const fetchTempleJson = <T>(
+  path: string,
+  emptyResult?: (code: number) => T | undefined,
+): Promise<T> =>
   trackOutbound('temple', templeOp(path), async () => {
     const response = await fetch(`${TEMPLE_BASE_URL}${path}`, {
       headers: TEMPLE_HEADERS,
@@ -56,6 +65,8 @@ const fetchTempleJson = <T>(path: string): Promise<T> =>
     }
     const body: T & ITempleErrorEnvelope = await response.json();
     if (body.error) {
+      const empty = emptyResult?.(body.error.Code);
+      if (empty !== undefined) return empty;
       throw httpError(
         `TempleOSRS error ${body.error.Code}: ${body.error.Message}`,
         body.error.Code,
@@ -104,11 +115,18 @@ export const getGroupRecentNotableItems = (): Promise<
   ITempleGroupRecentItem[]
 > => groupRecentItemsFetcher('group');
 
+// 402: the player has never synced. 403: "Player has not received any new items
+// after their initial sync." Both mean "no recent items", not a failure; 403 is
+// the common one, and as a thrown error it was neither cached (so every profile
+// view refetched it) nor distinguishable from Temple actually being down.
+const NO_RECENT_ITEMS_CODES = new Set([402, 403]);
+
 const playerRecentItemsFetcher = createCachedFetcher(
   'templePlayerRecentItems',
   player =>
     fetchTempleJson<{ data: ITempleRecentItem[] }>(
       `/collection-log/player_recent_items.php?player=${encodeURIComponent(player)}&count=25`,
+      code => (NO_RECENT_ITEMS_CODES.has(code) ? { data: [] } : undefined),
     ).then(body => body.data),
   {
     ttlMs: RECENT_ITEMS_CACHE_DURATION,
