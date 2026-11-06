@@ -92,18 +92,19 @@ export async function loader({ params }: LoaderFunctionArgs) {
   if (!params.id) {
     throw new Response('', { status: 404 });
   }
-  const womComp = await getCompetitionById(parseInt(params.id, 10));
-  const sanguineUsersPromise = getUsersWithNicknames();
-  const pointAuditPromise = getAuditDataForDateRange(
-    womComp.startsAt.toISOString(),
-    womComp.endsAt.toISOString(),
-  );
-  const userAltsPromise = getAllUserAlts();
-
-  const [sanguineUsers, pointAudit, userAlts] = await Promise.all([
-    sanguineUsersPromise,
-    pointAuditPromise,
-    userAltsPromise,
+  // Only the audit range depends on the competition; the member reads overlap the
+  // WOM round-trip (~2s cold) instead of queuing behind it.
+  const womCompPromise = getCompetitionById(parseInt(params.id, 10));
+  const [womComp, sanguineUsers, pointAudit, userAlts] = await Promise.all([
+    womCompPromise,
+    getUsersWithNicknames(),
+    womCompPromise.then(comp =>
+      getAuditDataForDateRange(
+        comp.startsAt.toISOString(),
+        comp.endsAt.toISOString(),
+      ),
+    ),
+    getAllUserAlts(),
   ]);
 
   // ONE_TIME awards and clan-bucket payouts (raids, manual clan adjustments, post-cutover
